@@ -1,5 +1,7 @@
 import './globals.css'
 import { Providers } from './providers'
+import { Analytics } from '@vercel/analytics/next'
+import { SpeedInsights } from '@vercel/speed-insights/next'
 
 export const metadata = {
   title: 'Forensique — UGC NET/JRF Forensic Science Paper II',
@@ -14,6 +16,8 @@ export default function RootLayout({ children }) {
       </head>
       <body className="min-h-screen bg-background text-foreground antialiased">
         <Providers>{children}</Providers>
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   )
