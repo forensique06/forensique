@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { getSupabaseBrowser } from '@/lib/supabase/browser'
@@ -12,7 +12,7 @@ import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Loader2, PlayCircle, RotateCw, ClipboardCheck, Upload, Sparkles, IndianRupee, XCircle, CheckCircle2 } from 'lucide-react'
 
-export default function DashboardPage() {
+function DashboardInner() {
   const supabase = getSupabaseBrowser()
   const router = useRouter()
   const params = useSearchParams()
@@ -222,5 +222,13 @@ export default function DashboardPage() {
       </main>
       <SiteFooter/>
     </>
+  )
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={<div className="p-16 flex items-center justify-center gap-2 text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin"/>Loading dashboard…</div>}>
+      <DashboardInner />
+    </Suspense>
   )
 }
