@@ -171,7 +171,8 @@ function DashboardInner() {
           ) : (
             <div className="grid gap-3 md:grid-cols-2">
               {tests.map((t) => {
-                const gated = t.is_premium && !isSubActive
+                const isAdmin = profile?.role === 'admin'
+const gated = t.is_premium && !isAdmin && !isSubActive
                 return (
                   <Card key={t.id} className={gated ? 'opacity-70' : ''}>
                     <CardHeader>
