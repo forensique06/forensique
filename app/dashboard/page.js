@@ -4,12 +4,32 @@ import { useEffect, useState, Suspense } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { getSupabaseBrowser } from '@/lib/supabase/browser'
+
 import SiteHeader from '@/components/site-header'
 import SiteFooter from '@/components/site-footer'
+
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from '@/components/ui/alert-dialog'
+
 import {
   Loader2,
   PlayCircle,
@@ -34,12 +54,16 @@ function DashboardInner() {
   const [tests, setTests] = useState([])
   const [attempts, setAttempts] = useState([])
   const [subscription, setSubscription] = useState(null)
-  const [starting, setStarting] = useState(null)
 
-  const [deleting, setDeleting] = useState(null)
+  const [starting, setStarting] = useState(null)
 
   const [cancelBusy, setCancelBusy] = useState(false)
   const [cancelResult, setCancelResult] = useState(null)
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false)
+
+  const [deleteTarget, setDeleteTarget] = useState(null)
+  const [deleteBusy, setDeleteBusy] = useState(false)
+  const [deleteError, setDeleteError] = useState(null)
 
   const showUpgraded = params.get('upgraded') === '1'
 
@@ -71,7 +95,7 @@ function DashboardInner() {
         supabase
           .from('tests')
           .select(
-            'id, test_id, title, test_type, total_questions, duration_minutes, is_premium, is_user_generated, status'
+            'id, test_id, title, test_type, total_questions, duration_minutes, is_premium, is_user_generated, created_by, status'
           )
           .eq('status', 'published')
           .order('created_at', { ascending: false }),
@@ -131,66 +155,8 @@ function DashboardInner() {
     }
   }
 
-  async function deleteCustomTest(testId) {
-    const test = tests.find((t) => t.id === testId)
-
-    if (!test) return
-
-    // Frontend safety check.
-    // The database RLS policy is the actual security boundary.
-    if (
-      test.is_user_generated !== true ||
-      test.test_type !== 'custom'
-    ) {
-      alert('This test cannot be deleted.')
-      return
-    }
-
-    const confirmed = confirm(
-      `Delete "${test.title}"?\n\nThis will permanently delete the custom test and its attempt history. This action cannot be undone.`
-    )
-
-    if (!confirmed) return
-
-    setDeleting(testId)
-
-    try {
-      const { error } = await supabase
-        .from('tests')
-        .delete()
-        .eq('id', testId)
-
-      if (error) {
-        throw new Error(error.message)
-      }
-
-      // Remove it from the dashboard without requiring a full page reload.
-      setTests((currentTests) =>
-        currentTests.filter((t) => t.id !== testId)
-      )
-
-      // Remove its attempts from the currently displayed recent attempts.
-      setAttempts((currentAttempts) =>
-        currentAttempts.filter((a) => a.test_id !== testId)
-      )
-    } catch (e) {
-      console.error('Failed to delete custom test:', e)
-      alert(`Failed to delete test: ${e.message}`)
-    } finally {
-      setDeleting(null)
-    }
-  }
-
   async function cancelSubscription() {
     if (!subscription?.razorpay_subscription_id) return
-
-    if (
-      !confirm(
-        'Cancel your subscription at the end of the current billing cycle? You keep access until then.'
-      )
-    ) {
-      return
-    }
 
     setCancelBusy(true)
     setCancelResult(null)
@@ -219,6 +185,7 @@ function DashboardInner() {
       }
 
       setCancelResult({ ok: true })
+      setShowCancelConfirm(false)
 
       const { data: subs } = await supabase
         .from('subscriptions')
@@ -238,10 +205,63 @@ function DashboardInner() {
     }
   }
 
+  async function deleteCustomTest(testId) {
+    if (!deleteTarget || deleteBusy) return
+
+    setDeleteBusy(true)
+    setDeleteError(null)
+
+    try {
+      const { data, error } = await supabase
+        .from('tests')
+        .delete()
+        .eq('id', testId)
+        .select('id')
+
+      if (error) {
+        throw error
+      }
+
+      /*
+       * The RLS DELETE policy only allows the owner of a generated
+       * custom test to delete it.
+       *
+       * If zero rows are returned, the delete policy did not allow
+       * the operation or the test no longer exists.
+       */
+      if (!data || data.length === 0) {
+        throw new Error(
+          'The custom test could not be deleted. You may not have permission to delete it.'
+        )
+      }
+
+      setTests((current) =>
+        current.filter((test) => test.id !== testId)
+      )
+
+      /*
+       * The database cascade removes the associated test attempts
+       * and their dependent response records.
+       */
+      setAttempts((current) =>
+        current.filter((attempt) => attempt.test_id !== testId)
+      )
+
+      setDeleteTarget(null)
+    } catch (e) {
+      setDeleteError(
+        e?.message || 'Failed to delete the custom test.'
+      )
+    } finally {
+      setDeleteBusy(false)
+    }
+  }
+
   if (loading) {
     return (
       <>
         <SiteHeader />
+
         <div className="p-16 flex items-center justify-center gap-2 text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" />
           Loading dashboard…
@@ -300,9 +320,9 @@ function DashboardInner() {
         {showUpgraded && (
           <Alert className="mb-6 border-emerald-500">
             <AlertDescription>
-              🎉 Payment received. Your Test Series subscription is being
-              activated — refresh in a few seconds if it doesn&apos;t show
-              here yet.
+              🎉 Payment received. Your Test Series subscription is
+              being activated — refresh in a few seconds if it
+              doesn&apos;t show here yet.
             </AlertDescription>
           </Alert>
         )}
@@ -326,8 +346,8 @@ function DashboardInner() {
 
                   <p className="text-xs text-muted-foreground">
                     Access to the free UGC NET FS June 2025 paper.
-                    Subscribe to unlock all previous-year papers, the
-                    custom test builder, and analytics.
+                    Subscribe to unlock all previous-year papers,
+                    the custom test builder, and analytics.
                   </p>
                 </div>
 
@@ -377,15 +397,11 @@ function DashboardInner() {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={cancelSubscription}
+                        onClick={() => setShowCancelConfirm(true)}
                         disabled={cancelBusy}
                         className="gap-1"
                       >
-                        {cancelBusy ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <XCircle className="h-4 w-4" />
-                        )}
+                        <XCircle className="h-4 w-4" />
                         Cancel subscription
                       </Button>
                     )}
@@ -398,8 +414,8 @@ function DashboardInner() {
                       {new Date(
                         subscription.expires_at
                       ).toLocaleDateString()}
-                      . No further debits will occur. Resubscribe anytime
-                      from the pricing page.
+                      . No further debits will occur. Resubscribe
+                      anytime from the pricing page.
                     </AlertDescription>
                   </Alert>
                 )}
@@ -407,7 +423,8 @@ function DashboardInner() {
                 {cancelResult?.ok && (
                   <Alert className="border-emerald-500">
                     <AlertDescription>
-                      Cancellation scheduled. You keep access until{' '}
+                      Cancellation scheduled. You keep access
+                      until{' '}
                       {new Date(
                         subscription.expires_at
                       ).toLocaleDateString()}
@@ -428,7 +445,7 @@ function DashboardInner() {
           </CardContent>
         </Card>
 
-        {/* CONTINUE IN-PROGRESS ATTEMPTS */}
+        {/* CONTINUE WHERE YOU LEFT OFF */}
         {inProgress.length > 0 && (
           <div className="mb-8">
             <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">
@@ -453,10 +470,7 @@ function DashboardInner() {
                     </div>
 
                     <Link href={`/attempt/${a.id}`}>
-                      <Button
-                        size="sm"
-                        className="gap-1"
-                      >
+                      <Button size="sm" className="gap-1">
                         <RotateCw className="h-4 w-4" />
                         Resume
                       </Button>
@@ -498,7 +512,8 @@ function DashboardInner() {
                     >
                       Admin → Import
                     </Link>{' '}
-                    to import the sample UGC NET FS 2025 June paper.
+                    to import the sample UGC NET FS 2025 June
+                    paper.
                   </>
                 ) : (
                   ' Check back soon.'
@@ -515,9 +530,10 @@ function DashboardInner() {
                   !isAdmin &&
                   !isSubActive
 
-                const isCustomTest =
+                const isOwnCustomTest =
                   t.is_user_generated === true &&
-                  t.test_type === 'custom'
+                  t.test_type === 'custom' &&
+                  t.created_by === user?.id
 
                 return (
                   <Card
@@ -538,7 +554,7 @@ function DashboardInner() {
                           </CardDescription>
                         </div>
 
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 shrink-0">
                           {!t.is_premium && (
                             <Badge variant="secondary">
                               Free
@@ -551,12 +567,6 @@ function DashboardInner() {
                                 Premium
                               </Badge>
                             )}
-
-                          {isCustomTest && (
-                            <Badge variant="outline">
-                              Custom
-                            </Badge>
-                          )}
                         </div>
                       </div>
                     </CardHeader>
@@ -579,41 +589,38 @@ function DashboardInner() {
                             onClick={() =>
                               startAttempt(t.id)
                             }
-                            disabled={
-                              starting === t.id ||
-                              deleting === t.id
+                            disabled={starting === t.id}
+                            className={
+                              isOwnCustomTest
+                                ? 'gap-2 flex-1'
+                                : 'gap-2 w-full'
                             }
-                            className="gap-2 flex-1"
                           >
                             {starting === t.id ? (
                               <Loader2 className="h-4 w-4 animate-spin" />
                             ) : (
                               <PlayCircle className="h-4 w-4" />
                             )}
+
                             Start attempt
                           </Button>
 
-                          {isCustomTest && (
+                          {isOwnCustomTest && (
                             <Button
+                              type="button"
                               size="sm"
                               variant="destructive"
-                              onClick={() =>
-                                deleteCustomTest(t.id)
-                              }
-                              disabled={
-                                deleting === t.id ||
-                                starting === t.id
-                              }
-                              className="gap-2"
+                              onClick={() => {
+                                setDeleteError(null)
+                                setDeleteTarget(t)
+                              }}
+                              disabled={deleteBusy}
+                              aria-label={`Delete ${t.title}`}
                               title="Delete custom test"
                             >
-                              {deleting === t.id ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <Trash2 className="h-4 w-4" />
-                              )}
-                              <span className="hidden sm:inline">
-                                Delete
+                              <Trash2 className="h-4 w-4" />
+                              <span className="sr-only">
+                                Delete custom test
                               </span>
                             </Button>
                           )}
@@ -645,10 +652,10 @@ function DashboardInner() {
 
                       <div className="text-xs text-muted-foreground">
                         {new Date(
-                          a.submitted_at || a.started_at
+                          a.submitted_at ||
+                            a.started_at
                         ).toLocaleString()}{' '}
-                        · Score{' '}
-                        {Number(a.score ?? 0)} /{' '}
+                        · Score {Number(a.score ?? 0)} /{' '}
                         {(a.tests?.total_questions ?? 0) * 2}{' '}
                         · {a.correct_count}✅{' '}
                         {a.incorrect_count}❌{' '}
@@ -675,6 +682,129 @@ function DashboardInner() {
       </main>
 
       <SiteFooter />
+
+      {/* DELETE CUSTOM TEST CONFIRMATION */}
+      <AlertDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => {
+          if (!open && !deleteBusy) {
+            setDeleteTarget(null)
+            setDeleteError(null)
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Trash2 className="h-5 w-5 text-destructive" />
+              Delete custom test?
+            </AlertDialogTitle>
+
+            <AlertDialogDescription>
+              This will permanently delete{' '}
+              <span className="font-medium text-foreground">
+                &quot;{deleteTarget?.title}&quot;
+              </span>{' '}
+              and its attempt history. This action cannot be
+              undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          {deleteError && (
+            <Alert variant="destructive">
+              <AlertDescription>
+                {deleteError}
+              </AlertDescription>
+            </Alert>
+          )}
+
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteBusy}>
+              Cancel
+            </AlertDialogCancel>
+
+            <AlertDialogAction
+              disabled={deleteBusy}
+              onClick={async (event) => {
+                event.preventDefault()
+
+                if (!deleteTarget || deleteBusy) {
+                  return
+                }
+
+                await deleteCustomTest(deleteTarget.id)
+              }}
+              className="gap-2"
+            >
+              {deleteBusy ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Deleting…
+                </>
+              ) : (
+                <>
+                  <Trash2 className="h-4 w-4" />
+                  Delete test
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* CANCEL SUBSCRIPTION CONFIRMATION */}
+      <AlertDialog
+        open={showCancelConfirm}
+        onOpenChange={(open) => {
+          if (!cancelBusy) {
+            setShowCancelConfirm(open)
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Cancel subscription?
+            </AlertDialogTitle>
+
+            <AlertDialogDescription>
+              Your subscription will remain active until the end
+              of the current billing period. No further debits
+              will occur after cancellation.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={cancelBusy}>
+              Keep subscription
+            </AlertDialogCancel>
+
+            <AlertDialogAction
+              disabled={cancelBusy}
+              onClick={async (event) => {
+                event.preventDefault()
+
+                if (cancelBusy) return
+
+                await cancelSubscription()
+              }}
+              className="gap-2"
+            >
+              {cancelBusy ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Cancelling…
+                </>
+              ) : (
+                <>
+                  <XCircle className="h-4 w-4" />
+                  Cancel subscription
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   )
 }
