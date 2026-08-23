@@ -7,7 +7,13 @@ import { getSupabaseBrowser } from '@/lib/supabase/browser'
 import SiteHeader from '@/components/site-header'
 import SiteFooter from '@/components/site-footer'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import {
@@ -19,8 +25,124 @@ import {
   Sparkles,
   IndianRupee,
   XCircle,
-  CheckCircle2
+  CheckCircle2,
+  Trash2,
+  Clock3,
+  CalendarDays,
+  CircleX,
+  Circle,
+  RotateCcw,
 } from 'lucide-react'
+
+function formatAttemptDate(dateValue) {
+  if (!dateValue) return '—'
+
+  const date = new Date(dateValue)
+
+  return {
+    date: date.toLocaleDateString('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    }),
+    time: date.toLocaleTimeString('en-IN', {
+      hour: 'numeric',
+      minute: '2-digit',
+    }),
+  }
+}
+
+function getAccuracy(correct, incorrect) {
+  const attempted = correct + incorrect
+
+  if (attempted === 0) return 0
+
+  return Math.round((correct / attempted) * 100)
+}
+
+function AttemptStat({ icon: Icon, value, label, className = '' }) {
+  return (
+    <div className={`flex items-center gap-2 ${className}`}>
+      <Icon className="h-4 w-4 shrink-0" />
+      <span className="font-medium tabular-nums">{value}</span>
+      <span className="text-muted-foreground">{label}</span>
+    </div>
+  )
+}
+
+function DeleteConfirmation({
+  test,
+  deleting,
+  onCancel,
+  onConfirm,
+}) {
+  if (!test) return null
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 backdrop-blur-[2px]">
+      <Card className="w-full max-w-md shadow-xl">
+        <CardHeader>
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-destructive/10">
+              <Trash2 className="h-5 w-5 text-destructive" />
+            </div>
+
+            <div className="min-w-0">
+              <CardTitle className="text-base">
+                Delete custom test?
+              </CardTitle>
+              <CardDescription className="mt-1">
+                This action cannot be undone.
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+
+        <CardContent>
+          <div className="rounded-md border border-border bg-muted/40 p-3">
+            <p className="font-medium text-sm break-words">
+              {test.title}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {test.total_questions} questions · {test.duration_minutes} min
+            </p>
+          </div>
+
+          <p className="mt-4 text-sm text-muted-foreground leading-relaxed">
+            Deleting this custom test will permanently remove the test and its
+            attempt history.
+          </p>
+
+          <div className="mt-6 flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onCancel}
+              disabled={deleting}
+            >
+              Cancel
+            </Button>
+
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={onConfirm}
+              disabled={deleting}
+              className="gap-2"
+            >
+              {deleting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Trash2 className="h-4 w-4" />
+              )}
+              {deleting ? 'Deleting…' : 'Delete test'}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
 
 function DashboardInner() {
   const supabase = getSupabaseBrowser()
@@ -33,73 +155,99 @@ function DashboardInner() {
   const [tests, setTests] = useState([])
   const [attempts, setAttempts] = useState([])
   const [subscription, setSubscription] = useState(null)
+
   const [starting, setStarting] = useState(null)
+
   const [cancelBusy, setCancelBusy] = useState(false)
   const [cancelResult, setCancelResult] = useState(null)
+
+  const [deleteTarget, setDeleteTarget] = useState(null)
+  const [deleteBusy, setDeleteBusy] = useState(false)
+  const [deleteError, setDeleteError] = useState(null)
 
   const showUpgraded = params.get('upgraded') === '1'
 
   useEffect(() => {
     ;(async () => {
-      const {
-        data: { user }
-      } = await supabase.auth.getUser()
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser()
 
-      if (!user) {
-        router.replace('/auth')
-        return
+        if (!user) {
+          router.replace('/auth')
+          return
+        }
+
+        setUser(user)
+
+        const [
+          { data: prof },
+          { data: ts },
+          { data: at },
+          { data: subs },
+        ] = await Promise.all([
+          supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', user.id)
+            .maybeSingle(),
+
+          supabase
+            .from('tests')
+            .select(
+              'id, test_id, title, test_type, total_questions, duration_minutes, marks_per_question, is_premium, is_user_generated, created_by, status'
+            )
+            .eq('status', 'published')
+            .order('created_at', { ascending: false }),
+
+          supabase
+            .from('test_attempts')
+            .select(
+              `
+                id,
+                status,
+                started_at,
+                submitted_at,
+                score,
+                correct_count,
+                incorrect_count,
+                unattempted_count,
+                time_taken_seconds,
+                test_id,
+                tests(
+                  id,
+                  title,
+                  total_questions,
+                  duration_minutes,
+                  marks_per_question,
+                  test_type,
+                  is_user_generated,
+                  created_by
+                )
+              `
+            )
+            .eq('user_id', user.id)
+            .order('started_at', { ascending: false })
+            .limit(20),
+
+          supabase
+            .from('subscriptions')
+            .select('*, plans(name, price_paise, features)')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false })
+            .limit(1),
+        ])
+
+        setProfile(prof)
+        setTests(ts || [])
+        setAttempts(at || [])
+        setSubscription(subs?.[0] || null)
+      } catch (error) {
+        console.error('Dashboard loading failed:', error)
+      } finally {
+        setLoading(false)
       }
-
-      setUser(user)
-
-      const [
-        { data: prof },
-        { data: ts },
-        { data: at },
-        { data: subs }
-      ] = await Promise.all([
-        supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .maybeSingle(),
-
-        supabase
-          .from('tests')
-          .select(
-            'id, test_id, title, test_type, total_questions, duration_minutes, is_premium, status'
-          )
-          .eq('status', 'published')
-          .order('created_at', { ascending: false }),
-
-        // INNER JOIN with tests.
-        // Attempts whose test has been deleted can no longer appear.
-        supabase
-          .from('test_attempts')
-          .select(
-            'id, status, started_at, submitted_at, score, correct_count, incorrect_count, unattempted_count, test_id, tests!inner(title, total_questions)'
-          )
-          .eq('user_id', user.id)
-          .order('started_at', { ascending: false })
-          .limit(10),
-
-        supabase
-          .from('subscriptions')
-          .select('*, plans(name, price_paise, features)')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(1)
-      ])
-
-      setProfile(prof)
-      setTests(ts || [])
-
-      // Defensive filtering:
-      // even if an orphaned attempt somehow exists, never display it.
-      setAttempts((at || []).filter((attempt) => attempt.tests))
-
-      setSubscription(subs?.[0] || null)
-      setLoading(false)
     })()
   }, [supabase, router])
 
@@ -108,16 +256,20 @@ function DashboardInner() {
 
     try {
       const {
-        data: { session }
+        data: { session },
       } = await supabase.auth.getSession()
+
+      if (!session?.access_token) {
+        throw new Error('Your session has expired. Please sign in again.')
+      }
 
       const res = await fetch('/api/attempt/create', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${session.access_token}`
+          Authorization: `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({ test_id: testId })
+        body: JSON.stringify({ test_id: testId }),
       })
 
       const j = await res.json()
@@ -128,8 +280,63 @@ function DashboardInner() {
 
       router.push(`/attempt/${j.attempt_id}`)
     } catch (e) {
-      alert(e.message)
+      console.error(e)
+      window.alert(e.message || 'Failed to start attempt')
       setStarting(null)
+    }
+  }
+
+  async function deleteCustomTest() {
+    if (!deleteTarget || !user) return
+
+    setDeleteBusy(true)
+    setDeleteError(null)
+
+    try {
+      /*
+       * The RLS policy on public.tests is the final authorization layer.
+       * These filters also make the intent explicit on the client:
+       * - custom test
+       * - user generated
+       * - created by the current user
+       */
+      const { error } = await supabase
+        .from('tests')
+        .delete()
+        .eq('id', deleteTarget.id)
+        .eq('test_type', 'custom')
+        .eq('is_user_generated', true)
+        .eq('created_by', user.id)
+
+      if (error) {
+        throw error
+      }
+
+      /*
+       * Remove the test from the UI immediately.
+       */
+      setTests((current) =>
+        current.filter((test) => test.id !== deleteTarget.id)
+      )
+
+      /*
+       * Because test_attempts now uses ON DELETE CASCADE,
+       * associated attempt rows are removed by PostgreSQL as well.
+       * Removing them locally keeps the dashboard immediately consistent.
+       */
+      setAttempts((current) =>
+        current.filter((attempt) => attempt.test_id !== deleteTarget.id)
+      )
+
+      setDeleteTarget(null)
+    } catch (error) {
+      console.error('Delete custom test failed:', error)
+
+      setDeleteError(
+        error.message || 'Failed to delete the custom test.'
+      )
+    } finally {
+      setDeleteBusy(false)
     }
   }
 
@@ -137,7 +344,7 @@ function DashboardInner() {
     if (!subscription?.razorpay_subscription_id) return
 
     if (
-      !confirm(
+      !window.confirm(
         'Cancel your subscription at the end of the current billing cycle? You keep access until then.'
       )
     ) {
@@ -149,19 +356,19 @@ function DashboardInner() {
 
     try {
       const {
-        data: { session }
+        data: { session },
       } = await supabase.auth.getSession()
 
       const res = await fetch('/api/billing/cancel', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${session.access_token}`
+          Authorization: `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({
           razorpay_subscription_id:
-            subscription.razorpay_subscription_id
-        })
+            subscription.razorpay_subscription_id,
+        }),
       })
 
       const j = await res.json()
@@ -183,7 +390,7 @@ function DashboardInner() {
     } catch (e) {
       setCancelResult({
         ok: false,
-        error: e.message
+        error: e.message,
       })
     } finally {
       setCancelBusy(false)
@@ -194,6 +401,7 @@ function DashboardInner() {
     return (
       <>
         <SiteHeader />
+
         <div className="p-16 flex items-center justify-center gap-2 text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" />
           Loading dashboard…
@@ -203,11 +411,22 @@ function DashboardInner() {
   }
 
   const inProgress = attempts.filter(
-    (a) => a.status === 'in_progress'
+    (attempt) =>
+      attempt.status === 'in_progress' &&
+      attempt.tests
   )
 
+  /*
+   * IMPORTANT:
+   * Only display submitted attempts whose parent test still exists.
+   *
+   * This prevents old/orphaned custom-test attempts from appearing in
+   * Recent Attempts even if there is stale data somewhere.
+   */
   const submitted = attempts.filter(
-    (a) => a.status !== 'in_progress'
+    (attempt) =>
+      attempt.status !== 'in_progress' &&
+      attempt.tests
   )
 
   const isSubActive =
@@ -252,9 +471,29 @@ function DashboardInner() {
         {showUpgraded && (
           <Alert className="mb-6 border-emerald-500">
             <AlertDescription>
-              🎉 Payment received. Your Test Series subscription is being
+              Payment received. Your Test Series subscription is being
               activated — refresh in a few seconds if it doesn&apos;t show
               here yet.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {deleteError && (
+          <Alert
+            variant="destructive"
+            className="mb-6"
+          >
+            <AlertDescription className="flex items-center justify-between gap-4">
+              <span>{deleteError}</span>
+
+              <button
+                type="button"
+                onClick={() => setDeleteError(null)}
+                className="shrink-0 opacity-70 hover:opacity-100"
+                aria-label="Dismiss error"
+              >
+                <XCircle className="h-4 w-4" />
+              </button>
             </AlertDescription>
           </Alert>
         )}
@@ -278,8 +517,8 @@ function DashboardInner() {
 
                   <p className="text-xs text-muted-foreground">
                     Access to the free UGC NET FS June 2025 paper.
-                    Subscribe to unlock all previous-year papers, the
-                    custom test builder, and analytics.
+                    Subscribe to unlock all previous-year papers,
+                    the custom test builder, and analytics.
                   </p>
                 </div>
 
@@ -350,8 +589,8 @@ function DashboardInner() {
                       {new Date(
                         subscription.expires_at
                       ).toLocaleDateString()}
-                      . No further debits will occur. Resubscribe anytime
-                      from the pricing page.
+                      . No further debits will occur. Resubscribe
+                      anytime from the pricing page.
                     </AlertDescription>
                   </Alert>
                 )}
@@ -380,6 +619,7 @@ function DashboardInner() {
           </CardContent>
         </Card>
 
+        {/* CONTINUE WHERE YOU LEFT OFF */}
         {inProgress.length > 0 && (
           <div className="mb-8">
             <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">
@@ -387,24 +627,34 @@ function DashboardInner() {
             </h2>
 
             <div className="grid gap-3 md:grid-cols-2">
-              {inProgress.map((a) => (
-                <Card key={a.id}>
-                  <CardContent className="pt-6 flex justify-between items-center gap-2">
-                    <div>
-                      <div className="font-medium">
-                        {a.tests?.title}
+              {inProgress.map((attempt) => (
+                <Card key={attempt.id}>
+                  <CardContent className="pt-6 flex justify-between items-center gap-3">
+                    <div className="min-w-0">
+                      <div className="font-medium truncate">
+                        {attempt.tests?.title}
                       </div>
 
-                      <div className="text-xs text-muted-foreground">
+                      <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1.5">
+                        <Clock3 className="h-3.5 w-3.5" />
                         Started{' '}
                         {new Date(
-                          a.started_at
-                        ).toLocaleString()}
+                          attempt.started_at
+                        ).toLocaleString('en-IN', {
+                          day: '2-digit',
+                          month: 'short',
+                          year: 'numeric',
+                          hour: 'numeric',
+                          minute: '2-digit',
+                        })}
                       </div>
                     </div>
 
-                    <Link href={`/attempt/${a.id}`}>
-                      <Button size="sm" className="gap-1">
+                    <Link href={`/attempt/${attempt.id}`}>
+                      <Button
+                        size="sm"
+                        className="gap-1 shrink-0"
+                      >
                         <RotateCw className="h-4 w-4" />
                         Resume
                       </Button>
@@ -416,8 +666,9 @@ function DashboardInner() {
           </div>
         )}
 
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-2">
+        {/* AVAILABLE TESTS */}
+        <div className="mb-10">
+          <div className="flex items-center justify-between mb-3">
             <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
               Available tests
             </h2>
@@ -435,6 +686,7 @@ function DashboardInner() {
             <Card>
               <CardContent className="pt-6 text-center text-sm text-muted-foreground">
                 No tests published yet.
+
                 {profile?.role === 'admin' ? (
                   <>
                     {' '}
@@ -454,72 +706,111 @@ function DashboardInner() {
             </Card>
           ) : (
             <div className="grid gap-3 md:grid-cols-2">
-              {tests.map((t) => {
+              {tests.map((test) => {
                 const isAdmin = profile?.role === 'admin'
+
                 const gated =
-                  t.is_premium &&
+                  test.is_premium &&
                   !isAdmin &&
                   !isSubActive
 
+                const isOwnCustomTest =
+                  test.is_user_generated === true &&
+                  test.test_type === 'custom' &&
+                  test.created_by === user?.id
+
                 return (
                   <Card
-                    key={t.id}
+                    key={test.id}
                     className={gated ? 'opacity-70' : ''}
                   >
                     <CardHeader>
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
                           <CardTitle className="text-base">
-                            {t.title}
+                            {test.title}
                           </CardTitle>
 
                           <CardDescription>
-                            {t.total_questions} questions ·{' '}
-                            {t.duration_minutes} min ·{' '}
-                            {t.test_type.replace('_', ' ')}
+                            {test.total_questions} questions ·{' '}
+                            {test.duration_minutes} min ·{' '}
+                            {test.test_type.replace('_', ' ')}
                           </CardDescription>
                         </div>
 
-                        {!t.is_premium && (
-                          <Badge variant="secondary">
-                            Free
-                          </Badge>
-                        )}
+                        <div className="flex items-center gap-2 shrink-0">
+                          {!test.is_premium && (
+                            <Badge variant="secondary">
+                              Free
+                            </Badge>
+                          )}
 
-                        {t.is_premium && !isSubActive && (
-                          <Badge variant="outline">
-                            Premium
-                          </Badge>
-                        )}
+                          {test.is_premium &&
+                            !isSubActive && (
+                              <Badge variant="outline">
+                                Premium
+                              </Badge>
+                            )}
+                        </div>
                       </div>
                     </CardHeader>
 
                     <CardContent>
-                      {gated ? (
-                        <Link href="/pricing">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="w-full"
+                      <div className="flex gap-2">
+                        {gated ? (
+                          <Link
+                            href="/pricing"
+                            className="flex-1"
                           >
-                            Subscribe to unlock
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="w-full"
+                            >
+                              Subscribe to unlock
+                            </Button>
+                          </Link>
+                        ) : (
+                          <Button
+                            size="sm"
+                            onClick={() =>
+                              startAttempt(test.id)
+                            }
+                            disabled={
+                              starting === test.id
+                            }
+                            className="gap-2 flex-1"
+                          >
+                            {starting === test.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <PlayCircle className="h-4 w-4" />
+                            )}
+
+                            Start attempt
                           </Button>
-                        </Link>
-                      ) : (
-                        <Button
-                          size="sm"
-                          onClick={() => startAttempt(t.id)}
-                          disabled={starting === t.id}
-                          className="gap-2 w-full"
-                        >
-                          {starting === t.id ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <PlayCircle className="h-4 w-4" />
-                          )}
-                          Start attempt
-                        </Button>
-                      )}
+                        )}
+
+                        {isOwnCustomTest && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => {
+                              setDeleteError(null)
+                              setDeleteTarget(test)
+                            }}
+                            className="gap-2"
+                            aria-label={`Delete ${test.title}`}
+                            title="Delete custom test"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            <span className="hidden sm:inline">
+                              Delete
+                            </span>
+                          </Button>
+                        )}
+                      </div>
                     </CardContent>
                   </Card>
                 )
@@ -528,51 +819,228 @@ function DashboardInner() {
           )}
         </div>
 
+        {/* RECENT ATTEMPTS */}
         {submitted.length > 0 && (
           <div>
-            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-              Recent attempts
-            </h2>
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                  Recent attempts
+                </h2>
 
-            <div className="grid gap-2">
-              {submitted.map((a) => (
-                <Card key={a.id}>
-                  <CardContent className="pt-6 flex justify-between items-center flex-wrap gap-2">
-                    <div>
-                      <div className="font-medium">
-                        {a.tests?.title}
+                <p className="text-xs text-muted-foreground mt-1">
+                  Your latest completed test attempts
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              {submitted.map((attempt) => {
+                const correct = Number(
+                  attempt.correct_count ?? 0
+                )
+
+                const incorrect = Number(
+                  attempt.incorrect_count ?? 0
+                )
+
+                const unattempted = Number(
+                  attempt.unattempted_count ?? 0
+                )
+
+                const accuracy = getAccuracy(
+                  correct,
+                  incorrect
+                )
+
+                const totalQuestions = Number(
+                  attempt.tests?.total_questions ?? 0
+                )
+
+                const marksPerQuestion = Number(
+                  attempt.tests?.marks_per_question ?? 2
+                )
+
+                const maxScore =
+                  totalQuestions * marksPerQuestion
+
+                const score = Number(
+                  attempt.score ?? 0
+                )
+
+                const dateTime = formatAttemptDate(
+                  attempt.submitted_at ||
+                    attempt.started_at
+                )
+
+                const isCustom =
+                  attempt.tests?.is_user_generated === true ||
+                  attempt.tests?.test_type === 'custom'
+
+                return (
+                  <Card
+                    key={attempt.id}
+                    className="overflow-hidden transition-shadow hover:shadow-sm"
+                  >
+                    <CardContent className="p-0">
+                      <div className="p-5">
+                        <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+                          {/* LEFT SIDE */}
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <h3 className="font-semibold text-base leading-snug">
+                                {attempt.tests?.title}
+                              </h3>
+
+                              {isCustom && (
+                                <Badge
+                                  variant="secondary"
+                                  className="text-[11px]"
+                                >
+                                  Custom
+                                </Badge>
+                              )}
+                            </div>
+
+                            {/* DATE / TIME */}
+                            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
+                              <span className="inline-flex items-center gap-1.5">
+                                <CalendarDays className="h-3.5 w-3.5" />
+                                {dateTime.date}
+                              </span>
+
+                              <span className="inline-flex items-center gap-1.5">
+                                <Clock3 className="h-3.5 w-3.5" />
+                                {dateTime.time}
+                              </span>
+
+                              {attempt.time_taken_seconds != null && (
+                                <span>
+                                  Time taken:{' '}
+                                  {Math.floor(
+                                    Number(
+                                      attempt.time_taken_seconds
+                                    ) / 60
+                                  )}
+                                  min
+                                </span>
+                              )}
+                            </div>
+
+                            {/* PERFORMANCE STATS */}
+                            <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-3 text-sm">
+                              <AttemptStat
+                                icon={CheckCircle2}
+                                value={correct}
+                                label="Correct"
+                                className="text-emerald-600"
+                              />
+
+                              <AttemptStat
+                                icon={CircleX}
+                                value={incorrect}
+                                label="Incorrect"
+                                className="text-rose-600"
+                              />
+
+                              <AttemptStat
+                                icon={Circle}
+                                value={unattempted}
+                                label="Unattempted"
+                                className="text-muted-foreground"
+                              />
+
+                              <div className="h-4 w-px bg-border hidden sm:block" />
+
+                              <div className="text-sm">
+                                <span className="font-medium">
+                                  {accuracy}%
+                                </span>{' '}
+                                <span className="text-muted-foreground">
+                                  Accuracy
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* SCORE + ACTIONS */}
+                          <div className="flex flex-col sm:flex-row lg:flex-col items-start sm:items-center lg:items-end gap-4 shrink-0">
+                            <div className="lg:text-right">
+                              <div className="text-xs text-muted-foreground mb-0.5">
+                                Score
+                              </div>
+
+                              <div className="text-2xl font-bold tracking-tight tabular-nums">
+                                {score}{' '}
+                                <span className="text-sm font-medium text-muted-foreground">
+                                  / {maxScore}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="flex flex-wrap gap-2">
+                              <Link
+                                href={`/results/${attempt.id}`}
+                              >
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="gap-1.5"
+                                >
+                                  <ClipboardCheck className="h-4 w-4" />
+                                  View solutions
+                                </Button>
+                              </Link>
+
+                              {attempt.tests?.id && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="gap-1.5"
+                                  onClick={() =>
+                                    startAttempt(
+                                      attempt.test_id
+                                    )
+                                  }
+                                  disabled={
+                                    starting ===
+                                    attempt.test_id
+                                  }
+                                >
+                                  {starting ===
+                                  attempt.test_id ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <RotateCcw className="h-4 w-4" />
+                                  )}
+                                  Retake
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
                       </div>
-
-                      <div className="text-xs text-muted-foreground">
-                        {new Date(
-                          a.submitted_at || a.started_at
-                        ).toLocaleString()}{' '}
-                        · Score {Number(a.score ?? 0)} /{' '}
-                        {(a.tests?.total_questions ?? 0) * 2} ·{' '}
-                        {a.correct_count}✅ {a.incorrect_count}❌{' '}
-                        {a.unattempted_count}⚪
-                      </div>
-                    </div>
-
-                    <Link href={`/results/${a.id}`}>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="gap-1"
-                      >
-                        <ClipboardCheck className="h-4 w-4" />
-                        View solutions
-                      </Button>
-                    </Link>
-                  </CardContent>
-                </Card>
-              ))}
+                    </CardContent>
+                  </Card>
+                )
+              })}
             </div>
           </div>
         )}
       </main>
 
       <SiteFooter />
+
+      <DeleteConfirmation
+        test={deleteTarget}
+        deleting={deleteBusy}
+        onCancel={() => {
+          if (!deleteBusy) {
+            setDeleteTarget(null)
+          }
+        }}
+        onConfirm={deleteCustomTest}
+      />
     </>
   )
 }
