@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import crypto from 'crypto'
 import Razorpay from 'razorpay'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
+import { getTestEntitlement } from '@/lib/auth/entitlements'
 
 // Extract Supabase user from Bearer token
 async function getUserFromRequest(request) {
@@ -1290,6 +1291,36 @@ async function handleCreateAttempt(request) {
     )
   }
 
+  // The client can submit any test UUID to this endpoint, so authorization
+  // must happen here before an attempt is created.
+  const entitlement = await getTestEntitlement(user.id)
+  const { data: requestedTest, error: testLookupError } = await admin
+    .from('tests')
+    .select('id, is_premium, status')
+    .eq('id', test_id)
+    .maybeSingle()
+
+  if (testLookupError) {
+    return NextResponse.json(
+      { error: testLookupError.message },
+      { status: 500 }
+    )
+  }
+
+  if (!requestedTest || requestedTest.status !== 'published') {
+    return NextResponse.json(
+      { error: 'Test not found' },
+      { status: 404 }
+    )
+  }
+
+  if (requestedTest.is_premium && !entitlement.entitled) {
+    return NextResponse.json(
+      { error: 'An active Test Series subscription is required for this test.' },
+      { status: 403 }
+    )
+  }
+
   // Reuse in-progress attempt.
   const {
     data: existing,
@@ -1690,6 +1721,16 @@ async function handleCustomTestCreate(request) {
     )
   }
 
+  // Custom tests are a premium Test Series feature. This check is server-side
+  // and cannot be bypassed by changing the client request body.
+  const entitlement = await getTestEntitlement(user.id)
+  if (!entitlement.entitled) {
+    return NextResponse.json(
+      { error: 'Custom tests require an active Test Series subscription.' },
+      { status: 403 }
+    )
+  }
+
   const admin =
     getSupabaseAdmin()
 
@@ -1834,7 +1875,7 @@ async function handleCustomTestCreate(request) {
         false,
 
       is_premium:
-        false,
+        true,
 
       is_user_generated:
         true,

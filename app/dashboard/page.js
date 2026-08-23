@@ -434,6 +434,15 @@ function DashboardInner() {
     subscription.status === 'active' &&
     new Date(subscription.expires_at) > new Date()
 
+  // Only plans with the `tests` entitlement unlock premium tests and the
+  // custom-test builder. Notes-only subscriptions must not unlock test content.
+  const isTestEntitled =
+    profile?.role === 'admin' ||
+    (subscription &&
+      subscription.status === 'active' &&
+      new Date(subscription.expires_at) > new Date() &&
+      subscription.plans?.features?.tests === true)
+
   return (
     <>
       <SiteHeader />
@@ -673,13 +682,23 @@ function DashboardInner() {
               Available tests
             </h2>
 
-            <Link
-              href="/custom-test"
-              className="text-xs text-primary hover:underline inline-flex items-center gap-1"
-            >
-              <Sparkles className="h-3 w-3" />
-              Build a custom test
-            </Link>
+            {isTestEntitled ? (
+              <Link
+                href="/custom-test"
+                className="text-xs text-primary hover:underline inline-flex items-center gap-1"
+              >
+                <Sparkles className="h-3 w-3" />
+                Build a custom test
+              </Link>
+            ) : (
+              <Link
+                href="/pricing"
+                className="text-xs text-primary hover:underline inline-flex items-center gap-1"
+              >
+                <Sparkles className="h-3 w-3" />
+                Custom test · Premium
+              </Link>
+            )}
           </div>
 
           {tests.length === 0 ? (
@@ -711,8 +730,7 @@ function DashboardInner() {
 
                 const gated =
                   test.is_premium &&
-                  !isAdmin &&
-                  !isSubActive
+                  !isTestEntitled
 
                 const isOwnCustomTest =
                   test.is_user_generated === true &&

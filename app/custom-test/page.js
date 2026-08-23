@@ -19,6 +19,7 @@ export default function CustomTestBuilderPage() {
   const supabase = getSupabaseBrowser()
   const router = useRouter()
   const [loading, setLoading] = useState(true)
+  const [entitled, setEntitled] = useState(false)
   const [units, setUnits] = useState([])
   const [topics, setTopics] = useState([])
   const [selectedUnits, setSelectedUnits] = useState(new Set())
@@ -34,19 +35,38 @@ export default function CustomTestBuilderPage() {
     ;(async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.replace('/auth'); return }
-      const [{ data: us }, { data: ts }] = await Promise.all([
-        supabase.from('units').select('id, name, sort_order').order('sort_order'),
-        supabase.from('topics').select('id, name, unit_id').order('name'),
+      const [{ data: profile }, { data: subscriptions }] = await Promise.all([
+        supabase.from('profiles').select('role').eq('id', user.id).maybeSingle(),
+        supabase
+          .from('subscriptions')
+          .select('status, expires_at, plans(features)')
+          .eq('user_id', user.id)
+          .eq('status', 'active'),
       ])
-      setUnits(us || [])
-      setTopics(ts || [])
+
+      const isAdmin = profile?.role === 'admin'
+      const hasTestPlan = (subscriptions || []).some(
+        (s) => new Date(s.expires_at) > new Date() && s.plans?.features?.tests === true
+      )
+      const canBuild = isAdmin || hasTestPlan
+      setEntitled(canBuild)
+
+      if (canBuild) {
+        const [{ data: us }, { data: ts }] = await Promise.all([
+          supabase.from('units').select('id, name, sort_order').order('sort_order'),
+          supabase.from('topics').select('id, name, unit_id').order('name'),
+        ])
+        setUnits(us || [])
+        setTopics(ts || [])
+      }
+
       setLoading(false)
     })()
   }, [supabase, router])
 
   // Debounced live match counter
   useEffect(() => {
-    if (loading) return
+    if (loading || !entitled) return
     setMatchLoading(true)
     const handle = setTimeout(async () => {
       let q = supabase.from('questions').select('id', { count: 'exact', head: true }).eq('status', 'published')
@@ -60,7 +80,7 @@ export default function CustomTestBuilderPage() {
       setMatchLoading(false)
     }, 300)
     return () => clearTimeout(handle)
-  }, [selectedUnits, selectedTopics, selectedDifficulties, loading, supabase])
+  }, [selectedUnits, selectedTopics, selectedDifficulties, loading, entitled, supabase])
 
   function toggle(set, setSet, id) {
     const next = new Set(set); next.has(id) ? next.delete(id) : next.add(id); setSet(next)
@@ -102,6 +122,28 @@ export default function CustomTestBuilderPage() {
   }
 
   if (loading) return <div className="min-h-screen"><SiteHeader/><div className="p-16 flex justify-center gap-2 text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin"/>Loading…</div></div>
+
+  if (!entitled) {
+    return (
+      <div className="min-h-screen">
+        <SiteHeader />
+        <div className="container mx-auto px-4 py-16 max-w-lg">
+          <Card>
+            <CardContent className="pt-8 pb-8 text-center">
+              <Sparkles className="h-8 w-8 text-primary mx-auto mb-3" />
+              <h1 className="text-xl font-semibold">Custom tests are a Premium feature</h1>
+              <p className="text-sm text-muted-foreground mt-2">
+                Build tests from the complete question bank by unit, topic, difficulty, and question count with an active Test Series subscription.
+              </p>
+              <Button className="mt-5" onClick={() => router.push('/pricing')}>
+                View Test Series pricing
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    )
+  }
 
   const canBuild = matchCount > 0 && count > 0 && !creating
 
