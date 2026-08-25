@@ -2181,7 +2181,7 @@ async function handleCreateSubscription(request) {
         subscription.id,
 
       status:
-        'created',
+        'past_due',
 
       started_at:
         now.toISOString(),
