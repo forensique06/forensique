@@ -1936,9 +1936,12 @@ async function handleCustomTestCreate(request) {
 // POST /api/billing/create-subscription
 // ----------------------------------------------------------------------------
 
+// ----------------------------------------------------------------------------
+// POST /api/billing/create-subscription
+// ----------------------------------------------------------------------------
+
 async function handleCreateSubscription(request) {
-  const user =
-    await getUserFromRequest(request)
+  const user = await getUserFromRequest(request)
 
   if (!user) {
     return NextResponse.json(
@@ -1947,12 +1950,20 @@ async function handleCreateSubscription(request) {
     )
   }
 
-  const admin =
-    getSupabaseAdmin()
+  const admin = getSupabaseAdmin()
 
-  const {
-    plan_id,
-  } = await request.json()
+  let body
+
+  try {
+    body = await request.json()
+  } catch {
+    return NextResponse.json(
+      { error: 'Invalid request body' },
+      { status: 400 }
+    )
+  }
+
+  const { plan_id } = body || {}
 
   if (!plan_id) {
     return NextResponse.json(
@@ -1961,21 +1972,40 @@ async function handleCreateSubscription(request) {
     )
   }
 
+  // --------------------------------------------------------------------------
+  // Load the plan from our database.
+  // --------------------------------------------------------------------------
+
   const {
     data: plan,
+    error: planError,
   } = await admin
     .from('plans')
     .select('*')
-    .eq(
-      'id',
-      plan_id
-    )
+    .eq('id', plan_id)
     .maybeSingle()
+
+  if (planError) {
+    return NextResponse.json(
+      {
+        error:
+          `Failed to load plan: ${planError.message}`,
+      },
+      { status: 500 }
+    )
+  }
 
   if (!plan) {
     return NextResponse.json(
       { error: 'Plan not found' },
       { status: 404 }
+    )
+  }
+
+  if (!plan.is_active) {
+    return NextResponse.json(
+      { error: 'This plan is not active.' },
+      { status: 400 }
     )
   }
 
@@ -1993,68 +2023,86 @@ async function handleCreateSubscription(request) {
     return NextResponse.json(
       {
         error:
-          'This plan is not linked to a Razorpay plan yet. Ask an admin to set razorpay_plan_id.',
+          'This plan is not linked to a Razorpay plan yet.',
       },
       { status: 500 }
     )
   }
 
-  const {
-    data: profile,
-  } = await admin
-    .from('profiles')
-    .select('*')
-    .eq(
-      'id',
-      user.id
-    )
-    .maybeSingle()
+  // --------------------------------------------------------------------------
+  // Initialise Razorpay.
+  // --------------------------------------------------------------------------
 
   let rzp
 
   try {
-    rzp =
-      getRazorpay()
-  } catch (e) {
-    return NextResponse.json(
-      { error: e.message },
-      { status: 500 }
-    )
-  }
-
-  // Create Razorpay customer.
-  let customer
-
-  try {
-    customer =
-      await rzp.customers.create({
-        name:
-          profile?.full_name ||
-          user.email?.split('@')[0] ||
-          'Forensique User',
-
-        email:
-          user.email,
-
-        contact:
-          profile?.phone ||
-          undefined,
-
-        fail_existing:
-          0,
-      })
+    rzp = getRazorpay()
   } catch (e) {
     return NextResponse.json(
       {
         error:
-          `Razorpay customer error: ` +
-          `${e?.error?.description || e.message}`,
+          e?.message ||
+          'Razorpay is not configured on the server.',
       },
       { status: 500 }
     )
   }
 
-  // Create subscription.
+  // --------------------------------------------------------------------------
+  // Do not create a second active subscription for the same user/plan.
+  //
+  // This prevents accidental double subscriptions from repeated clicks.
+  // --------------------------------------------------------------------------
+
+  const {
+    data: existingActiveSubscription,
+    error: existingSubscriptionError,
+  } = await admin
+    .from('subscriptions')
+    .select(
+      'id, razorpay_subscription_id, status, expires_at'
+    )
+    .eq('user_id', user.id)
+    .eq('plan_id', plan.id)
+    .eq('status', 'active')
+    .order('created_at', {
+      ascending: false,
+    })
+    .limit(1)
+    .maybeSingle()
+
+  if (existingSubscriptionError) {
+    return NextResponse.json(
+      {
+        error:
+          `Unable to check existing subscription: ${existingSubscriptionError.message}`,
+      },
+      { status: 500 }
+    )
+  }
+
+  if (existingActiveSubscription) {
+    return NextResponse.json(
+      {
+        error:
+          'You already have an active subscription for this plan.',
+        subscription_id:
+          existingActiveSubscription.razorpay_subscription_id,
+      },
+      { status: 409 }
+    )
+  }
+
+  // --------------------------------------------------------------------------
+  // Create the Razorpay subscription.
+  //
+  // IMPORTANT:
+  // Do NOT create a Razorpay customer here.
+  //
+  // Razorpay creates/associates the customer during the subscription
+  // authorization Checkout flow.
+  // --------------------------------------------------------------------------
+
   let subscription
 
   try {
@@ -2081,58 +2129,94 @@ async function handleCreateSubscription(request) {
         },
       })
   } catch (e) {
+    const description =
+      e?.error?.description ||
+      e?.description ||
+      e?.message ||
+      'Unknown Razorpay error.'
+
     return NextResponse.json(
       {
         error:
-          `Razorpay subscription error: ` +
-          `${e?.error?.description || e.message}`,
+          `Razorpay subscription error: ${description}`,
       },
       { status: 500 }
     )
   }
 
-  // Placeholder expiry.
-  const now =
-    new Date()
+  // --------------------------------------------------------------------------
+  // Save the newly-created subscription in Supabase.
+  //
+  // The Razorpay subscription is initially "created".
+  // Webhooks will later update it to active/pending/etc.
+  // --------------------------------------------------------------------------
 
-  const placeholderExpiry =
-    new Date(
-      now.getTime() +
-        30 *
-          86400 *
-          1000
-    )
+  const now = new Date()
 
-  await admin
+  const placeholderExpiry = new Date(
+    now.getTime() +
+      30 *
+        86400 *
+        1000
+  )
+
+  const {
+    error: subscriptionRowError,
+  } = await admin
     .from('subscriptions')
-    .upsert(
+    .insert({
+      user_id:
+        user.id,
+
+      plan_id:
+        plan.id,
+
+      // Razorpay associates the customer after
+      // the authorization transaction.
+      razorpay_customer_id:
+        subscription.customer_id ||
+        null,
+
+      razorpay_subscription_id:
+        subscription.id,
+
+      status:
+        'created',
+
+      started_at:
+        now.toISOString(),
+
+      expires_at:
+        placeholderExpiry.toISOString(),
+    })
+
+  if (subscriptionRowError) {
+    // We created the Razorpay subscription but failed
+    // to persist our local record. Try to cancel the
+    // orphaned Razorpay subscription immediately.
+    try {
+      await rzp.subscriptions.cancel(
+        subscription.id,
+        {
+          cancel_at_cycle_end:
+            false,
+        }
+      )
+    } catch (cleanupError) {
+      console.error(
+        'Failed to clean up orphaned Razorpay subscription:',
+        cleanupError
+      )
+    }
+
+    return NextResponse.json(
       {
-        user_id:
-          user.id,
-
-        plan_id:
-          plan.id,
-
-        razorpay_customer_id:
-          customer.id,
-
-        razorpay_subscription_id:
-          subscription.id,
-
-        status:
-          'past_due',
-
-        started_at:
-          now.toISOString(),
-
-        expires_at:
-          placeholderExpiry.toISOString(),
+        error:
+          `Subscription record could not be saved: ${subscriptionRowError.message}`,
       },
-      {
-        onConflict:
-          'razorpay_subscription_id',
-      }
+      { status: 500 }
     )
+  }
 
   return NextResponse.json({
     subscription_id:
@@ -2143,8 +2227,16 @@ async function handleCreateSubscription(request) {
   })
 }
 
+
 // ----------------------------------------------------------------------------
 // POST /api/billing/verify
+//
+// Body:
+// {
+//   razorpay_payment_id,
+//   razorpay_subscription_id,
+//   razorpay_signature
+// }
 // ----------------------------------------------------------------------------
 
 async function handleVerify(request) {
@@ -2161,14 +2253,23 @@ async function handleVerify(request) {
   const admin =
     getSupabaseAdmin()
 
-  const body =
-    await request.json()
+  let body
+
+  try {
+    body =
+      await request.json()
+  } catch {
+    return NextResponse.json(
+      { error: 'Invalid request body' },
+      { status: 400 }
+    )
+  }
 
   const {
     razorpay_payment_id,
     razorpay_subscription_id,
     razorpay_signature,
-  } = body
+  } = body || {}
 
   if (
     !razorpay_payment_id ||
@@ -2178,11 +2279,79 @@ async function handleVerify(request) {
     return NextResponse.json(
       {
         error:
-          'Missing signature params',
+          'Missing Razorpay verification parameters.',
       },
       { status: 400 }
     )
   }
+
+  // --------------------------------------------------------------------------
+  // First make sure this subscription belongs to the logged-in user.
+  // --------------------------------------------------------------------------
+
+  const {
+    data: localSubscription,
+    error: subscriptionLookupError,
+  } = await admin
+    .from('subscriptions')
+    .select(
+      `
+        id,
+        user_id,
+        plan_id,
+        razorpay_subscription_id,
+        status,
+        expires_at
+      `
+    )
+    .eq(
+      'razorpay_subscription_id',
+      razorpay_subscription_id
+    )
+    .maybeSingle()
+
+  if (subscriptionLookupError) {
+    return NextResponse.json(
+      {
+        error:
+          `Unable to find subscription: ${subscriptionLookupError.message}`,
+      },
+      { status: 500 }
+    )
+  }
+
+  if (!localSubscription) {
+    return NextResponse.json(
+      {
+        error:
+          'Subscription was not found in our database.',
+      },
+      { status: 404 }
+    )
+  }
+
+  if (
+    localSubscription.user_id !==
+    user.id
+  ) {
+    return NextResponse.json(
+      {
+        error:
+          'This subscription does not belong to the current user.',
+      },
+      { status: 403 }
+    )
+  }
+
+  // --------------------------------------------------------------------------
+  // Verify Razorpay signature.
+  //
+  // Razorpay subscription verification uses:
+  //
+  // payment_id + "|" + subscription_id
+  //
+  // signed using RAZORPAY_KEY_SECRET.
+  // --------------------------------------------------------------------------
 
   const secret =
     process.env.RAZORPAY_KEY_SECRET
@@ -2191,7 +2360,7 @@ async function handleVerify(request) {
     return NextResponse.json(
       {
         error:
-          'Razorpay not configured',
+          'Razorpay is not configured on the server.',
       },
       { status: 500 }
     )
@@ -2208,51 +2377,211 @@ async function handleVerify(request) {
       )
       .digest('hex')
 
-  const a =
+  const expectedBuffer =
     Buffer.from(expected)
 
-  const b =
+  const receivedBuffer =
     Buffer.from(
       razorpay_signature
     )
 
   if (
-    a.length !== b.length ||
+    expectedBuffer.length !==
+      receivedBuffer.length ||
     !crypto.timingSafeEqual(
-      a,
-      b
+      expectedBuffer,
+      receivedBuffer
     )
   ) {
     return NextResponse.json(
       {
         ok: false,
         error:
-          'Signature mismatch',
+          'Razorpay signature verification failed.',
       },
       { status: 400 }
     )
   }
 
-  await admin
-    .from('subscriptions')
-    .update({
-      status:
-        'active',
+  // --------------------------------------------------------------------------
+  // Fetch the subscription directly from Razorpay.
+  //
+  // This prevents us from blindly trusting the status supplied by the
+  // browser callback.
+  // --------------------------------------------------------------------------
 
-      updated_at:
-        new Date().toISOString(),
-    })
+  let providerSubscription
+
+  try {
+    const rzp =
+      getRazorpay()
+
+    providerSubscription =
+      await rzp.subscriptions.fetch(
+        razorpay_subscription_id
+      )
+  } catch (e) {
+    return NextResponse.json(
+      {
+        error:
+          `Unable to verify Razorpay subscription: ${
+            e?.error?.description ||
+            e?.message ||
+            'Unknown Razorpay error.'
+          }`,
+      },
+      { status: 500 }
+    )
+  }
+
+  // --------------------------------------------------------------------------
+  // Make sure the provider subscription is actually for the plan we sold.
+  // --------------------------------------------------------------------------
+
+  const {
+    data: localPlan,
+    error: planLookupError,
+  } = await admin
+    .from('plans')
+    .select(
+      'id, name, razorpay_plan_id'
+    )
     .eq(
-      'razorpay_subscription_id',
-      razorpay_subscription_id
+      'id',
+      localSubscription.plan_id
+    )
+    .maybeSingle()
+
+  if (planLookupError) {
+    return NextResponse.json(
+      {
+        error:
+          `Unable to verify plan: ${planLookupError.message}`,
+      },
+      { status: 500 }
+    )
+  }
+
+  if (
+    !localPlan ||
+    localPlan.razorpay_plan_id !==
+      providerSubscription.plan_id
+  ) {
+    return NextResponse.json(
+      {
+        error:
+          'Razorpay subscription does not match the selected plan.',
+      },
+      { status: 400 }
+    )
+  }
+
+  // --------------------------------------------------------------------------
+  // Map the actual Razorpay state to our application state.
+  //
+  // For the current immediate-start Test Series subscription, a successful
+  // authorization should result in "active".
+  //
+  // If Razorpay reports "authenticated" instead, keep the local subscription
+  // non-active and let the webhook move it to active when appropriate.
+  // --------------------------------------------------------------------------
+
+  let nextStatus = 'past_due'
+
+  if (
+    providerSubscription.status ===
+    'active'
+  ) {
+    nextStatus = 'active'
+  } else if (
+    providerSubscription.status ===
+    'pending'
+  ) {
+    nextStatus = 'past_due'
+  } else if (
+    providerSubscription.status ===
+    'halted'
+  ) {
+    nextStatus = 'past_due'
+  } else if (
+    providerSubscription.status ===
+    'cancelled'
+  ) {
+    nextStatus = 'cancelled'
+  } else if (
+    providerSubscription.status ===
+    'completed'
+  ) {
+    nextStatus = 'expired'
+  } else if (
+    providerSubscription.status ===
+    'expired'
+  ) {
+    nextStatus = 'expired'
+  }
+
+  const patch = {
+    status:
+      nextStatus,
+
+    updated_at:
+      new Date().toISOString(),
+  }
+
+  if (
+    providerSubscription.customer_id
+  ) {
+    patch.razorpay_customer_id =
+      providerSubscription.customer_id
+  }
+
+  if (
+    providerSubscription.current_start
+  ) {
+    patch.started_at =
+      new Date(
+        providerSubscription.current_start *
+          1000
+      ).toISOString()
+  }
+
+  if (
+    providerSubscription.current_end
+  ) {
+    patch.expires_at =
+      new Date(
+        providerSubscription.current_end *
+          1000
+      ).toISOString()
+  }
+
+  const {
+    error: updateError,
+  } = await admin
+    .from('subscriptions')
+    .update(patch)
+    .eq(
+      'id',
+      localSubscription.id
     )
     .eq(
       'user_id',
       user.id
     )
 
+  if (updateError) {
+    return NextResponse.json(
+      {
+        error:
+          `Payment was verified but the subscription could not be updated: ${updateError.message}`,
+      },
+      { status: 500 }
+    )
+  }
+
   return NextResponse.json({
     ok: true,
+    status: nextStatus,
   })
 }
 
