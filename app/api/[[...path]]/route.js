@@ -2080,8 +2080,6 @@ if (existingSubscriptionError) {
 
 const currentTime = new Date()
 
-const currentTime = new Date()
-
 const activeSubscription =
   (existingSubscriptions || []).find((sub) => {
     return (
