@@ -89,68 +89,93 @@ export default function PricingPage() {
   const [plans, setPlans] = useState([])
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState(null)
+  const [subscription, setSubscription] = useState(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
   const [razorpayLoaded, setRazorpayLoaded] = useState(false)
 
-  useEffect(() => {
-    let mounted = true
+useEffect(() => {
+  let mounted = true
 
-    ;(async () => {
-      try {
-        const { data: planData, error: planError } =
-          await supabase
-            .from('plans')
-            .select('*')
-            .eq('is_active', true)
-            .order('sort_order')
+  ;(async () => {
+    try {
+      const { data: planData, error: planError } =
+        await supabase
+          .from('plans')
+          .select('*')
+          .eq('is_active', true)
+          .order('sort_order')
 
-        if (planError) {
-          throw planError
-        }
-
-        const {
-          data: { user: currentUser },
-        } = await supabase.auth.getUser()
-
-        if (!mounted) return
-
-        setPlans(planData || [])
-        setUser(currentUser || null)
-      } catch (e) {
-        if (mounted) {
-          setError(
-            e?.message ||
-              'Unable to load pricing information.'
-          )
-        }
-      } finally {
-        if (mounted) {
-          setLoading(false)
-        }
+      if (planError) {
+        throw planError
       }
-    })()
 
-    return () => {
-      mounted = false
+      const {
+        data: { user: currentUser },
+      } = await supabase.auth.getUser()
+
+      if (!mounted) return
+
+      setPlans(planData || [])
+      setUser(currentUser || null)
+
+      if (currentUser) {
+        const { data: subs } = await supabase
+          .from('subscriptions')
+          .select('*, plans(name, price_paise, features)')
+          .eq('user_id', currentUser.id)
+          .eq('status', 'active')
+          .order('expires_at', { ascending: false })
+
+        const now = new Date()
+
+        const validSubscription =
+          (subs || []).find((sub) => {
+            if (!sub.expires_at) return false
+
+            return new Date(sub.expires_at) > now
+          }) || null
+
+        setSubscription(validSubscription)
+      }
+    } catch (e) {
+      if (mounted) {
+        setError(
+          e?.message ||
+            'Unable to load pricing information.'
+        )
+      }
+    } finally {
+      if (mounted) {
+        setLoading(false)
+      }
     }
-  }, [supabase])
+  })()
 
-  async function startCheckout(planId) {
-    if (!user) {
-      window.location.href =
-        '/auth?mode=signup&next=/pricing'
-      return
-    }
+  return () => {
+    mounted = false
+  }
+}, [supabase])
 
-    if (!razorpayLoaded || !window.Razorpay) {
-      setError(
-        'Razorpay Checkout is still loading. Please try again in a moment.'
-      )
-      return
-    }
+async function startCheckout(planId) {
+  if (!user) {
+    window.location.href =
+      '/auth?mode=signup&next=/pricing'
+    return
+  }
 
-    if (busy) return
+  if (subscription) {
+    return
+  }
+
+  if (!razorpayLoaded || !window.Razorpay) {
+    setError(
+      'Razorpay Checkout is still loading. Please try again in a moment.'
+    )
+    return
+  }
+
+  if (busy) return
 
     setBusy(true)
     setError(null)

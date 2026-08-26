@@ -1,21 +1,21 @@
-'use client'
+"use client";
 
-import { useEffect, useState, Suspense } from 'react'
-import Link from 'next/link'
-import { useRouter, useSearchParams } from 'next/navigation'
-import { getSupabaseBrowser } from '@/lib/supabase/browser'
-import SiteHeader from '@/components/site-header'
-import SiteFooter from '@/components/site-footer'
-import { Button } from '@/components/ui/button'
+import { useEffect, useState, Suspense } from "react";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { getSupabaseBrowser } from "@/lib/supabase/browser";
+import SiteHeader from "@/components/site-header";
+import SiteFooter from "@/components/site-footer";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
   CardDescription,
-} from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Alert, AlertDescription } from '@/components/ui/alert'
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Loader2,
   PlayCircle,
@@ -32,51 +32,64 @@ import {
   CircleX,
   Circle,
   RotateCcw,
-} from 'lucide-react'
+} from "lucide-react";
 
 function formatAttemptDate(dateValue) {
-  if (!dateValue) return '—'
+  if (!dateValue) return "—";
 
-  const date = new Date(dateValue)
+  const date = new Date(dateValue);
 
   return {
-    date: date.toLocaleDateString('en-IN', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
+    date: date.toLocaleDateString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
     }),
-    time: date.toLocaleTimeString('en-IN', {
-      hour: 'numeric',
-      minute: '2-digit',
+    time: date.toLocaleTimeString("en-IN", {
+      hour: "numeric",
+      minute: "2-digit",
     }),
-  }
+  };
 }
 
 function getAccuracy(correct, incorrect) {
-  const attempted = correct + incorrect
+  const attempted = correct + incorrect;
 
-  if (attempted === 0) return 0
+  if (attempted === 0) return 0;
 
-  return Math.round((correct / attempted) * 100)
+  return Math.round((correct / attempted) * 100);
 }
 
-function AttemptStat({ icon: Icon, value, label, className = '' }) {
+function getCurrentSubscription(subscriptions) {
+  const now = Date.now();
+
+  return (
+    (subscriptions || [])
+      .filter((sub) => {
+        if (sub.status !== "active") return false;
+        if (!sub.expires_at) return false;
+
+        return new Date(sub.expires_at).getTime() > now;
+      })
+      .sort(
+        (a, b) =>
+          new Date(b.expires_at).getTime() - new Date(a.expires_at).getTime(),
+      )[0] || null
+  );
+}
+
+function AttemptStat({ icon: Icon, value, label, className = "" }) {
   return (
     <div className={`flex items-center gap-2 ${className}`}>
       <Icon className="h-4 w-4 shrink-0" />
       <span className="font-medium tabular-nums">{value}</span>
       <span className="text-muted-foreground">{label}</span>
     </div>
-  )
+  );
 }
 
-function DeleteConfirmation({
-  test,
-  deleting,
-  onCancel,
-  onConfirm,
-}) {
-  if (!test) return null
+function DeleteConfirmation({ test, deleting, onCancel, onConfirm }) {
+  if (!test) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 backdrop-blur-[2px]">
@@ -88,9 +101,7 @@ function DeleteConfirmation({
             </div>
 
             <div className="min-w-0">
-              <CardTitle className="text-base">
-                Delete custom test?
-              </CardTitle>
+              <CardTitle className="text-base">Delete custom test?</CardTitle>
               <CardDescription className="mt-1">
                 This action cannot be undone.
               </CardDescription>
@@ -100,9 +111,7 @@ function DeleteConfirmation({
 
         <CardContent>
           <div className="rounded-md border border-border bg-muted/40 p-3">
-            <p className="font-medium text-sm break-words">
-              {test.title}
-            </p>
+            <p className="font-medium text-sm break-words">{test.title}</p>
             <p className="mt-1 text-xs text-muted-foreground">
               {test.total_questions} questions · {test.duration_minutes} min
             </p>
@@ -135,76 +144,72 @@ function DeleteConfirmation({
               ) : (
                 <Trash2 className="h-4 w-4" />
               )}
-              {deleting ? 'Deleting…' : 'Delete test'}
+              {deleting ? "Deleting…" : "Delete test"}
             </Button>
           </div>
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }
 
 function DashboardInner() {
-  const supabase = getSupabaseBrowser()
-  const router = useRouter()
-  const params = useSearchParams()
+  const supabase = getSupabaseBrowser();
+  const router = useRouter();
+  const params = useSearchParams();
 
-  const [loading, setLoading] = useState(true)
-  const [user, setUser] = useState(null)
-  const [profile, setProfile] = useState(null)
-  const [tests, setTests] = useState([])
-  const [attempts, setAttempts] = useState([])
-  const [subscription, setSubscription] = useState(null)
+  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState(null);
+  const [profile, setProfile] = useState(null);
+  const [tests, setTests] = useState([]);
+  const [attempts, setAttempts] = useState([]);
+  const [subscription, setSubscription] = useState(null);
 
-  const [starting, setStarting] = useState(null)
+  const [starting, setStarting] = useState(null);
 
-  const [cancelBusy, setCancelBusy] = useState(false)
-  const [cancelResult, setCancelResult] = useState(null)
+  const [cancelBusy, setCancelBusy] = useState(false);
+  const [cancelResult, setCancelResult] = useState(null);
 
-  const [deleteTarget, setDeleteTarget] = useState(null)
-  const [deleteBusy, setDeleteBusy] = useState(false)
-  const [deleteError, setDeleteError] = useState(null)
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteError, setDeleteError] = useState(null);
 
-  const showUpgraded = params.get('upgraded') === '1'
+  const showUpgraded = params.get("upgraded") === "1";
 
   useEffect(() => {
-    ;(async () => {
+    (async () => {
       try {
         const {
           data: { user },
-        } = await supabase.auth.getUser()
+        } = await supabase.auth.getUser();
 
         if (!user) {
-          router.replace('/auth')
-          return
+          router.replace("/auth");
+          return;
         }
 
-        setUser(user)
+        setUser(user);
 
-        const [
-          { data: prof },
-          { data: ts },
-          { data: at },
-          { data: subs },
-        ] = await Promise.all([
-          supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', user.id)
-            .maybeSingle(),
+        const [{ data: prof }, { data: ts }, { data: at }, { data: subs }] =
+          await Promise.all([
+            supabase
+              .from("profiles")
+              .select("*")
+              .eq("id", user.id)
+              .maybeSingle(),
 
-          supabase
-            .from('tests')
-            .select(
-              'id, test_id, title, test_type, total_questions, duration_minutes, marks_per_question, is_premium, is_user_generated, created_by, status'
-            )
-            .eq('status', 'published')
-            .order('created_at', { ascending: false }),
+            supabase
+              .from("tests")
+              .select(
+                "id, test_id, title, test_type, total_questions, duration_minutes, marks_per_question, is_premium, is_user_generated, created_by, status",
+              )
+              .eq("status", "published")
+              .order("created_at", { ascending: false }),
 
-          supabase
-            .from('test_attempts')
-            .select(
-              `
+            supabase
+              .from("test_attempts")
+              .select(
+                `
                 id,
                 status,
                 started_at,
@@ -225,72 +230,72 @@ function DashboardInner() {
                   is_user_generated,
                   created_by
                 )
-              `
-            )
-            .eq('user_id', user.id)
-            .order('started_at', { ascending: false })
-            .limit(20),
+              `,
+              )
+              .eq("user_id", user.id)
+              .order("started_at", { ascending: false })
+              .limit(20),
 
-          supabase
-            .from('subscriptions')
-            .select('*, plans(name, price_paise, features)')
-            .eq('user_id', user.id)
-            .order('created_at', { ascending: false })
-            .limit(1),
-        ])
+            supabase
+              .from("subscriptions")
+              .select("*, plans(name, price_paise, features)")
+              .eq("user_id", user.id)
+              .in("status", ["active", "past_due"])
+              .order("created_at", { ascending: false }),
+          ]);
 
-        setProfile(prof)
-        setTests(ts || [])
-        setAttempts(at || [])
-        setSubscription(subs?.[0] || null)
+        setProfile(prof);
+        setTests(ts || []);
+        setAttempts(at || []);
+        setSubscription(getCurrentSubscription(subs));
       } catch (error) {
-        console.error('Dashboard loading failed:', error)
+        console.error("Dashboard loading failed:", error);
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    })()
-  }, [supabase, router])
+    })();
+  }, [supabase, router]);
 
   async function startAttempt(testId) {
-    setStarting(testId)
+    setStarting(testId);
 
     try {
       const {
         data: { session },
-      } = await supabase.auth.getSession()
+      } = await supabase.auth.getSession();
 
       if (!session?.access_token) {
-        throw new Error('Your session has expired. Please sign in again.')
+        throw new Error("Your session has expired. Please sign in again.");
       }
 
-      const res = await fetch('/api/attempt/create', {
-        method: 'POST',
+      const res = await fetch("/api/attempt/create", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
           Authorization: `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({ test_id: testId }),
-      })
+      });
 
-      const j = await res.json()
+      const j = await res.json();
 
       if (!res.ok) {
-        throw new Error(j.error || 'Failed to start attempt')
+        throw new Error(j.error || "Failed to start attempt");
       }
 
-      router.push(`/attempt/${j.attempt_id}`)
+      router.push(`/attempt/${j.attempt_id}`);
     } catch (e) {
-      console.error(e)
-      window.alert(e.message || 'Failed to start attempt')
-      setStarting(null)
+      console.error(e);
+      window.alert(e.message || "Failed to start attempt");
+      setStarting(null);
     }
   }
 
   async function deleteCustomTest() {
-    if (!deleteTarget || !user) return
+    if (!deleteTarget || !user) return;
 
-    setDeleteBusy(true)
-    setDeleteError(null)
+    setDeleteBusy(true);
+    setDeleteError(null);
 
     try {
       /*
@@ -301,23 +306,23 @@ function DashboardInner() {
        * - created by the current user
        */
       const { error } = await supabase
-        .from('tests')
+        .from("tests")
         .delete()
-        .eq('id', deleteTarget.id)
-        .eq('test_type', 'custom')
-        .eq('is_user_generated', true)
-        .eq('created_by', user.id)
+        .eq("id", deleteTarget.id)
+        .eq("test_type", "custom")
+        .eq("is_user_generated", true)
+        .eq("created_by", user.id);
 
       if (error) {
-        throw error
+        throw error;
       }
 
       /*
        * Remove the test from the UI immediately.
        */
       setTests((current) =>
-        current.filter((test) => test.id !== deleteTarget.id)
-      )
+        current.filter((test) => test.id !== deleteTarget.id),
+      );
 
       /*
        * Because test_attempts now uses ON DELETE CASCADE,
@@ -325,75 +330,72 @@ function DashboardInner() {
        * Removing them locally keeps the dashboard immediately consistent.
        */
       setAttempts((current) =>
-        current.filter((attempt) => attempt.test_id !== deleteTarget.id)
-      )
+        current.filter((attempt) => attempt.test_id !== deleteTarget.id),
+      );
 
-      setDeleteTarget(null)
+      setDeleteTarget(null);
     } catch (error) {
-      console.error('Delete custom test failed:', error)
+      console.error("Delete custom test failed:", error);
 
-      setDeleteError(
-        error.message || 'Failed to delete the custom test.'
-      )
+      setDeleteError(error.message || "Failed to delete the custom test.");
     } finally {
-      setDeleteBusy(false)
+      setDeleteBusy(false);
     }
   }
 
   async function cancelSubscription() {
-    if (!subscription?.razorpay_subscription_id) return
+    if (!subscription?.razorpay_subscription_id) return;
 
     if (
       !window.confirm(
-        'Cancel your subscription at the end of the current billing cycle? You keep access until then.'
+        "Cancel your subscription at the end of the current billing cycle? You keep access until then.",
       )
     ) {
-      return
+      return;
     }
 
-    setCancelBusy(true)
-    setCancelResult(null)
+    setCancelBusy(true);
+    setCancelResult(null);
 
     try {
       const {
         data: { session },
-      } = await supabase.auth.getSession()
+      } = await supabase.auth.getSession();
 
-      const res = await fetch('/api/billing/cancel', {
-        method: 'POST',
+      const res = await fetch("/api/billing/cancel", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
           Authorization: `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({
-          razorpay_subscription_id:
-            subscription.razorpay_subscription_id,
+          razorpay_subscription_id: subscription.razorpay_subscription_id,
         }),
-      })
+      });
 
-      const j = await res.json()
+      const j = await res.json();
 
       if (!res.ok) {
-        throw new Error(j.error || 'Cancel failed')
+        throw new Error(j.error || "Cancel failed");
       }
 
-      setCancelResult({ ok: true })
+      setCancelResult({ ok: true });
 
       const { data: subs } = await supabase
-        .from('subscriptions')
-        .select('*, plans(name, price_paise, features)')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(1)
+        .from("subscriptions")
+        .select("*, plans(name, price_paise, features)")
+        .eq("user_id", user.id)
+        .in("status", ["active", "past_due"])
+        .order("created_at", { ascending: false });
 
-      setSubscription(subs?.[0] || null)
+      setSubscription(getCurrentSubscription(subs));
     } catch (e) {
       setCancelResult({
         ok: false,
         error: e.message,
-      })
+      });
     } finally {
-      setCancelBusy(false)
+      setCancelBusy(false);
     }
   }
 
@@ -407,14 +409,12 @@ function DashboardInner() {
           Loading dashboard…
         </div>
       </>
-    )
+    );
   }
 
   const inProgress = attempts.filter(
-    (attempt) =>
-      attempt.status === 'in_progress' &&
-      attempt.tests
-  )
+    (attempt) => attempt.status === "in_progress" && attempt.tests,
+  );
 
   /*
    * IMPORTANT:
@@ -424,24 +424,22 @@ function DashboardInner() {
    * Recent Attempts even if there is stale data somewhere.
    */
   const submitted = attempts.filter(
-    (attempt) =>
-      attempt.status !== 'in_progress' &&
-      attempt.tests
-  )
+    (attempt) => attempt.status !== "in_progress" && attempt.tests,
+  );
 
   const isSubActive =
     subscription &&
-    subscription.status === 'active' &&
-    new Date(subscription.expires_at) > new Date()
+    subscription.status === "active" &&
+    new Date(subscription.expires_at) > new Date();
 
   // Only plans with the `tests` entitlement unlock premium tests and the
   // custom-test builder. Notes-only subscriptions must not unlock test content.
   const isTestEntitled =
-    profile?.role === 'admin' ||
+    profile?.role === "admin" ||
     (subscription &&
-      subscription.status === 'active' &&
+      subscription.status === "active" &&
       new Date(subscription.expires_at) > new Date() &&
-      subscription.plans?.features?.tests === true)
+      subscription.plans?.features?.tests === true);
 
   return (
     <>
@@ -452,9 +450,7 @@ function DashboardInner() {
           <div>
             <h1 className="text-2xl font-bold">
               Welcome back
-              {profile?.full_name
-                ? `, ${profile.full_name.split(' ')[0]}`
-                : ''}
+              {profile?.full_name ? `, ${profile.full_name.split(" ")[0]}` : ""}
               .
             </h1>
 
@@ -463,13 +459,9 @@ function DashboardInner() {
             </p>
           </div>
 
-          {profile?.role === 'admin' && (
+          {profile?.role === "admin" && (
             <Link href="/admin/import">
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-2"
-              >
+              <Button variant="outline" size="sm" className="gap-2">
                 <Upload className="h-4 w-4" />
                 Admin
               </Button>
@@ -480,18 +472,14 @@ function DashboardInner() {
         {showUpgraded && (
           <Alert className="mb-6 border-emerald-500">
             <AlertDescription>
-              Payment received. Your Test Series subscription is being
-              activated — refresh in a few seconds if it doesn&apos;t show
-              here yet.
+              Payment received. Your Test Series subscription is being activated
+              — refresh in a few seconds if it doesn&apos;t show here yet.
             </AlertDescription>
           </Alert>
         )}
 
         {deleteError && (
-          <Alert
-            variant="destructive"
-            className="mb-6"
-          >
+          <Alert variant="destructive" className="mb-6">
             <AlertDescription className="flex items-center justify-between gap-4">
               <span>{deleteError}</span>
 
@@ -520,14 +508,12 @@ function DashboardInner() {
             {!subscription ? (
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
-                  <div className="text-sm font-medium">
-                    Free tier
-                  </div>
+                  <div className="text-sm font-medium">Free tier</div>
 
                   <p className="text-xs text-muted-foreground">
-                    Access to the free UGC NET FS June 2025 paper.
-                    Subscribe to unlock all previous-year papers,
-                    the custom test builder, and analytics.
+                    Access to the free UGC NET FS June 2025 paper. Subscribe to
+                    unlock all previous-year papers, the custom test builder,
+                    and analytics.
                   </p>
                 </div>
 
@@ -548,58 +534,47 @@ function DashboardInner() {
                           Active
                         </Badge>
                       ) : (
-                        <Badge variant="outline">
-                          {subscription.status}
-                        </Badge>
+                        <Badge variant="outline">{subscription.status}</Badge>
                       )}
 
                       {subscription.cancel_at_period_end && (
-                        <Badge variant="outline">
-                          Cancels at cycle end
-                        </Badge>
+                        <Badge variant="outline">Cancels at cycle end</Badge>
                       )}
                     </div>
 
                     <p className="text-xs text-muted-foreground mt-1">
                       ₹
-                      {Math.round(
-                        (subscription.plans?.price_paise ?? 0) / 100
-                      )}
-                      /month · Renews / expires{' '}
-                      {new Date(
-                        subscription.expires_at
-                      ).toLocaleDateString()}
+                      {Math.round((subscription.plans?.price_paise ?? 0) / 100)}
+                      /month · Renews / expires{" "}
+                      {new Date(subscription.expires_at).toLocaleDateString()}
                     </p>
                   </div>
 
-                  {isSubActive &&
-                    !subscription.cancel_at_period_end && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={cancelSubscription}
-                        disabled={cancelBusy}
-                        className="gap-1"
-                      >
-                        {cancelBusy ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <XCircle className="h-4 w-4" />
-                        )}
-                        Cancel subscription
-                      </Button>
-                    )}
+                  {isSubActive && !subscription.cancel_at_period_end && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={cancelSubscription}
+                      disabled={cancelBusy}
+                      className="gap-1"
+                    >
+                      {cancelBusy ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <XCircle className="h-4 w-4" />
+                      )}
+                      Cancel subscription
+                    </Button>
+                  )}
                 </div>
 
                 {subscription.cancel_at_period_end && (
                   <Alert>
                     <AlertDescription>
-                      Your subscription will end on{' '}
-                      {new Date(
-                        subscription.expires_at
-                      ).toLocaleDateString()}
-                      . No further debits will occur. Resubscribe
-                      anytime from the pricing page.
+                      Your subscription will end on{" "}
+                      {new Date(subscription.expires_at).toLocaleDateString()}.
+                      No further debits will occur. Resubscribe anytime from the
+                      pricing page.
                     </AlertDescription>
                   </Alert>
                 )}
@@ -607,20 +582,15 @@ function DashboardInner() {
                 {cancelResult?.ok && (
                   <Alert className="border-emerald-500">
                     <AlertDescription>
-                      Cancellation scheduled. You keep access until{' '}
-                      {new Date(
-                        subscription.expires_at
-                      ).toLocaleDateString()}
-                      .
+                      Cancellation scheduled. You keep access until{" "}
+                      {new Date(subscription.expires_at).toLocaleDateString()}.
                     </AlertDescription>
                   </Alert>
                 )}
 
                 {cancelResult?.ok === false && (
                   <Alert variant="destructive">
-                    <AlertDescription>
-                      {cancelResult.error}
-                    </AlertDescription>
+                    <AlertDescription>{cancelResult.error}</AlertDescription>
                   </Alert>
                 )}
               </div>
@@ -646,24 +616,19 @@ function DashboardInner() {
 
                       <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1.5">
                         <Clock3 className="h-3.5 w-3.5" />
-                        Started{' '}
-                        {new Date(
-                          attempt.started_at
-                        ).toLocaleString('en-IN', {
-                          day: '2-digit',
-                          month: 'short',
-                          year: 'numeric',
-                          hour: 'numeric',
-                          minute: '2-digit',
+                        Started{" "}
+                        {new Date(attempt.started_at).toLocaleString("en-IN", {
+                          day: "2-digit",
+                          month: "short",
+                          year: "numeric",
+                          hour: "numeric",
+                          minute: "2-digit",
                         })}
                       </div>
                     </div>
 
                     <Link href={`/attempt/${attempt.id}`}>
-                      <Button
-                        size="sm"
-                        className="gap-1 shrink-0"
-                      >
+                      <Button size="sm" className="gap-1 shrink-0">
                         <RotateCw className="h-4 w-4" />
                         Resume
                       </Button>
@@ -705,43 +670,37 @@ function DashboardInner() {
             <Card>
               <CardContent className="pt-6 text-center text-sm text-muted-foreground">
                 No tests published yet.
-
-                {profile?.role === 'admin' ? (
+                {profile?.role === "admin" ? (
                   <>
-                    {' '}
-                    Head to{' '}
+                    {" "}
+                    Head to{" "}
                     <Link
                       className="underline text-primary"
                       href="/admin/import"
                     >
                       Admin → Import
-                    </Link>{' '}
+                    </Link>{" "}
                     to import the sample UGC NET FS 2025 June paper.
                   </>
                 ) : (
-                  ' Check back soon.'
+                  " Check back soon."
                 )}
               </CardContent>
             </Card>
           ) : (
             <div className="grid gap-3 md:grid-cols-2">
               {tests.map((test) => {
-                const isAdmin = profile?.role === 'admin'
+                const isAdmin = profile?.role === "admin";
 
-                const gated =
-                  test.is_premium &&
-                  !isTestEntitled
+                const gated = test.is_premium && !isTestEntitled;
 
                 const isOwnCustomTest =
                   test.is_user_generated === true &&
-                  test.test_type === 'custom' &&
-                  test.created_by === user?.id
+                  test.test_type === "custom" &&
+                  test.created_by === user?.id;
 
                 return (
-                  <Card
-                    key={test.id}
-                    className={gated ? 'opacity-70' : ''}
-                  >
+                  <Card key={test.id} className={gated ? "opacity-70" : ""}>
                     <CardHeader>
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
@@ -750,25 +709,20 @@ function DashboardInner() {
                           </CardTitle>
 
                           <CardDescription>
-                            {test.total_questions} questions ·{' '}
-                            {test.duration_minutes} min ·{' '}
-                            {test.test_type.replace('_', ' ')}
+                            {test.total_questions} questions ·{" "}
+                            {test.duration_minutes} min ·{" "}
+                            {test.test_type.replace("_", " ")}
                           </CardDescription>
                         </div>
 
                         <div className="flex items-center gap-2 shrink-0">
                           {!test.is_premium && (
-                            <Badge variant="secondary">
-                              Free
-                            </Badge>
+                            <Badge variant="secondary">Free</Badge>
                           )}
 
-                          {test.is_premium &&
-                            !isSubActive && (
-                              <Badge variant="outline">
-                                Premium
-                              </Badge>
-                            )}
+                          {test.is_premium && !isSubActive && (
+                            <Badge variant="outline">Premium</Badge>
+                          )}
                         </div>
                       </div>
                     </CardHeader>
@@ -776,10 +730,7 @@ function DashboardInner() {
                     <CardContent>
                       <div className="flex gap-2">
                         {gated ? (
-                          <Link
-                            href="/pricing"
-                            className="flex-1"
-                          >
+                          <Link href="/pricing" className="flex-1">
                             <Button
                               variant="outline"
                               size="sm"
@@ -791,12 +742,8 @@ function DashboardInner() {
                         ) : (
                           <Button
                             size="sm"
-                            onClick={() =>
-                              startAttempt(test.id)
-                            }
-                            disabled={
-                              starting === test.id
-                            }
+                            onClick={() => startAttempt(test.id)}
+                            disabled={starting === test.id}
                             className="gap-2 flex-1"
                           >
                             {starting === test.id ? (
@@ -804,7 +751,6 @@ function DashboardInner() {
                             ) : (
                               <PlayCircle className="h-4 w-4" />
                             )}
-
                             Start attempt
                           </Button>
                         )}
@@ -815,23 +761,21 @@ function DashboardInner() {
                             size="sm"
                             variant="destructive"
                             onClick={() => {
-                              setDeleteError(null)
-                              setDeleteTarget(test)
+                              setDeleteError(null);
+                              setDeleteTarget(test);
                             }}
                             className="gap-2"
                             aria-label={`Delete ${test.title}`}
                             title="Delete custom test"
                           >
                             <Trash2 className="h-4 w-4" />
-                            <span className="hidden sm:inline">
-                              Delete
-                            </span>
+                            <span className="hidden sm:inline">Delete</span>
                           </Button>
                         )}
                       </div>
                     </CardContent>
                   </Card>
-                )
+                );
               })}
             </div>
           )}
@@ -854,46 +798,33 @@ function DashboardInner() {
 
             <div className="space-y-3">
               {submitted.map((attempt) => {
-                const correct = Number(
-                  attempt.correct_count ?? 0
-                )
+                const correct = Number(attempt.correct_count ?? 0);
 
-                const incorrect = Number(
-                  attempt.incorrect_count ?? 0
-                )
+                const incorrect = Number(attempt.incorrect_count ?? 0);
 
-                const unattempted = Number(
-                  attempt.unattempted_count ?? 0
-                )
+                const unattempted = Number(attempt.unattempted_count ?? 0);
 
-                const accuracy = getAccuracy(
-                  correct,
-                  incorrect
-                )
+                const accuracy = getAccuracy(correct, incorrect);
 
                 const totalQuestions = Number(
-                  attempt.tests?.total_questions ?? 0
-                )
+                  attempt.tests?.total_questions ?? 0,
+                );
 
                 const marksPerQuestion = Number(
-                  attempt.tests?.marks_per_question ?? 2
-                )
+                  attempt.tests?.marks_per_question ?? 2,
+                );
 
-                const maxScore =
-                  totalQuestions * marksPerQuestion
+                const maxScore = totalQuestions * marksPerQuestion;
 
-                const score = Number(
-                  attempt.score ?? 0
-                )
+                const score = Number(attempt.score ?? 0);
 
                 const dateTime = formatAttemptDate(
-                  attempt.submitted_at ||
-                    attempt.started_at
-                )
+                  attempt.submitted_at || attempt.started_at,
+                );
 
                 const isCustom =
                   attempt.tests?.is_user_generated === true ||
-                  attempt.tests?.test_type === 'custom'
+                  attempt.tests?.test_type === "custom";
 
                 return (
                   <Card
@@ -934,11 +865,9 @@ function DashboardInner() {
 
                               {attempt.time_taken_seconds != null && (
                                 <span>
-                                  Time taken:{' '}
+                                  Time taken:{" "}
                                   {Math.floor(
-                                    Number(
-                                      attempt.time_taken_seconds
-                                    ) / 60
+                                    Number(attempt.time_taken_seconds) / 60,
                                   )}
                                   min
                                 </span>
@@ -971,9 +900,7 @@ function DashboardInner() {
                               <div className="h-4 w-px bg-border hidden sm:block" />
 
                               <div className="text-sm">
-                                <span className="font-medium">
-                                  {accuracy}%
-                                </span>{' '}
+                                <span className="font-medium">{accuracy}%</span>{" "}
                                 <span className="text-muted-foreground">
                                   Accuracy
                                 </span>
@@ -989,7 +916,7 @@ function DashboardInner() {
                               </div>
 
                               <div className="text-2xl font-bold tracking-tight tabular-nums">
-                                {score}{' '}
+                                {score}{" "}
                                 <span className="text-sm font-medium text-muted-foreground">
                                   / {maxScore}
                                 </span>
@@ -997,9 +924,7 @@ function DashboardInner() {
                             </div>
 
                             <div className="flex flex-wrap gap-2">
-                              <Link
-                                href={`/results/${attempt.id}`}
-                              >
+                              <Link href={`/results/${attempt.id}`}>
                                 <Button
                                   variant="outline"
                                   size="sm"
@@ -1015,18 +940,10 @@ function DashboardInner() {
                                   variant="outline"
                                   size="sm"
                                   className="gap-1.5"
-                                  onClick={() =>
-                                    startAttempt(
-                                      attempt.test_id
-                                    )
-                                  }
-                                  disabled={
-                                    starting ===
-                                    attempt.test_id
-                                  }
+                                  onClick={() => startAttempt(attempt.test_id)}
+                                  disabled={starting === attempt.test_id}
                                 >
-                                  {starting ===
-                                  attempt.test_id ? (
+                                  {starting === attempt.test_id ? (
                                     <Loader2 className="h-4 w-4 animate-spin" />
                                   ) : (
                                     <RotateCcw className="h-4 w-4" />
@@ -1040,7 +957,7 @@ function DashboardInner() {
                       </div>
                     </CardContent>
                   </Card>
-                )
+                );
               })}
             </div>
           </div>
@@ -1054,13 +971,13 @@ function DashboardInner() {
         deleting={deleteBusy}
         onCancel={() => {
           if (!deleteBusy) {
-            setDeleteTarget(null)
+            setDeleteTarget(null);
           }
         }}
         onConfirm={deleteCustomTest}
       />
     </>
-  )
+  );
 }
 
 export default function DashboardPage() {
@@ -1075,5 +992,5 @@ export default function DashboardPage() {
     >
       <DashboardInner />
     </Suspense>
-  )
+  );
 }

@@ -2051,48 +2051,127 @@ async function handleCreateSubscription(request) {
   // --------------------------------------------------------------------------
   // Do not create a second active subscription for the same user/plan.
   //
-  // This prevents accidental double subscriptions from repeated clicks.
   // --------------------------------------------------------------------------
+// Check the user's existing subscriptions before creating another one.
+// --------------------------------------------------------------------------
 
-  const {
-    data: existingActiveSubscription,
-    error: existingSubscriptionError,
-  } = await admin
-    .from('subscriptions')
-    .select(
-      'id, razorpay_subscription_id, status, expires_at'
+const {
+  data: existingSubscriptions,
+  error: existingSubscriptionError,
+} = await admin
+  .from('subscriptions')
+  .select(
+    'id, plan_id, razorpay_subscription_id, status, expires_at, cancel_at_period_end'
+  )
+  .eq('user_id', user.id)
+  .order('created_at', {
+    ascending: false,
+  })
+
+if (existingSubscriptionError) {
+  return NextResponse.json(
+    {
+      error:
+        `Unable to check existing subscriptions: ${existingSubscriptionError.message}`,
+    },
+    { status: 500 }
+  )
+}
+
+const now = new Date()
+
+const activeSubscription =
+  (existingSubscriptions || []).find((sub) => {
+    return (
+      sub.status === 'active' &&
+      sub.expires_at &&
+      new Date(sub.expires_at) > now
     )
-    .eq('user_id', user.id)
-    .eq('plan_id', plan.id)
-    .eq('status', 'active')
-    .order('created_at', {
-      ascending: false,
-    })
-    .limit(1)
+  }) || null
+
+const unfinishedSubscription =
+  (existingSubscriptions || []).find((sub) => {
+    return ['created', 'past_due'].includes(sub.status)
+  }) || null
+
+// --------------------------------------------------------------------------
+// An active Combined subscription means the user already has the highest
+// available plan.
+// --------------------------------------------------------------------------
+
+if (
+  activeSubscription &&
+  activeSubscription.plan_id === plan.id
+) {
+  return NextResponse.json(
+    {
+      error:
+        'You already have an active subscription for this plan.',
+      subscription_id:
+        activeSubscription.razorpay_subscription_id,
+    },
+    { status: 409 }
+  )
+}
+
+// --------------------------------------------------------------------------
+// If the user is already on Combined, do not allow another subscription.
+// --------------------------------------------------------------------------
+
+if (
+  activeSubscription &&
+  activeSubscription.plan_id !== plan.id
+) {
+  const {
+    data: activePlan,
+  } = await admin
+    .from('plans')
+    .select('id, name')
+    .eq('id', activeSubscription.plan_id)
     .maybeSingle()
 
-  if (existingSubscriptionError) {
+  if (activePlan?.name === 'Combined') {
     return NextResponse.json(
       {
         error:
-          `Unable to check existing subscription: ${existingSubscriptionError.message}`,
-      },
-      { status: 500 }
-    )
-  }
-
-  if (existingActiveSubscription) {
-    return NextResponse.json(
-      {
-        error:
-          'You already have an active subscription for this plan.',
+          'You already have an active Combined subscription.',
         subscription_id:
-          existingActiveSubscription.razorpay_subscription_id,
+          activeSubscription.razorpay_subscription_id,
       },
       { status: 409 }
     )
   }
 
+  // Allow an upgrade from another active plan to Combined.
+  if (plan.name !== 'Combined') {
+    return NextResponse.json(
+      {
+        error:
+          'You already have an active subscription.',
+        subscription_id:
+          activeSubscription.razorpay_subscription_id,
+      },
+      { status: 409 }
+    )
+  }
+}
+
+// --------------------------------------------------------------------------
+// Do not create another subscription while an earlier one is still
+// being created or has an unresolved payment state.
+// --------------------------------------------------------------------------
+
+if (unfinishedSubscription) {
+  return NextResponse.json(
+    {
+      error:
+        'You already have a subscription that is still being processed. Please wait before starting another subscription.',
+      subscription_id:
+        unfinishedSubscription.razorpay_subscription_id,
+    },
+    { status: 409 }
+  )
+}
   // --------------------------------------------------------------------------
   // Create the Razorpay subscription.
   //
@@ -2181,7 +2260,7 @@ async function handleCreateSubscription(request) {
         subscription.id,
 
       status:
-        'past_due',
+  'created',
 
       started_at:
         now.toISOString(),
@@ -2486,7 +2565,7 @@ async function handleVerify(request) {
   // non-active and let the webhook move it to active when appropriate.
   // --------------------------------------------------------------------------
 
-  let nextStatus = 'past_due'
+  let nextStatus = 'created'
 
   if (
     providerSubscription.status ===
