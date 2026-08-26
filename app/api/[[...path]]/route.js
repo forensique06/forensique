@@ -2078,14 +2078,16 @@ if (existingSubscriptionError) {
   )
 }
 
-const now = new Date()
+const currentTime = new Date()
+
+const currentTime = new Date()
 
 const activeSubscription =
   (existingSubscriptions || []).find((sub) => {
     return (
       sub.status === 'active' &&
       sub.expires_at &&
-      new Date(sub.expires_at) > now
+      new Date(sub.expires_at) > currentTime
     )
   }) || null
 
