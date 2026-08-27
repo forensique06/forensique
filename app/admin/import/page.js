@@ -38,11 +38,22 @@ export default function AdminImportPage() {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
         body: JSON.stringify(payload),
       })
-      const j = await res.json()
-      if (!res.ok) throw new Error(j.error || 'Import failed')
-      setResult(j)
+
+      const text = await res.text()
+      let j = null
+      try {
+        j = text ? JSON.parse(text) : null
+      } catch {
+        j = null
+      }
+
+      if (!res.ok) {
+        throw new Error(j?.error || text || `Import failed (${res.status})`)
+      }
+
+      setResult(j || { ok: true })
     } catch (e) {
-      setError(e.message)
+      setError(e.message || 'Import failed')
     } finally {
       setBusy(false)
     }

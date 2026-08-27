@@ -87,10 +87,6 @@ async function handleImport(request) {
     )
   }
 
-  // --------------------------------------------------------------------------
-  // 1. BASIC PAYLOAD VALIDATION
-  // --------------------------------------------------------------------------
-
   const requiredTop = [
     'test_id',
     'test_type',
@@ -130,39 +126,28 @@ async function handleImport(request) {
     )
   }
 
-  // --------------------------------------------------------------------------
-  // 2. VALIDATE COMPLETE PAYLOAD BEFORE ANY DATABASE WRITE
-  // --------------------------------------------------------------------------
-
   const warnings = []
   const seenCodes = new Set()
-
-  // These patterns identify the corrupted data that appeared in January.
   const placeholderQuestion =
     /^Question\s+\d+(?:\s+as extracted from|\s+based on Passage)/i
-
-  const placeholderOption =
-    /^Option\s+[1-4]$/i
+  const placeholderOption = /^Option\s+[1-4]$/i
+  const passageList = Array.isArray(payload.passages)
+    ? payload.passages
+    : []
 
   for (const q of payload.questions) {
-    // question_code
     if (!q?.question_code) {
       return NextResponse.json(
-        {
-          error:
-            'A question is missing question_code',
-        },
+        { error: 'A question is missing question_code' },
         { status: 400 }
       )
     }
 
-    // Duplicate question_code
     if (seenCodes.has(q.question_code)) {
       return NextResponse.json(
         {
           error:
-            `Duplicate question_code in payload: ` +
-            `${q.question_code}`,
+            `Duplicate question_code in payload: ${q.question_code}`,
         },
         { status: 400 }
       )
@@ -170,112 +155,76 @@ async function handleImport(request) {
 
     seenCodes.add(q.question_code)
 
-    // question_text
     if (
       typeof q.question_text !== 'string' ||
       !q.question_text.trim()
     ) {
       return NextResponse.json(
-        {
-          error:
-            `${q.question_code}: question_text is missing or empty`,
-        },
+        { error: `${q.question_code}: question_text is missing or empty` },
         { status: 400 }
       )
     }
 
-    // Reject corrupted placeholder questions.
     if (placeholderQuestion.test(q.question_text.trim())) {
       return NextResponse.json(
         {
           error:
-            `${q.question_code}: question_text looks like ` +
-            `importer placeholder data ` +
-            `("${q.question_text}"). ` +
-            `Import cancelled so bad content cannot enter ` +
-            `the database.`,
+            `${q.question_code}: question_text looks like importer placeholder data (` +
+            `"${q.question_text}"). Import cancelled so bad content cannot enter the database.`,
         },
         { status: 400 }
       )
     }
 
-    // Every question in this application must have four options.
-    if (
-      !Array.isArray(q.options) ||
-      q.options.length !== 4
-    ) {
+    if (!Array.isArray(q.options) || q.options.length !== 4) {
       return NextResponse.json(
-        {
-          error:
-            `${q.question_code}: must have exactly 4 options`,
-        },
+        { error: `${q.question_code}: must have exactly 4 options` },
         { status: 400 }
       )
     }
 
-    // Validate option IDs.
-    const optionIds = q.options.map(
-      (o) => String(o?.option_id ?? '')
-    )
-
+    const optionIds = q.options.map((o) => String(o?.option_id ?? ''))
     const uniqueOptionIds = new Set(optionIds)
 
     if (
       uniqueOptionIds.size !== 4 ||
-      !['1', '2', '3', '4'].every(
-        (id) => uniqueOptionIds.has(id)
-      )
+      !['1', '2', '3', '4'].every((id) => uniqueOptionIds.has(id))
     ) {
       return NextResponse.json(
         {
           error:
-            `${q.question_code}: options must have exactly ` +
-            `the labels 1, 2, 3, 4`,
+            `${q.question_code}: options must have exactly the labels 1, 2, 3, 4`,
         },
         { status: 400 }
       )
     }
 
-    // Validate option text.
     for (const o of q.options) {
-      if (
-        typeof o?.option_text !== 'string' ||
-        !o.option_text.trim()
-      ) {
+      if (typeof o?.option_text !== 'string' || !o.option_text.trim()) {
         return NextResponse.json(
           {
-            error:
-              `${q.question_code}: option ` +
-              `${o?.option_id ?? '?'} is empty`,
+            error: `${q.question_code}: option ${o?.option_id ?? '?'} is empty`,
           },
           { status: 400 }
         )
       }
 
-      // Reject corrupted "Option 1", "Option 2", etc.
       if (placeholderOption.test(o.option_text.trim())) {
         return NextResponse.json(
           {
             error:
-              `${q.question_code}: option ` +
-              `${o.option_id} contains placeholder data ` +
-              `("${o.option_text}"). Import cancelled.`,
+            `${q.question_code}: option ${o.option_id} contains placeholder data ("${o.option_text}"). Import cancelled.`,
           },
           { status: 400 }
         )
       }
     }
 
-    // Answer validation.
-    if (
-      q.answer_status === 'valid' &&
-      !q.correct_option_label
-    ) {
+    if (q.answer_status === 'valid' && !q.correct_option_label) {
       return NextResponse.json(
         {
           error:
-            `${q.question_code}: valid question missing ` +
-            `correct_option_label`,
+            `${q.question_code}: valid question missing correct_option_label`,
         },
         { status: 400 }
       )
@@ -283,46 +232,30 @@ async function handleImport(request) {
 
     if (
       q.answer_status === 'valid' &&
-      !['1', '2', '3', '4'].includes(
-        String(q.correct_option_label)
-      )
+      !['1', '2', '3', '4'].includes(String(q.correct_option_label))
     ) {
       return NextResponse.json(
         {
           error:
-            `${q.question_code}: correct_option_label must ` +
-            `be 1, 2, 3, or 4`,
+            `${q.question_code}: correct_option_label must be 1, 2, 3, or 4`,
         },
         { status: 400 }
       )
     }
 
-    if (
-      q.answer_status === 'dropped' &&
-      q.correct_option_label
-    ) {
+    if (q.answer_status === 'dropped' && q.correct_option_label) {
       warnings.push(
-        `${q.question_code}: answer_status=dropped but ` +
-        `has correct_option_label; storing NULL.`
+        `${q.question_code}: answer_status=dropped but has correct_option_label; storing NULL.`
       )
     }
 
-    // Passage validation.
     if (q.passage_id) {
-      const passages = Array.isArray(payload.passages)
-        ? payload.passages
-        : []
-
-      const passage = passages.find(
-        (p) => p.passage_id === q.passage_id
-      )
-
+      const passage = passageList.find((p) => p.passage_id === q.passage_id)
       if (!passage) {
         return NextResponse.json(
           {
             error:
-              `${q.question_code}: references passage ` +
-              `${q.passage_id} not in payload.passages`,
+              `${q.question_code}: references passage ${q.passage_id} not in payload.passages`,
           },
           { status: 400 }
         )
@@ -330,29 +263,21 @@ async function handleImport(request) {
     }
   }
 
-  // --------------------------------------------------------------------------
-  // 3. UPSERT EXAM
-  // --------------------------------------------------------------------------
-
   const examName = payload.exam_name
     ? `${payload.exam_name} ${payload.session || ''} ${payload.year || ''}`.trim()
     : `Test ${payload.test_id}`
 
-  const { data: existingExam, error: examLookupError } =
-    await admin
-      .from('exams')
-      .select('*')
-      .eq('exam_name', payload.exam_name || examName)
-      .eq('session', payload.session || null)
-      .eq('year', payload.year || null)
-      .maybeSingle()
+  const { data: existingExam, error: examLookupError } = await admin
+    .from('exams')
+    .select('*')
+    .eq('exam_name', payload.exam_name || examName)
+    .eq('session', payload.session || null)
+    .eq('year', payload.year || null)
+    .maybeSingle()
 
   if (examLookupError) {
     return NextResponse.json(
-      {
-        error:
-          `Exam lookup failed: ${examLookupError.message}`,
-      },
+      { error: `Exam lookup failed: ${examLookupError.message}` },
       { status: 500 }
     )
   }
@@ -360,34 +285,23 @@ async function handleImport(request) {
   let exam = existingExam
 
   if (!exam) {
-    const { data: newExam, error: examErr } =
-      await admin
-        .from('exams')
-        .insert({
-          exam_name:
-            payload.exam_name || examName,
-          subject:
-            payload.subject || 'Forensic Science',
-          paper:
-            payload.paper || 'Paper-II',
-          session:
-            payload.session || null,
-          year:
-            payload.year || null,
-          exam_date:
-            payload.exam_date || null,
-          agency:
-            payload.agency || 'NTA',
-        })
-        .select()
-        .single()
+    const { data: newExam, error: examErr } = await admin
+      .from('exams')
+      .insert({
+        exam_name: payload.exam_name || examName,
+        subject: payload.subject || 'Forensic Science',
+        paper: payload.paper || 'Paper-II',
+        session: payload.session || null,
+        year: payload.year || null,
+        exam_date: payload.exam_date || null,
+        agency: payload.agency || 'NTA',
+      })
+      .select()
+      .single()
 
     if (examErr) {
       return NextResponse.json(
-        {
-          error:
-            `Insert exam failed: ${examErr.message}`,
-        },
+        { error: `Insert exam failed: ${examErr.message}` },
         { status: 500 }
       )
     }
@@ -395,213 +309,278 @@ async function handleImport(request) {
     exam = newExam
   }
 
-  // --------------------------------------------------------------------------
-  // 4. UPSERT PASSAGES
-  // --------------------------------------------------------------------------
+  const passageRows = (payload.passages || []).map((p) => ({
+    exam_id: exam.id,
+    passage_code: p.passage_id,
+    passage_label: p.passage_label || null,
+    passage_text: p.passage_text || '',
+  }))
 
   const passageMap = {}
 
-  for (const p of payload.passages || []) {
-    if (!p?.passage_id) {
+  if (passageRows.length) {
+    const invalidPassage = passageRows.find((p) => !p.passage_code)
+    if (invalidPassage) {
       return NextResponse.json(
-        {
-          error: 'A passage is missing passage_id',
-        },
+        { error: 'A passage is missing passage_id' },
         { status: 400 }
       )
     }
 
-    const { data: existing, error: passageLookupError } =
-      await admin
-        .from('passages')
-        .select('*')
-        .eq('exam_id', exam.id)
-        .eq('passage_code', p.passage_id)
-        .maybeSingle()
+    const { data: existingPassages, error: passageLookupError } = await admin
+      .from('passages')
+      .select('id, passage_code')
+      .eq('exam_id', exam.id)
+      .in('passage_code', passageRows.map((p) => p.passage_code))
 
     if (passageLookupError) {
       return NextResponse.json(
         {
-          error:
-            `Passage lookup failed for ${p.passage_id}: ` +
-            `${passageLookupError.message}`,
+          error: `Passage lookup failed: ${passageLookupError.message}`,
         },
         { status: 500 }
       )
     }
 
-    if (existing) {
-      const {
-        data: updated,
-        error: updateErr,
-      } = await admin
-        .from('passages')
-        .update({
-          passage_label:
-            p.passage_label || null,
-          passage_text:
-            p.passage_text || '',
-        })
-        .eq('id', existing.id)
-        .select()
-        .single()
+    const existingMap = new Map(
+      (existingPassages || []).map((p) => [p.passage_code, p])
+    )
 
-      if (updateErr) {
-        return NextResponse.json(
-          {
-            error:
-              `Update passage failed: ${updateErr.message}`,
-          },
-          { status: 500 }
-        )
-      }
+    const upsertPassageRows = passageRows.map((p) => ({
+      id: existingMap.get(p.passage_code)?.id || undefined,
+      exam_id: p.exam_id,
+      passage_code: p.passage_code,
+      passage_label: p.passage_label,
+      passage_text: p.passage_text,
+    }))
 
-      passageMap[p.passage_id] = updated.id
-      continue
-    }
+    const { data: upsertedPassages, error: passageUpsertError } = await admin
+      .from('passages')
+      .upsert(upsertPassageRows, { onConflict: 'exam_id,passage_code' })
+      .select('id, passage_code')
 
-    const { data: newP, error } =
-      await admin
-        .from('passages')
-        .insert({
-          exam_id: exam.id,
-          passage_code: p.passage_id,
-          passage_label:
-            p.passage_label || null,
-          passage_text:
-            p.passage_text || '',
-        })
-        .select()
-        .single()
-
-    if (error) {
+    if (passageUpsertError) {
       return NextResponse.json(
         {
-          error:
-            `Insert passage failed: ${error.message}`,
+          error: `Upsert passages failed: ${passageUpsertError.message}`,
         },
         { status: 500 }
       )
     }
 
-    passageMap[p.passage_id] = newP.id
+    for (const row of upsertedPassages || []) {
+      passageMap[row.passage_code] = row.id
+    }
   }
 
-  // --------------------------------------------------------------------------
-  // 5. LOAD / CREATE TAXONOMY
-  // --------------------------------------------------------------------------
+  const unitNames = [
+    ...new Set(
+      payload.questions
+        .map((q) => q.unit)
+        .filter((value) => typeof value === 'string' && value.trim())
+    ),
+  ]
 
-  const { data: unitsAll, error: unitsError } =
-    await admin
-      .from('units')
-      .select('*')
+  const unitsByName = {}
+  const { data: existingUnits, error: unitsError } = unitNames.length
+    ? await admin.from('units').select('*').in('name', unitNames)
+    : { data: [], error: null }
 
   if (unitsError) {
     return NextResponse.json(
-      {
-        error:
-          `Loading units failed: ${unitsError.message}`,
-      },
+      { error: `Loading units failed: ${unitsError.message}` },
       { status: 500 }
     )
   }
 
-  const unitsByName = Object.fromEntries(
-    (unitsAll || []).map((u) => [
-      u.name,
-      u,
-    ])
+  for (const unit of existingUnits || []) {
+    unitsByName[unit.name] = unit
+  }
+
+  const missingUnitRows = unitNames
+    .filter((name) => !unitsByName[name])
+    .map((name) => ({ name, sort_order: 0 }))
+
+  if (missingUnitRows.length) {
+    const { data: insertedUnits, error: insertUnitsError } = await admin
+      .from('units')
+      .insert(missingUnitRows)
+      .select('id, name')
+
+    if (insertUnitsError) {
+      return NextResponse.json(
+        {
+          error: `Create units failed: ${insertUnitsError.message}`,
+        },
+        { status: 500 }
+      )
+    }
+
+    for (const unit of insertedUnits || []) {
+      unitsByName[unit.name] = unit
+    }
+  }
+
+  const topicKeyMap = new Map()
+  const subtopicKeyMap = new Map()
+  const topicRowsToInsert = []
+  const subtopicRowsToInsert = []
+
+  for (const q of payload.questions) {
+    const unitName = q.unit
+    const unitId = unitsByName[unitName]?.id
+
+    if (!unitId) continue
+
+    if (q.topic) {
+      const key = `${unitId}::${q.topic}`
+      if (!topicKeyMap.has(key)) {
+        topicKeyMap.set(key, { unit_id: unitId, name: q.topic })
+      }
+    }
+
+    if (q.unit && q.topic && q.subtopic) {
+      const topicRow = topicKeyMap.get(`${unitId}::${q.topic}`)
+      const topicId = topicRow ? null : null
+      if (topicRow) {
+        const subKey = `${unitId}::${q.topic}::${q.subtopic}`
+        if (!subtopicKeyMap.has(subKey)) {
+          subtopicKeyMap.set(subKey, {
+            unit_id: unitId,
+            topic_name: q.topic,
+            name: q.subtopic,
+          })
+        }
+      }
+    }
+  }
+
+  const topicUnitIds = [...new Set((payload.questions || []).map((q) => unitsByName[q.unit]?.id).filter(Boolean))]
+
+  const { data: existingTopics, error: topicsLoadError } = topicUnitIds.length
+    ? await admin.from('topics').select('id, unit_id, name').in('unit_id', topicUnitIds)
+    : { data: [], error: null }
+
+  if (topicsLoadError) {
+    return NextResponse.json(
+      { error: `Loading topics failed: ${topicsLoadError.message}` },
+      { status: 500 }
+    )
+  }
+
+  const topicMap = new Map(
+    (existingTopics || []).map((t) => [`${t.unit_id}::${t.name}`, t])
   )
 
-  async function getOrCreateTopic(unitId, name) {
-    if (!name) return null
-
-    // If there is no unit, do not create a broken topic.
-    if (!unitId) return null
-
-    const {
-      data: existing,
-      error: lookupError,
-    } = await admin
-      .from('topics')
-      .select('*')
-      .eq('unit_id', unitId)
-      .eq('name', name)
-      .maybeSingle()
-
-    if (lookupError) return null
-    if (existing) return existing.id
-
-    const {
-      data: newT,
-      error,
-    } = await admin
-      .from('topics')
-      .insert({
-        unit_id: unitId,
-        name,
-      })
-      .select()
-      .single()
-
-    if (error) return null
-
-    return newT.id
+  for (const value of topicKeyMap.values()) {
+    if (!topicMap.has(`${value.unit_id}::${value.name}`)) {
+      topicRowsToInsert.push(value)
+    }
   }
 
-  async function getOrCreateSubtopic(
-    topicId,
-    name
-  ) {
-    if (!name || !topicId) return null
+  if (topicRowsToInsert.length) {
+    const { data: insertedTopics, error: insertTopicsError } = await admin
+      .from('topics')
+      .insert(topicRowsToInsert)
+      .select('id, unit_id, name')
 
-    const {
-      data: existing,
-      error: lookupError,
-    } = await admin
-      .from('subtopics')
-      .select('*')
-      .eq('topic_id', topicId)
-      .eq('name', name)
-      .maybeSingle()
+    if (insertTopicsError) {
+      return NextResponse.json(
+        {
+          error: `Create topics failed: ${insertTopicsError.message}`,
+        },
+        { status: 500 }
+      )
+    }
 
-    if (lookupError) return null
-    if (existing) return existing.id
-
-    const {
-      data: newS,
-      error,
-    } = await admin
-      .from('subtopics')
-      .insert({
-        topic_id: topicId,
-        name,
-      })
-      .select()
-      .single()
-
-    if (error) return null
-
-    return newS.id
+    for (const topic of insertedTopics || []) {
+      topicMap.set(`${topic.unit_id}::${topic.name}`, topic)
+    }
   }
 
-  // --------------------------------------------------------------------------
-  // 6. UPSERT TEST
-  // --------------------------------------------------------------------------
+  const topicIds = [...new Set((existingTopics || []).map((t) => t.id).concat((topicRowsToInsert.length ? [] : [])))]
+  const allTopicIds = [...new Set((existingTopics || []).map((t) => t.id).concat((topicRowsToInsert.length ? [] : [])))]
 
-  const isSampleFreeTrial =
-    payload.test_id === 'UGC_NET_FS_2025_06'
+  if (allTopicIds.length || (topicRowsToInsert.length ? true : false)) {
+    // no-op; topic set is already built above
+  }
 
-  const testTitle =
-    `${payload.exam_name || 'Test'}` +
-    `${payload.session ? ' ' + payload.session : ''}` +
-    `${payload.year ? ' ' + payload.year : ''}` +
-    ` — ${payload.paper || 'Paper II'}`
+  const allTopics = [...topicMap.values()]
+  const topicIdByUnitAndName = new Map(
+    allTopics.map((t) => [`${t.unit_id}::${t.name}`, t.id])
+  )
 
-  const {
-    data: existingTest,
-    error: testLookupError,
-  } = await admin
+  for (const q of payload.questions) {
+    const unitName = q.unit
+    const unitId = unitsByName[unitName]?.id
+    if (!unitId || !q.topic || !q.subtopic) continue
+
+    const subKey = `${unitId}::${q.topic}::${q.subtopic}`
+    const topicId = topicIdByUnitAndName.get(`${unitId}::${q.topic}`)
+    if (!topicId) continue
+
+    if (!subtopicKeyMap.has(subKey)) {
+      subtopicKeyMap.set(subKey, { topic_id: topicId, name: q.subtopic })
+    }
+  }
+
+  const subtopicTopicIds = [...new Set([...subtopicKeyMap.values()].map((s) => s.topic_id))]
+
+  const { data: existingSubtopics, error: subtopicsLoadError } = subtopicTopicIds.length
+    ? await admin.from('subtopics').select('id, topic_id, name').in('topic_id', subtopicTopicIds)
+    : { data: [], error: null }
+
+  if (subtopicsLoadError) {
+    return NextResponse.json(
+      { error: `Loading subtopics failed: ${subtopicsLoadError.message}` },
+      { status: 500 }
+    )
+  }
+
+  const subtopicMap = new Map(
+    (existingSubtopics || []).map((s) => [`${s.topic_id}::${s.name}`, s])
+  )
+
+  for (const value of subtopicKeyMap.values()) {
+    if (!subtopicMap.has(`${value.topic_id}::${value.name}`)) {
+      subtopicRowsToInsert.push(value)
+    }
+  }
+
+  if (subtopicRowsToInsert.length) {
+    const { data: insertedSubtopics, error: insertSubtopicsError } = await admin
+      .from('subtopics')
+      .insert(subtopicRowsToInsert)
+      .select('id, topic_id, name')
+
+    if (insertSubtopicsError) {
+      return NextResponse.json(
+        {
+          error: `Create subtopics failed: ${insertSubtopicsError.message}`,
+        },
+        { status: 500 }
+      )
+    }
+
+    for (const subtopic of insertedSubtopics || []) {
+      subtopicMap.set(`${subtopic.topic_id}::${subtopic.name}`, subtopic)
+    }
+  }
+
+  const topicIdByKey = new Map()
+  for (const topic of [...topicMap.values()]) {
+    topicIdByKey.set(`${topic.unit_id}::${topic.name}`, topic.id)
+  }
+
+  const subtopicIdByKey = new Map()
+  for (const subtopic of [...subtopicMap.values()]) {
+    subtopicIdByKey.set(`${subtopic.topic_id}::${subtopic.name}`, subtopic.id)
+  }
+
+  const isSampleFreeTrial = payload.test_id === 'UGC_NET_FS_2025_06'
+  const testTitle = `${payload.exam_name || 'Test'}${payload.session ? ' ' + payload.session : ''}${payload.year ? ' ' + payload.year : ''} — ${payload.paper || 'Paper II'}`
+
+  const { data: existingTest, error: testLookupError } = await admin
     .from('tests')
     .select('*')
     .eq('test_id', payload.test_id)
@@ -609,10 +588,7 @@ async function handleImport(request) {
 
   if (testLookupError) {
     return NextResponse.json(
-      {
-        error:
-          `Test lookup failed: ${testLookupError.message}`,
-      },
+      { error: `Test lookup failed: ${testLookupError.message}` },
       { status: 500 }
     )
   }
@@ -620,74 +596,44 @@ async function handleImport(request) {
   let test = existingTest
 
   if (!test) {
-    const {
-      data: newTest,
-      error: testErr,
-    } = await admin
+    const { data: newTest, error: testErr } = await admin
       .from('tests')
       .insert({
-        test_id:
-          payload.test_id,
-        title:
-          testTitle,
-        test_type:
-          payload.test_type,
-        exam_id:
-          exam.id,
-        total_questions:
-          payload.total_questions,
-        duration_minutes:
-          payload.duration_minutes,
-        marks_per_question:
-          payload.marks_per_question ?? 2,
-        negative_marking:
-          !!payload.negative_marking,
-        is_premium:
-          !isSampleFreeTrial,
-        status:
-          'published',
+        test_id: payload.test_id,
+        title: testTitle,
+        test_type: payload.test_type,
+        exam_id: exam.id,
+        total_questions: payload.total_questions,
+        duration_minutes: payload.duration_minutes,
+        marks_per_question: payload.marks_per_question ?? 2,
+        negative_marking: !!payload.negative_marking,
+        is_premium: !isSampleFreeTrial,
+        status: 'published',
       })
       .select()
       .single()
 
     if (testErr) {
       return NextResponse.json(
-        {
-          error:
-            `Insert test failed: ${testErr.message}`,
-        },
+        { error: `Insert test failed: ${testErr.message}` },
         { status: 500 }
       )
     }
 
     test = newTest
   } else {
-    const {
-      data: updatedTest,
-      error: testUpdateErr,
-    } = await admin
+    const { data: updatedTest, error: testUpdateErr } = await admin
       .from('tests')
       .update({
-        title:
-          testTitle,
-        test_type:
-          payload.test_type,
-        exam_id:
-          exam.id,
-        total_questions:
-          payload.total_questions,
-        duration_minutes:
-          payload.duration_minutes,
-        marks_per_question:
-          payload.marks_per_question ?? 2,
-        negative_marking:
-          !!payload.negative_marking,
-        is_premium:
-          isSampleFreeTrial
-            ? false
-            : test.is_premium,
-        status:
-          'published',
+        title: testTitle,
+        test_type: payload.test_type,
+        exam_id: exam.id,
+        total_questions: payload.total_questions,
+        duration_minutes: payload.duration_minutes,
+        marks_per_question: payload.marks_per_question ?? 2,
+        negative_marking: !!payload.negative_marking,
+        is_premium: isSampleFreeTrial ? false : test.is_premium,
+        status: 'published',
       })
       .eq('id', test.id)
       .select()
@@ -695,10 +641,7 @@ async function handleImport(request) {
 
     if (testUpdateErr) {
       return NextResponse.json(
-        {
-          error:
-            `Update test failed: ${testUpdateErr.message}`,
-        },
+        { error: `Update test failed: ${testUpdateErr.message}` },
         { status: 500 }
       )
     }
@@ -706,558 +649,248 @@ async function handleImport(request) {
     test = updatedTest
   }
 
-  // --------------------------------------------------------------------------
-  // 7. UPSERT QUESTIONS
-  // --------------------------------------------------------------------------
-
-  const questionsInserted = []
-
-  let optionsCount = 0
-  let statementsCount = 0
-  let matchCount = 0
-  let droppedCount = 0
-  let updatedCount = 0
-
-  for (const q of payload.questions) {
-    const {
-      data: existingQ,
-      error: existingQError,
-    } = await admin
-      .from('questions')
-      .select('id')
-      .eq(
-        'question_code',
-        q.question_code
-      )
-      .maybeSingle()
-
-    if (existingQError) {
-      return NextResponse.json(
-        {
-          error:
-            `Question lookup failed for ` +
-            `${q.question_code}: ` +
-            `${existingQError.message}`,
-        },
-        { status: 500 }
-      )
-    }
-
-    let questionId = existingQ?.id
-
-    // --------------------------------------------------------
-    // Taxonomy
-    // --------------------------------------------------------
-
-    let unitRow =
-      unitsByName[q.unit]
-
-    if (!unitRow && q.unit) {
-      warnings.push(
-        `${q.question_code}: unit "${q.unit}" ` +
-        `not in master list; created ad-hoc.`
-      )
-
-      const {
-        data: newU,
-        error: unitError,
-      } = await admin
-        .from('units')
-        .insert({
-          name: q.unit,
-        })
-        .select()
-        .single()
-
-      if (unitError) {
-        return NextResponse.json(
-          {
-            error:
-              `Create unit "${q.unit}" failed: ` +
-              `${unitError.message}`,
-          },
-          { status: 500 }
-        )
-      }
-
-      if (newU) {
-        unitsByName[q.unit] = newU
-        unitRow = newU
-      }
-    }
-
-    const unitId =
-      unitsByName[q.unit]?.id || null
-
-    const topicId =
-      await getOrCreateTopic(
-        unitId,
-        q.topic
-      )
-
-    const subtopicId =
-      await getOrCreateSubtopic(
-        topicId,
-        q.subtopic
-      )
-
-    // Extract question number from:
-    // UGC_NET_FS_2025_JAN_Q026
-    // UGC_NET_FS_2025_06_Q001
-    const qNum =
-      parseInt(
-        (
-          q.question_code.match(
-            /(\d+)$/
-          ) || []
-        )[1]
-      ) || null
-
-    // --------------------------------------------------------
-    // Question row
-    // --------------------------------------------------------
-
-    const questionPatch = {
-      question_code:
-        q.question_code,
-
-      exam_id:
-        exam.id,
-
-      question_number:
-        qNum,
-
-      unit_id:
-        unitId,
-
-      topic_id:
-        topicId,
-
-      subtopic_id:
-        subtopicId,
-
-      content_format:
-        q.content_format || 'plain',
-
-      question_text:
-        q.question_text.trim(),
-
-      passage_id:
-        q.passage_id
-          ? passageMap[q.passage_id]
-          : null,
-
-      is_negative_framing:
-        !!q.is_negative_framing,
-
-      status:
-        'published',
-
-      answer_status:
-        q.answer_status || 'valid',
-
-      explanation:
-        q.explanation || null,
-
-      updated_at:
-        new Date().toISOString(),
-    }
-
-    if (questionId) {
-      const {
-        error: qErr,
-      } = await admin
-        .from('questions')
-        .update(questionPatch)
-        .eq('id', questionId)
-
-      if (qErr) {
-        return NextResponse.json(
-          {
-            error:
-              `Update question ` +
-              `${q.question_code} failed: ` +
-              `${qErr.message}`,
-          },
-          { status: 500 }
-        )
-      }
-
-      updatedCount++
-
-      // ------------------------------------------------------
-      // IMPORTANT:
-      // Delete old child rows before inserting the correct
-      // source data. This repairs the existing January rows.
-      // ------------------------------------------------------
-
-      for (const table of [
-        'question_options',
-        'question_statements',
-        'question_match_items',
-      ]) {
-        const {
-          error: deleteErr,
-        } = await admin
-          .from(table)
-          .delete()
-          .eq(
-            'question_id',
-            questionId
-          )
-
-        if (deleteErr) {
-          return NextResponse.json(
-            {
-              error:
-                `Clear ${table} for ` +
-                `${q.question_code} failed: ` +
-                `${deleteErr.message}`,
-            },
-            { status: 500 }
-          )
-        }
-      }
-
-      const {
-        error: deleteAnswerErr,
-      } = await admin
-        .from('answers')
-        .delete()
-        .eq(
-          'question_id',
-          questionId
-        )
-
-      if (deleteAnswerErr) {
-        return NextResponse.json(
-          {
-            error:
-              `Clear answer for ` +
-              `${q.question_code} failed: ` +
-              `${deleteAnswerErr.message}`,
-          },
-          { status: 500 }
-        )
-      }
-    } else {
-      const {
-        data: newQ,
-        error: qErr,
-      } = await admin
-        .from('questions')
-        .insert(questionPatch)
-        .select()
-        .single()
-
-      if (qErr) {
-        return NextResponse.json(
-          {
-            error:
-              `Insert question ` +
-              `${q.question_code} failed: ` +
-              `${qErr.message}`,
-          },
-          { status: 500 }
-        )
-      }
-
-      questionId = newQ.id
-    }
-
-    // --------------------------------------------------------
-    // OPTIONS
-    // --------------------------------------------------------
-
-    const optRows = q.options.map(
-      (o) => ({
-        question_id:
-          questionId,
-
-        option_id:
-          String(o.option_id),
-
-        option_text:
-          o.option_text.trim(),
-
-        sort_order:
-          parseInt(o.option_id) || 0,
-      })
-    )
-
-    const {
-      error: oErr,
-    } = await admin
-      .from('question_options')
-      .insert(optRows)
-
-    if (oErr) {
-      return NextResponse.json(
-        {
-          error:
-            `Insert options for ` +
-            `${q.question_code} failed: ` +
-            `${oErr.message}`,
-        },
-        { status: 500 }
-      )
-    }
-
-    optionsCount +=
-      optRows.length
-
-    // --------------------------------------------------------
-    // STATEMENTS
-    // --------------------------------------------------------
-
-    if (
-      Array.isArray(q.statements) &&
-      q.statements.length
-    ) {
-      const rows =
-        q.statements.map(
-          (s, i) => ({
-            question_id:
-              questionId,
-
-            label:
-              s.label,
-
-            text:
-              s.text,
-
-            sort_order:
-              i,
-          })
-        )
-
-      const {
-        error,
-      } = await admin
-        .from('question_statements')
-        .insert(rows)
-
-      if (error) {
-        return NextResponse.json(
-          {
-            error:
-              `Insert statements for ` +
-              `${q.question_code} failed: ` +
-              `${error.message}`,
-          },
-          { status: 500 }
-        )
-      }
-
-      statementsCount +=
-        rows.length
-    }
-
-    // --------------------------------------------------------
-    // MATCHING ITEMS
-    // --------------------------------------------------------
-
-    if (
-      q.match_left?.length ||
-      q.match_right?.length
-    ) {
-      const rows = [
-        ...(q.match_left || []).map(
-          (m, i) => ({
-            question_id:
-              questionId,
-
-            side:
-              'left',
-
-            label:
-              m.label,
-
-            text:
-              m.text,
-
-            sort_order:
-              i,
-          })
-        ),
-
-        ...(q.match_right || []).map(
-          (m, i) => ({
-            question_id:
-              questionId,
-
-            side:
-              'right',
-
-            label:
-              m.label,
-
-            text:
-              m.text,
-
-            sort_order:
-              i,
-          })
-        ),
-      ]
-
-      const {
-        error,
-      } = await admin
-        .from('question_match_items')
-        .insert(rows)
-
-      if (error) {
-        return NextResponse.json(
-          {
-            error:
-              `Insert match items for ` +
-              `${q.question_code} failed: ` +
-              `${error.message}`,
-          },
-          { status: 500 }
-        )
-      }
-
-      matchCount +=
-        rows.length
-    }
-
-    // --------------------------------------------------------
-    // ANSWER
-    // --------------------------------------------------------
-
-    const ansRow = {
-      question_id:
-        questionId,
-
-      correct_option_id:
-        q.answer_status === 'dropped'
-          ? null
-          : String(
-              q.correct_option_label
-            ),
-
-      scoring_type:
-        'single_correct',
-    }
-
-    const {
-      error: aErr,
-    } = await admin
-      .from('answers')
-      .insert(ansRow)
-
-    if (aErr) {
-      return NextResponse.json(
-        {
-          error:
-            `Insert answer for ` +
-            `${q.question_code} failed: ` +
-            `${aErr.message}`,
-        },
-        { status: 500 }
-      )
-    }
-
-    if (
-      q.answer_status ===
-      'dropped'
-    ) {
-      droppedCount++
-    }
-
-    questionsInserted.push({
-      id:
-        questionId,
-
-      code:
-        q.question_code,
-    })
-  }
-
-  // --------------------------------------------------------------------------
-  // 8. LINK QUESTIONS TO TEST
-  // --------------------------------------------------------------------------
-
-  const tqRows =
-    questionsInserted.map(
-      (q, idx) => ({
-        test_id:
-          test.id,
-
-        question_id:
-          q.id,
-
-        sequence_number:
-          idx + 1,
-      })
-    )
-
-  const {
-    error: tqErr,
-  } = await admin
-    .from('test_questions')
-    .upsert(
-      tqRows,
-      {
-        onConflict:
-          'test_id,question_id',
-      }
-    )
-
-  if (tqErr) {
+  const questionCodes = payload.questions.map((q) => q.question_code)
+  const { data: existingQuestions, error: existingQuestionsError } = questionCodes.length
+    ? await admin.from('questions').select('id, question_code').in('question_code', questionCodes)
+    : { data: [], error: null }
+
+  if (existingQuestionsError) {
     return NextResponse.json(
       {
-        error:
-          `Link test_questions failed: ` +
-          `${tqErr.message}`,
+        error: `Question lookup failed: ${existingQuestionsError.message}`,
       },
       { status: 500 }
     )
   }
 
-  // --------------------------------------------------------------------------
-  // 9. SUCCESS RESPONSE
-  // --------------------------------------------------------------------------
+  const existingQuestionMap = new Map(
+    (existingQuestions || []).map((q) => [q.question_code, q])
+  )
+
+  const questionRows = payload.questions.map((q) => {
+    const unitId = unitsByName[q.unit]?.id || null
+    const topicId = q.topic ? topicIdByKey.get(`${unitId}::${q.topic}`) || null : null
+    const subtopicId = q.subtopic ? subtopicIdByKey.get(`${topicId}::${q.subtopic}`) || null : null
+    const qNum = parseInt((q.question_code.match(/(\d+)$/) || [])[1], 10) || null
+
+    return {
+      question_code: q.question_code,
+      exam_id: exam.id,
+      question_number: qNum,
+      unit_id: unitId,
+      topic_id: topicId,
+      subtopic_id: subtopicId,
+      content_format: q.content_format || 'plain',
+      question_text: q.question_text.trim(),
+      passage_id: q.passage_id ? passageMap[q.passage_id] || null : null,
+      is_negative_framing: !!q.is_negative_framing,
+      status: 'published',
+      answer_status: q.answer_status || 'valid',
+      explanation: q.explanation || null,
+      updated_at: new Date().toISOString(),
+    }
+  })
+
+  const { data: upsertedQuestions, error: questionUpsertError } = await admin
+    .from('questions')
+    .upsert(questionRows, { onConflict: 'question_code' })
+    .select('id, question_code')
+
+  if (questionUpsertError) {
+    return NextResponse.json(
+      {
+        error: `Upsert questions failed: ${questionUpsertError.message}`,
+      },
+      { status: 500 }
+    )
+  }
+
+  const questionByCode = new Map(
+    (upsertedQuestions || []).map((q) => [q.question_code, q])
+  )
+  const allQuestionIds = (upsertedQuestions || []).map((q) => q.id)
+  let updatedCount = existingQuestions?.length || 0
+  let droppedCount = 0
+  let optionsCount = 0
+  let statementsCount = 0
+  let matchCount = 0
+
+  if (allQuestionIds.length) {
+    await Promise.all([
+      admin.from('question_options').delete().in('question_id', allQuestionIds),
+      admin.from('question_statements').delete().in('question_id', allQuestionIds),
+      admin.from('question_match_items').delete().in('question_id', allQuestionIds),
+      admin.from('answers').delete().in('question_id', allQuestionIds),
+    ])
+  }
+
+  const optionRows = []
+  const statementRows = []
+  const matchRows = []
+  const answerRows = []
+
+  for (const q of payload.questions) {
+    const questionId = questionByCode.get(q.question_code)?.id
+    if (!questionId) continue
+
+    if (q.answer_status === 'dropped') {
+      droppedCount++
+    }
+
+    for (const option of q.options) {
+      optionRows.push({
+        question_id: questionId,
+        option_id: String(option.option_id),
+        option_text: option.option_text.trim(),
+        sort_order: parseInt(option.option_id, 10) || 0,
+      })
+    }
+
+    optionsCount += q.options.length
+
+    for (const [idx, statement] of (q.statements || []).entries()) {
+      statementRows.push({
+        question_id: questionId,
+        label: statement.label,
+        text: statement.text,
+        sort_order: idx,
+      })
+    }
+
+    statementsCount += (q.statements || []).length
+
+    for (const [idx, left] of (q.match_left || []).entries()) {
+      matchRows.push({
+        question_id: questionId,
+        side: 'left',
+        label: left.label,
+        text: left.text,
+        sort_order: idx,
+      })
+    }
+
+    for (const [idx, right] of (q.match_right || []).entries()) {
+      matchRows.push({
+        question_id: questionId,
+        side: 'right',
+        label: right.label,
+        text: right.text,
+        sort_order: idx,
+      })
+    }
+
+    matchCount += (q.match_left || []).length + (q.match_right || []).length
+
+    answerRows.push({
+      question_id: questionId,
+      correct_option_id: q.answer_status === 'dropped' ? null : String(q.correct_option_label),
+      scoring_type: 'single_correct',
+    })
+  }
+
+  if (optionRows.length) {
+    const { error: optionInsertError } = await admin
+      .from('question_options')
+      .insert(optionRows)
+
+    if (optionInsertError) {
+      return NextResponse.json(
+        {
+          error: `Insert options failed: ${optionInsertError.message}`,
+        },
+        { status: 500 }
+      )
+    }
+  }
+
+  if (statementRows.length) {
+    const { error: statementInsertError } = await admin
+      .from('question_statements')
+      .insert(statementRows)
+
+    if (statementInsertError) {
+      return NextResponse.json(
+        {
+          error: `Insert statements failed: ${statementInsertError.message}`,
+        },
+        { status: 500 }
+      )
+    }
+  }
+
+  if (matchRows.length) {
+    const { error: matchInsertError } = await admin
+      .from('question_match_items')
+      .insert(matchRows)
+
+    if (matchInsertError) {
+      return NextResponse.json(
+        {
+          error: `Insert match items failed: ${matchInsertError.message}`,
+        },
+        { status: 500 }
+      )
+    }
+  }
+
+  if (answerRows.length) {
+    const { error: answerInsertError } = await admin
+      .from('answers')
+      .insert(answerRows)
+
+    if (answerInsertError) {
+      return NextResponse.json(
+        {
+          error: `Insert answers failed: ${answerInsertError.message}`,
+        },
+        { status: 500 }
+      )
+    }
+  }
+
+  const tqRows = payload.questions
+    .map((q, idx) => {
+      const question = questionByCode.get(q.question_code)
+      if (!question) return null
+      return {
+        test_id: test.id,
+        question_id: question.id,
+        sequence_number: idx + 1,
+      }
+    })
+    .filter(Boolean)
+
+  if (tqRows.length) {
+    const { error: tqErr } = await admin
+      .from('test_questions')
+      .upsert(tqRows, { onConflict: 'test_id,question_id' })
+
+    if (tqErr) {
+      return NextResponse.json(
+        {
+          error: `Link test_questions failed: ${tqErr.message}`,
+        },
+        { status: 500 }
+      )
+    }
+  }
 
   return NextResponse.json({
     ok: true,
-
     test: {
-      id:
-        test.id,
-
-      test_id:
-        test.test_id,
-
-      title:
-        test.title,
+      id: test.id,
+      test_id: test.test_id,
+      title: test.title,
     },
-
     counts: {
-      questions:
-        questionsInserted.length,
-
-      updated:
-        updatedCount,
-
-      passages:
-        (payload.passages || []).length,
-
-      options:
-        optionsCount,
-
-      statements:
-        statementsCount,
-
-      match_items:
-        matchCount,
-
-      dropped:
-        droppedCount,
+      questions: payload.questions.length,
+      updated: updatedCount,
+      passages: (payload.passages || []).length,
+      options: optionsCount,
+      statements: statementsCount,
+      match_items: matchCount,
+      dropped: droppedCount,
     },
-
     warnings,
   })
 }
