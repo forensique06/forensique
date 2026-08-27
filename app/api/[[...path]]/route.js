@@ -423,21 +423,6 @@ async function handleImport(request) {
         topicKeyMap.set(key, { unit_id: unitId, name: q.topic });
       }
     }
-
-    if (q.unit && q.topic && q.subtopic) {
-      const topicRow = topicKeyMap.get(`${unitId}::${q.topic}`);
-      const topicId = topicRow ? null : null;
-      if (topicRow) {
-        const subKey = `${unitId}::${q.topic}::${q.subtopic}`;
-        if (!subtopicKeyMap.has(subKey)) {
-          subtopicKeyMap.set(subKey, {
-            unit_id: unitId,
-            topic_name: q.topic,
-            name: q.subtopic,
-          });
-        }
-      }
-    }
   }
 
   const topicUnitIds = [
