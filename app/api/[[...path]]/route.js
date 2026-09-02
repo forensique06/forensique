@@ -187,10 +187,13 @@ async function handleImport(request) {
     }
 
     for (const o of q.options) {
-      if (typeof o?.option_text !== "string" || !o.option_text.trim()) {
+      if (
+        typeof o?.option_text !== "string" ||
+        !o.option_text.trim()
+      ) {
         return NextResponse.json(
           {
-            error: `${q.question_code}: option ${o?.option_id ?? "?"} is empty`,
+            error: `${q.question_code}: option ${o?.option_id ?? "?"} is missing option_text`,
           },
           { status: 400 },
         );
@@ -199,711 +202,344 @@ async function handleImport(request) {
       if (placeholderOption.test(o.option_text.trim())) {
         return NextResponse.json(
           {
-            error: `${q.question_code}: option ${o.option_id} contains placeholder data ("${o.option_text}"). Import cancelled.`,
+            error:
+              `${q.question_code}: option ${o.option_id} contains placeholder data ` +
+              `("${o.option_text}"). Import cancelled.`,
           },
           { status: 400 },
         );
       }
     }
 
-    if (q.answer_status === "valid" && !q.correct_option_label) {
+    if (
+      q.correct_option_id !== null &&
+      q.correct_option_id !== undefined &&
+      !["1", "2", "3", "4"].includes(String(q.correct_option_id))
+    ) {
       return NextResponse.json(
         {
-          error: `${q.question_code}: valid question missing correct_option_label`,
+          error:
+            `${q.question_code}: correct_option_id must be 1, 2, 3, or 4.`,
         },
         { status: 400 },
       );
     }
 
     if (
-      q.answer_status === "valid" &&
-      !["1", "2", "3", "4"].includes(String(q.correct_option_label))
+      q.question_type === "assertion_reason" &&
+      (!q.assertion || !q.reason)
     ) {
+      warnings.push(
+        `${q.question_code}: assertion/reason question is missing assertion or reason text.`,
+      );
+    }
+
+    if (
+      q.question_type === "match" &&
+      (!Array.isArray(q.match_items) || q.match_items.length === 0)
+    ) {
+      warnings.push(
+        `${q.question_code}: match question has no match_items.`,
+      );
+    }
+
+    if (
+      q.question_type === "statement" &&
+      (!Array.isArray(q.statements) || q.statements.length === 0)
+    ) {
+      warnings.push(
+        `${q.question_code}: statement question has no statements.`,
+      );
+    }
+
+    if (
+      q.passage_id !== null &&
+      q.passage_id !== undefined &&
+      !passageList.some(
+        (p) => String(p?.passage_id) === String(q.passage_id),
+      )
+    ) {
+      warnings.push(
+        `${q.question_code}: passage_id ${q.passage_id} does not match a supplied passage.`,
+      );
+    }
+  }
+
+  const {
+    data: existingTest,
+    error: existingTestError,
+  } = await admin
+    .from("tests")
+    .select("id")
+    .eq("test_id", payload.test_id)
+    .maybeSingle();
+
+  if (existingTestError) {
+    return NextResponse.json(
+      {
+        error: `Unable to check existing test: ${existingTestError.message}`,
+      },
+      { status: 500 },
+    );
+  }
+
+  let testRow;
+
+  if (existingTest) {
+    const { data, error } = await admin
+      .from("tests")
+      .update({
+        title: payload.title || payload.test_id,
+        test_type: payload.test_type,
+        total_questions: Number(payload.total_questions),
+        duration_minutes: Number(payload.duration_minutes),
+        metadata: payload.metadata || null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", existingTest.id)
+      .select()
+      .single();
+
+    if (error) {
       return NextResponse.json(
         {
-          error: `${q.question_code}: correct_option_label must be 1, 2, 3, or 4`,
+          error: `Unable to update test: ${error.message}`,
         },
-        { status: 400 },
+        { status: 500 },
       );
     }
 
-    if (q.answer_status === "dropped" && q.correct_option_label) {
-      warnings.push(
-        `${q.question_code}: answer_status=dropped but has correct_option_label; storing NULL.`,
+    testRow = data;
+  } else {
+    const { data, error } = await admin
+      .from("tests")
+      .insert({
+        test_id: payload.test_id,
+        title: payload.title || payload.test_id,
+        test_type: payload.test_type,
+        total_questions: Number(payload.total_questions),
+        duration_minutes: Number(payload.duration_minutes),
+        metadata: payload.metadata || null,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      return NextResponse.json(
+        {
+          error: `Unable to create test: ${error.message}`,
+        },
+        { status: 500 },
       );
     }
 
-    if (q.passage_id) {
-      const passage = passageList.find((p) => p.passage_id === q.passage_id);
-      if (!passage) {
+    testRow = data;
+  }
+
+  if (passageList.length > 0) {
+    const passageRows = passageList.map((p) => ({
+      test_id: testRow.id,
+      passage_id: p.passage_id,
+      passage_text: p.passage_text || p.text || "",
+      metadata: p.metadata || null,
+    }));
+
+    const { error: passageError } = await admin
+      .from("passages")
+      .upsert(passageRows, {
+        onConflict: "test_id,passage_id",
+      });
+
+    if (passageError) {
+      return NextResponse.json(
+        {
+          error: `Unable to save passages: ${passageError.message}`,
+        },
+        { status: 500 },
+      );
+    }
+  }
+
+  const questionRows = payload.questions.map((q, index) => ({
+    test_id: testRow.id,
+    question_code: q.question_code,
+    sequence_number:
+      q.sequence_number !== undefined
+        ? Number(q.sequence_number)
+        : index + 1,
+    question_text: q.question_text,
+    question_type: q.question_type || "mcq",
+    correct_option_id:
+      q.correct_option_id !== null &&
+      q.correct_option_id !== undefined
+        ? String(q.correct_option_id)
+        : null,
+    explanation: q.explanation || null,
+    subject: q.subject || null,
+    unit: q.unit || null,
+    topic: q.topic || null,
+    difficulty: q.difficulty || null,
+    passage_id: q.passage_id || null,
+    metadata: q.metadata || null,
+  }));
+
+  const { data: insertedQuestions, error: questionError } = await admin
+    .from("questions")
+    .upsert(questionRows, {
+      onConflict: "test_id,question_code",
+    })
+    .select("id, question_code");
+
+  if (questionError) {
+    return NextResponse.json(
+      {
+        error: `Unable to save questions: ${questionError.message}`,
+      },
+      { status: 500 },
+    );
+  }
+
+  const questionIdByCode = new Map(
+    (insertedQuestions || []).map((q) => [q.question_code, q.id]),
+  );
+
+  for (const q of payload.questions) {
+    const questionId = questionIdByCode.get(q.question_code);
+
+    if (!questionId) {
+      return NextResponse.json(
+        {
+          error:
+            `Question ${q.question_code} was not returned after database upsert.`,
+        },
+        { status: 500 },
+      );
+    }
+
+    await admin
+      .from("options")
+      .delete()
+      .eq("question_id", questionId);
+
+    const optionRows = q.options.map((o) => ({
+      question_id: questionId,
+      option_id: String(o.option_id),
+      option_text: o.option_text,
+    }));
+
+    const { error: optionError } = await admin
+      .from("options")
+      .insert(optionRows);
+
+    if (optionError) {
+      return NextResponse.json(
+        {
+          error:
+            `Unable to save options for ${q.question_code}: ` +
+            `${optionError.message}`,
+        },
+        { status: 500 },
+      );
+    }
+
+    await admin
+      .from("statements")
+      .delete()
+      .eq("question_id", questionId);
+
+    if (Array.isArray(q.statements) && q.statements.length > 0) {
+      const statementRows = q.statements.map((s, index) => ({
+        question_id: questionId,
+        statement_number:
+          s.statement_number !== undefined
+            ? Number(s.statement_number)
+            : index + 1,
+        statement_text: s.statement_text || s.text || "",
+      }));
+
+      const { error: statementError } = await admin
+        .from("statements")
+        .insert(statementRows);
+
+      if (statementError) {
         return NextResponse.json(
           {
-            error: `${q.question_code}: references passage ${q.passage_id} not in payload.passages`,
+            error:
+              `Unable to save statements for ${q.question_code}: ` +
+              `${statementError.message}`,
           },
-          { status: 400 },
+          { status: 500 },
+        );
+      }
+    }
+
+    await admin
+      .from("match_items")
+      .delete()
+      .eq("question_id", questionId);
+
+    if (Array.isArray(q.match_items) && q.match_items.length > 0) {
+      const matchRows = q.match_items.map((item, index) => ({
+        question_id: questionId,
+        item_number:
+          item.item_number !== undefined
+            ? Number(item.item_number)
+            : index + 1,
+        left_text: item.left_text || item.left || "",
+        right_text: item.right_text || item.right || "",
+      }));
+
+      const { error: matchError } = await admin
+        .from("match_items")
+        .insert(matchRows);
+
+      if (matchError) {
+        return NextResponse.json(
+          {
+            error:
+              `Unable to save match items for ${q.question_code}: ` +
+              `${matchError.message}`,
+          },
+          { status: 500 },
+        );
+      }
+    }
+
+    await admin
+      .from("answers")
+      .delete()
+      .eq("question_id", questionId);
+
+    if (Array.isArray(q.answers) && q.answers.length > 0) {
+      const answerRows = q.answers.map((answer) => ({
+        question_id: questionId,
+        answer_text: answer.answer_text || answer.text || "",
+        answer_type: answer.answer_type || null,
+        metadata: answer.metadata || null,
+      }));
+
+      const { error: answerError } = await admin
+        .from("answers")
+        .insert(answerRows);
+
+      if (answerError) {
+        return NextResponse.json(
+          {
+            error:
+              `Unable to save answers for ${q.question_code}: ` +
+              `${answerError.message}`,
+          },
+          { status: 500 },
         );
       }
     }
   }
 
-  const examName = payload.exam_name
-    ? `${payload.exam_name} ${payload.session || ""} ${payload.year || ""}`.trim()
-    : `Test ${payload.test_id}`;
-
-  const { data: existingExam, error: examLookupError } = await admin
-    .from("exams")
-    .select("*")
-    .eq("exam_name", payload.exam_name || examName)
-    .eq("session", payload.session || null)
-    .eq("year", payload.year || null)
-    .maybeSingle();
-
-  if (examLookupError) {
-    return NextResponse.json(
-      { error: `Exam lookup failed: ${examLookupError.message}` },
-      { status: 500 },
-    );
-  }
-
-  let exam = existingExam;
-
-  if (!exam) {
-    const { data: newExam, error: examErr } = await admin
-      .from("exams")
-      .insert({
-        exam_name: payload.exam_name || examName,
-        subject: payload.subject || "Forensic Science",
-        paper: payload.paper || "Paper-II",
-        session: payload.session || null,
-        year: payload.year || null,
-        exam_date: payload.exam_date || null,
-        agency: payload.agency || "NTA",
-      })
-      .select()
-      .single();
-
-    if (examErr) {
-      return NextResponse.json(
-        { error: `Insert exam failed: ${examErr.message}` },
-        { status: 500 },
-      );
-    }
-
-    exam = newExam;
-  }
-
-  const passageRows = (payload.passages || []).map((p) => ({
-    exam_id: exam.id,
-    passage_code: p.passage_id,
-    passage_label: p.passage_label || null,
-    passage_text: p.passage_text || "",
-  }));
-
-  const passageMap = {};
-
-  if (passageRows.length) {
-    const invalidPassage = passageRows.find((p) => !p.passage_code);
-    if (invalidPassage) {
-      return NextResponse.json(
-        { error: "A passage is missing passage_id" },
-        { status: 400 },
-      );
-    }
-
-    const { data: existingPassages, error: passageLookupError } = await admin
-      .from("passages")
-      .select("id, passage_code")
-      .eq("exam_id", exam.id)
-      .in(
-        "passage_code",
-        passageRows.map((p) => p.passage_code),
-      );
-
-    if (passageLookupError) {
-      return NextResponse.json(
-        {
-          error: `Passage lookup failed: ${passageLookupError.message}`,
-        },
-        { status: 500 },
-      );
-    }
-
-    const existingMap = new Map(
-      (existingPassages || []).map((p) => [p.passage_code, p]),
-    );
-
-    const upsertPassageRows = passageRows.map((p) => ({
-      exam_id: p.exam_id,
-      passage_code: p.passage_code,
-      passage_label: p.passage_label,
-      passage_text: p.passage_text,
-    }));
-
-    const { data: upsertedPassages, error: passageUpsertError } = await admin
-      .from("passages")
-      .upsert(upsertPassageRows, { onConflict: "exam_id,passage_code" })
-      .select("id, passage_code");
-
-    if (passageUpsertError) {
-      return NextResponse.json(
-        {
-          error: `Upsert passages failed: ${passageUpsertError.message}`,
-        },
-        { status: 500 },
-      );
-    }
-
-    for (const row of upsertedPassages || []) {
-      passageMap[row.passage_code] = row.id;
-    }
-  }
-
-  const unitNames = [
-    ...new Set(
-      payload.questions
-        .map((q) => q.unit)
-        .filter((value) => typeof value === "string" && value.trim()),
-    ),
-  ];
-
-  const unitsByName = {};
-  const { data: existingUnits, error: unitsError } = unitNames.length
-    ? await admin.from("units").select("*").in("name", unitNames)
-    : { data: [], error: null };
-
-  if (unitsError) {
-    return NextResponse.json(
-      { error: `Loading units failed: ${unitsError.message}` },
-      { status: 500 },
-    );
-  }
-
-  for (const unit of existingUnits || []) {
-    unitsByName[unit.name] = unit;
-  }
-
-  const missingUnitRows = unitNames
-    .filter((name) => !unitsByName[name])
-    .map((name) => ({ name, sort_order: 0 }));
-
-  if (missingUnitRows.length) {
-    const { data: insertedUnits, error: insertUnitsError } = await admin
-      .from("units")
-      .insert(missingUnitRows)
-      .select("id, name");
-
-    if (insertUnitsError) {
-      return NextResponse.json(
-        {
-          error: `Create units failed: ${insertUnitsError.message}`,
-        },
-        { status: 500 },
-      );
-    }
-
-    for (const unit of insertedUnits || []) {
-      unitsByName[unit.name] = unit;
-    }
-  }
-
-  const topicKeyMap = new Map();
-  const subtopicKeyMap = new Map();
-  const topicRowsToInsert = [];
-  const subtopicRowsToInsert = [];
-
-  for (const q of payload.questions) {
-    const unitName = q.unit;
-    const unitId = unitsByName[unitName]?.id;
-
-    if (!unitId) continue;
-
-    if (q.topic) {
-      const key = `${unitId}::${q.topic}`;
-      if (!topicKeyMap.has(key)) {
-        topicKeyMap.set(key, { unit_id: unitId, name: q.topic });
-      }
-    }
-  }
-
-  const topicUnitIds = [
-    ...new Set(
-      (payload.questions || [])
-        .map((q) => unitsByName[q.unit]?.id)
-        .filter(Boolean),
-    ),
-  ];
-
-  const { data: existingTopics, error: topicsLoadError } = topicUnitIds.length
-    ? await admin
-        .from("topics")
-        .select("id, unit_id, name")
-        .in("unit_id", topicUnitIds)
-    : { data: [], error: null };
-
-  if (topicsLoadError) {
-    return NextResponse.json(
-      { error: `Loading topics failed: ${topicsLoadError.message}` },
-      { status: 500 },
-    );
-  }
-
-  const topicMap = new Map(
-    (existingTopics || []).map((t) => [`${t.unit_id}::${t.name}`, t]),
-  );
-
-  for (const value of topicKeyMap.values()) {
-    if (!topicMap.has(`${value.unit_id}::${value.name}`)) {
-      topicRowsToInsert.push(value);
-    }
-  }
-
-  if (topicRowsToInsert.length) {
-    const { data: insertedTopics, error: insertTopicsError } = await admin
-      .from("topics")
-      .insert(topicRowsToInsert)
-      .select("id, unit_id, name");
-
-    if (insertTopicsError) {
-      return NextResponse.json(
-        {
-          error: `Create topics failed: ${insertTopicsError.message}`,
-        },
-        { status: 500 },
-      );
-    }
-
-    for (const topic of insertedTopics || []) {
-      topicMap.set(`${topic.unit_id}::${topic.name}`, topic);
-    }
-  }
-
-  const topicIds = [
-    ...new Set(
-      (existingTopics || [])
-        .map((t) => t.id)
-        .concat(topicRowsToInsert.length ? [] : []),
-    ),
-  ];
-  const allTopicIds = [
-    ...new Set(
-      (existingTopics || [])
-        .map((t) => t.id)
-        .concat(topicRowsToInsert.length ? [] : []),
-    ),
-  ];
-
-  if (allTopicIds.length || (topicRowsToInsert.length ? true : false)) {
-    // no-op; topic set is already built above
-  }
-
-  const allTopics = [...topicMap.values()];
-  const topicIdByUnitAndName = new Map(
-    allTopics.map((t) => [`${t.unit_id}::${t.name}`, t.id]),
-  );
-
-  for (const q of payload.questions) {
-    const unitName = q.unit;
-    const unitId = unitsByName[unitName]?.id;
-    if (!unitId || !q.topic || !q.subtopic) continue;
-
-    const subKey = `${unitId}::${q.topic}::${q.subtopic}`;
-    const topicId = topicIdByUnitAndName.get(`${unitId}::${q.topic}`);
-    if (!topicId) continue;
-
-    if (!subtopicKeyMap.has(subKey)) {
-      subtopicKeyMap.set(subKey, { topic_id: topicId, name: q.subtopic });
-    }
-  }
-
-  const subtopicTopicIds = [
-    ...new Set([...subtopicKeyMap.values()].map((s) => s.topic_id)),
-  ];
-
-  const { data: existingSubtopics, error: subtopicsLoadError } =
-    subtopicTopicIds.length
-      ? await admin
-          .from("subtopics")
-          .select("id, topic_id, name")
-          .in("topic_id", subtopicTopicIds)
-      : { data: [], error: null };
-
-  if (subtopicsLoadError) {
-    return NextResponse.json(
-      { error: `Loading subtopics failed: ${subtopicsLoadError.message}` },
-      { status: 500 },
-    );
-  }
-
-  const subtopicMap = new Map(
-    (existingSubtopics || []).map((s) => [`${s.topic_id}::${s.name}`, s]),
-  );
-
-  for (const value of subtopicKeyMap.values()) {
-    if (!subtopicMap.has(`${value.topic_id}::${value.name}`)) {
-      subtopicRowsToInsert.push(value);
-    }
-  }
-
-  if (subtopicRowsToInsert.length) {
-    const { data: insertedSubtopics, error: insertSubtopicsError } = await admin
-      .from("subtopics")
-      .insert(subtopicRowsToInsert)
-      .select("id, topic_id, name");
-
-    if (insertSubtopicsError) {
-      return NextResponse.json(
-        {
-          error: `Create subtopics failed: ${insertSubtopicsError.message}`,
-        },
-        { status: 500 },
-      );
-    }
-
-    for (const subtopic of insertedSubtopics || []) {
-      subtopicMap.set(`${subtopic.topic_id}::${subtopic.name}`, subtopic);
-    }
-  }
-
-  const topicIdByKey = new Map();
-  for (const topic of [...topicMap.values()]) {
-    topicIdByKey.set(`${topic.unit_id}::${topic.name}`, topic.id);
-  }
-
-  const subtopicIdByKey = new Map();
-  for (const subtopic of [...subtopicMap.values()]) {
-    subtopicIdByKey.set(`${subtopic.topic_id}::${subtopic.name}`, subtopic.id);
-  }
-
-  const isSampleFreeTrial = payload.test_id === "UGC_NET_FS_2025_06";
-  const testTitle = `${payload.exam_name || "Test"}${payload.session ? " " + payload.session : ""}${payload.year ? " " + payload.year : ""} — ${payload.paper || "Paper II"}`;
-
-  const { data: existingTest, error: testLookupError } = await admin
-    .from("tests")
-    .select("*")
-    .eq("test_id", payload.test_id)
-    .maybeSingle();
-
-  if (testLookupError) {
-    return NextResponse.json(
-      { error: `Test lookup failed: ${testLookupError.message}` },
-      { status: 500 },
-    );
-  }
-
-  let test = existingTest;
-
-  if (!test) {
-    const { data: newTest, error: testErr } = await admin
-      .from("tests")
-      .insert({
-        test_id: payload.test_id,
-        title: testTitle,
-        test_type: payload.test_type,
-        exam_id: exam.id,
-        total_questions: payload.total_questions,
-        duration_minutes: payload.duration_minutes,
-        marks_per_question: payload.marks_per_question ?? 2,
-        negative_marking: !!payload.negative_marking,
-        is_premium: !isSampleFreeTrial,
-        status: "published",
-      })
-      .select()
-      .single();
-
-    if (testErr) {
-      return NextResponse.json(
-        { error: `Insert test failed: ${testErr.message}` },
-        { status: 500 },
-      );
-    }
-
-    test = newTest;
-  } else {
-    const { data: updatedTest, error: testUpdateErr } = await admin
-      .from("tests")
-      .update({
-        title: testTitle,
-        test_type: payload.test_type,
-        exam_id: exam.id,
-        total_questions: payload.total_questions,
-        duration_minutes: payload.duration_minutes,
-        marks_per_question: payload.marks_per_question ?? 2,
-        negative_marking: !!payload.negative_marking,
-        is_premium: isSampleFreeTrial ? false : test.is_premium,
-        status: "published",
-      })
-      .eq("id", test.id)
-      .select()
-      .single();
-
-    if (testUpdateErr) {
-      return NextResponse.json(
-        { error: `Update test failed: ${testUpdateErr.message}` },
-        { status: 500 },
-      );
-    }
-
-    test = updatedTest;
-  }
-
-  const questionCodes = payload.questions.map((q) => q.question_code);
-  const { data: existingQuestions, error: existingQuestionsError } =
-    questionCodes.length
-      ? await admin
-          .from("questions")
-          .select("id, question_code")
-          .in("question_code", questionCodes)
-      : { data: [], error: null };
-
-  if (existingQuestionsError) {
-    return NextResponse.json(
-      {
-        error: `Question lookup failed: ${existingQuestionsError.message}`,
-      },
-      { status: 500 },
-    );
-  }
-
-  const existingQuestionMap = new Map(
-    (existingQuestions || []).map((q) => [q.question_code, q]),
-  );
-
-  const questionRows = payload.questions.map((q) => {
-    const unitId = unitsByName[q.unit]?.id || null;
-    const topicId = q.topic
-      ? topicIdByKey.get(`${unitId}::${q.topic}`) || null
-      : null;
-    const subtopicId = q.subtopic
-      ? subtopicIdByKey.get(`${topicId}::${q.subtopic}`) || null
-      : null;
-    const qNum =
-      parseInt((q.question_code.match(/(\d+)$/) || [])[1], 10) || null;
-
-    return {
-      question_code: q.question_code,
-      exam_id: exam.id,
-      question_number: qNum,
-      unit_id: unitId,
-      topic_id: topicId,
-      subtopic_id: subtopicId,
-      content_format: q.content_format || "plain",
-      question_text: q.question_text.trim(),
-      passage_id: q.passage_id ? passageMap[q.passage_id] || null : null,
-      is_negative_framing: !!q.is_negative_framing,
-      status: "published",
-      answer_status: q.answer_status || "valid",
-      explanation: q.explanation || null,
-      updated_at: new Date().toISOString(),
-    };
-  });
-
-  const { data: upsertedQuestions, error: questionUpsertError } = await admin
-    .from("questions")
-    .upsert(questionRows, { onConflict: "question_code" })
-    .select("id, question_code");
-
-  if (questionUpsertError) {
-    return NextResponse.json(
-      {
-        error: `Upsert questions failed: ${questionUpsertError.message}`,
-      },
-      { status: 500 },
-    );
-  }
-
-  const questionByCode = new Map(
-    (upsertedQuestions || []).map((q) => [q.question_code, q]),
-  );
-  const allQuestionIds = (upsertedQuestions || []).map((q) => q.id);
-  let updatedCount = existingQuestions?.length || 0;
-  let droppedCount = 0;
-  let optionsCount = 0;
-  let statementsCount = 0;
-  let matchCount = 0;
-
-  if (allQuestionIds.length) {
-    await Promise.all([
-      admin.from("question_options").delete().in("question_id", allQuestionIds),
-      admin
-        .from("question_statements")
-        .delete()
-        .in("question_id", allQuestionIds),
-      admin
-        .from("question_match_items")
-        .delete()
-        .in("question_id", allQuestionIds),
-      admin.from("answers").delete().in("question_id", allQuestionIds),
-    ]);
-  }
-
-  const optionRows = [];
-  const statementRows = [];
-  const matchRows = [];
-  const answerRows = [];
-
-  for (const q of payload.questions) {
-    const questionId = questionByCode.get(q.question_code)?.id;
-    if (!questionId) continue;
-
-    if (q.answer_status === "dropped") {
-      droppedCount++;
-    }
-
-    for (const option of q.options) {
-      optionRows.push({
-        question_id: questionId,
-        option_id: String(option.option_id),
-        option_text: option.option_text.trim(),
-        sort_order: parseInt(option.option_id, 10) || 0,
-      });
-    }
-
-    optionsCount += q.options.length;
-
-    for (const [idx, statement] of (q.statements || []).entries()) {
-      statementRows.push({
-        question_id: questionId,
-        label: statement.label,
-        text: statement.text,
-        sort_order: idx,
-      });
-    }
-
-    statementsCount += (q.statements || []).length;
-
-    for (const [idx, left] of (q.match_left || []).entries()) {
-      matchRows.push({
-        question_id: questionId,
-        side: "left",
-        label: left.label,
-        text: left.text,
-        sort_order: idx,
-      });
-    }
-
-    for (const [idx, right] of (q.match_right || []).entries()) {
-      matchRows.push({
-        question_id: questionId,
-        side: "right",
-        label: right.label,
-        text: right.text,
-        sort_order: idx,
-      });
-    }
-
-    matchCount += (q.match_left || []).length + (q.match_right || []).length;
-
-    answerRows.push({
-      question_id: questionId,
-      correct_option_id:
-        q.answer_status === "dropped" ? null : String(q.correct_option_label),
-      scoring_type: "single_correct",
-    });
-  }
-
-  if (optionRows.length) {
-    const { error: optionInsertError } = await admin
-      .from("question_options")
-      .insert(optionRows);
-
-    if (optionInsertError) {
-      return NextResponse.json(
-        {
-          error: `Insert options failed: ${optionInsertError.message}`,
-        },
-        { status: 500 },
-      );
-    }
-  }
-
-  if (statementRows.length) {
-    const { error: statementInsertError } = await admin
-      .from("question_statements")
-      .insert(statementRows);
-
-    if (statementInsertError) {
-      return NextResponse.json(
-        {
-          error: `Insert statements failed: ${statementInsertError.message}`,
-        },
-        { status: 500 },
-      );
-    }
-  }
-
-  if (matchRows.length) {
-    const { error: matchInsertError } = await admin
-      .from("question_match_items")
-      .insert(matchRows);
-
-    if (matchInsertError) {
-      return NextResponse.json(
-        {
-          error: `Insert match items failed: ${matchInsertError.message}`,
-        },
-        { status: 500 },
-      );
-    }
-  }
-
-  if (answerRows.length) {
-    const { error: answerInsertError } = await admin
-      .from("answers")
-      .insert(answerRows);
-
-    if (answerInsertError) {
-      return NextResponse.json(
-        {
-          error: `Insert answers failed: ${answerInsertError.message}`,
-        },
-        { status: 500 },
-      );
-    }
-  }
-
-  const tqRows = payload.questions
-    .map((q, idx) => {
-      const question = questionByCode.get(q.question_code);
-      if (!question) return null;
-      return {
-        test_id: test.id,
-        question_id: question.id,
-        sequence_number: idx + 1,
-      };
-    })
-    .filter(Boolean);
-
-  if (tqRows.length) {
-    const { error: tqErr } = await admin
-      .from("test_questions")
-      .upsert(tqRows, { onConflict: "test_id,question_id" });
-
-    if (tqErr) {
-      return NextResponse.json(
-        {
-          error: `Link test_questions failed: ${tqErr.message}`,
-        },
-        { status: 500 },
-      );
-    }
-  }
-
   return NextResponse.json({
     ok: true,
-    test: {
-      id: test.id,
-      test_id: test.test_id,
-      title: test.title,
-    },
-    counts: {
-      questions: payload.questions.length,
-      updated: updatedCount,
-      passages: (payload.passages || []).length,
-      options: optionsCount,
-      statements: statementsCount,
-      match_items: matchCount,
-      dropped: droppedCount,
-    },
+    test_id: payload.test_id,
+    test_database_id: testRow.id,
+    imported_questions: payload.questions.length,
     warnings,
   });
 }
@@ -921,98 +557,152 @@ async function handleCreateAttempt(request) {
 
   const admin = getSupabaseAdmin();
 
-  const { test_id } = await request.json();
+  let body;
 
-  if (!test_id) {
-    return NextResponse.json({ error: "Missing test_id" }, { status: 400 });
-  }
-
-  // The client can submit any test UUID to this endpoint, so authorization
-  // must happen here before an attempt is created.
-  const entitlement = await getTestEntitlement(user.id);
-  const { data: requestedTest, error: testLookupError } = await admin
-    .from("tests")
-    .select("id, is_premium, status")
-    .eq("id", test_id)
-    .maybeSingle();
-
-  if (testLookupError) {
+  try {
+    body = await request.json();
+  } catch {
     return NextResponse.json(
-      { error: testLookupError.message },
-      { status: 500 },
+      { error: "Invalid request body" },
+      { status: 400 },
     );
   }
 
-  if (!requestedTest || requestedTest.status !== "published") {
-    return NextResponse.json({ error: "Test not found" }, { status: 404 });
+  const { test_id } = body || {};
+
+  if (!test_id) {
+    return NextResponse.json(
+      { error: "Missing test_id" },
+      { status: 400 },
+    );
   }
 
-  if (requestedTest.is_premium && !entitlement.entitled) {
+  const entitlement = await getTestEntitlement(user.id, test_id);
+
+  if (!entitlement?.allowed) {
     return NextResponse.json(
       {
-        error: "An active Test Series subscription is required for this test.",
+        error: entitlement?.reason || "You do not have access to this test.",
       },
       { status: 403 },
     );
   }
 
-  // Reuse in-progress attempt.
-  const { data: existing } = await admin
-    .from("test_attempts")
+  const { data: test, error: testError } = await admin
+    .from("tests")
+    .select("*")
+    .eq("id", test_id)
+    .maybeSingle();
+
+  if (testError) {
+    return NextResponse.json(
+      {
+        error: `Unable to load test: ${testError.message}`,
+      },
+      { status: 500 },
+    );
+  }
+
+  if (!test) {
+    return NextResponse.json(
+      { error: "Test not found." },
+      { status: 404 },
+    );
+  }
+
+  const { data: questions, error: questionsError } = await admin
+    .from("questions")
+    .select(
+      `
+      id,
+      question_code,
+      sequence_number,
+      question_text,
+      question_type,
+      correct_option_id,
+      explanation,
+      subject,
+      unit,
+      topic,
+      difficulty,
+      passage_id,
+      options (
+        id,
+        option_id,
+        option_text
+      ),
+      statements (
+        id,
+        statement_number,
+        statement_text
+      ),
+      match_items (
+        id,
+        item_number,
+        left_text,
+        right_text
+      )
+    `,
+    )
+    .eq("test_id", test_id)
+    .order("sequence_number", { ascending: true });
+
+  if (questionsError) {
+    return NextResponse.json(
+      {
+        error: `Unable to load test questions: ${questionsError.message}`,
+      },
+      { status: 500 },
+    );
+  }
+
+  if (!questions?.length) {
+    return NextResponse.json(
+      { error: "This test has no questions." },
+      { status: 400 },
+    );
+  }
+
+  const { data: existingAttempt } = await admin
+    .from("attempts")
     .select("*")
     .eq("user_id", user.id)
     .eq("test_id", test_id)
     .eq("status", "in_progress")
     .maybeSingle();
 
-  if (existing) {
+  if (existingAttempt) {
     return NextResponse.json({
-      attempt_id: existing.id,
-
-      resumed: true,
+      ok: true,
+      attempt: existingAttempt,
+      questions,
     });
   }
 
-  const { data: attempt, error } = await admin
-    .from("test_attempts")
+  const { data: attempt, error: attemptError } = await admin
+    .from("attempts")
     .insert({
       user_id: user.id,
-
-      test_id: test_id,
-
+      test_id,
       status: "in_progress",
+      started_at: new Date().toISOString(),
     })
     .select()
     .single();
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-
-  // Initialize responses.
-  const { data: tqs } = await admin
-    .from("test_questions")
-    .select("question_id")
-    .eq("test_id", test_id);
-
-  if (tqs?.length) {
-    const rows = tqs.map((r) => ({
-      attempt_id: attempt.id,
-
-      question_id: r.question_id,
-
-      status: "not_visited",
-    }));
-
-    await admin.from("attempt_responses").upsert(rows, {
-      onConflict: "attempt_id,question_id",
-    });
+  if (attemptError) {
+    return NextResponse.json(
+      {
+        error: `Unable to create attempt: ${attemptError.message}`,
+      },
+      { status: 500 },
+    );
   }
 
   return NextResponse.json({
-    attempt_id: attempt.id,
-
-    resumed: false,
+    ok: true,
+    attempt,
+    questions,
   });
 }
 
@@ -1029,139 +719,169 @@ async function handleSubmitAttempt(request) {
 
   const admin = getSupabaseAdmin();
 
-  const { attempt_id, auto_submitted } = await request.json();
+  let body;
 
-  if (!attempt_id) {
-    return NextResponse.json({ error: "Missing attempt_id" }, { status: 400 });
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json(
+      { error: "Invalid request body" },
+      { status: 400 },
+    );
   }
 
-  const { data: attempt } = await admin
-    .from("test_attempts")
-    .select("*, tests(marks_per_question, negative_marking, total_questions)")
+  const { attempt_id, answers } = body || {};
+
+  if (!attempt_id || !answers) {
+    return NextResponse.json(
+      { error: "Missing attempt_id or answers" },
+      { status: 400 },
+    );
+  }
+
+  const { data: attempt, error: attemptError } = await admin
+    .from("attempts")
+    .select("*")
     .eq("id", attempt_id)
-    .single();
+    .maybeSingle();
+
+  if (attemptError) {
+    return NextResponse.json(
+      {
+        error: `Unable to load attempt: ${attemptError.message}`,
+      },
+      { status: 500 },
+    );
+  }
 
   if (!attempt) {
-    return NextResponse.json({ error: "Attempt not found" }, { status: 404 });
+    return NextResponse.json(
+      { error: "Attempt not found." },
+      { status: 404 },
+    );
   }
 
   if (attempt.user_id !== user.id) {
-    return NextResponse.json({ error: "Not your attempt" }, { status: 403 });
+    return NextResponse.json(
+      { error: "This attempt does not belong to the current user." },
+      { status: 403 },
+    );
   }
 
   if (attempt.status !== "in_progress") {
-    return NextResponse.json({ error: "Already submitted" }, { status: 400 });
+    return NextResponse.json(
+      { error: "This attempt has already been submitted." },
+      { status: 409 },
+    );
   }
 
-  const { data: responses } = await admin
-    .from("attempt_responses")
-    .select("*")
-    .eq("attempt_id", attempt_id);
+  const { data: questions, error: questionsError } = await admin
+    .from("questions")
+    .select(
+      `
+      id,
+      correct_option_id,
+      options (
+        id,
+        option_id,
+        option_text
+      )
+    `,
+    )
+    .eq("test_id", attempt.test_id);
 
-  const qIds = (responses || []).map((r) => r.question_id);
+  if (questionsError) {
+    return NextResponse.json(
+      {
+        error: `Unable to load answer key: ${questionsError.message}`,
+      },
+      { status: 500 },
+    );
+  }
 
-  const { data: answers } = qIds.length
-    ? await admin.from("answers").select("*").in("question_id", qIds)
-    : { data: [] };
-
-  const { data: qs } = qIds.length
-    ? await admin.from("questions").select("id, answer_status").in("id", qIds)
-    : { data: [] };
-
-  const ansByQ = Object.fromEntries(
-    (answers || []).map((a) => [a.question_id, a]),
+  const questionMap = new Map(
+    (questions || []).map((q) => [q.id, q]),
   );
 
-  const qByQ = Object.fromEntries((qs || []).map((q) => [q.id, q]));
+  let score = 0;
+  let attempted = 0;
 
-  let correct = 0;
-  let incorrect = 0;
-  let unattempted = 0;
+  const answerRows = [];
 
-  const marks = Number(attempt.tests?.marks_per_question ?? 2);
+  for (const [questionId, selectedOption] of Object.entries(answers)) {
+    const question = questionMap.get(questionId);
 
-  const negMark = attempt.tests?.negative_marking ? marks / 2 : 0;
+    if (!question) continue;
 
-  const updates = (responses || []).map((r) => {
-    const q = qByQ[r.question_id];
+    const normalized =
+      selectedOption === null ||
+      selectedOption === undefined ||
+      selectedOption === ""
+        ? null
+        : String(selectedOption);
 
-    const ans = ansByQ[r.question_id];
+    if (normalized !== null) {
+      attempted += 1;
 
-    let isCorrect = null;
-
-    // Dropped questions are treated as correct.
-    if (q?.answer_status === "dropped") {
-      isCorrect = true;
-      correct++;
-    } else if (!r.selected_option_id) {
-      isCorrect = null;
-      unattempted++;
-    } else if (ans && ans.correct_option_id === r.selected_option_id) {
-      isCorrect = true;
-      correct++;
-    } else {
-      isCorrect = false;
-      incorrect++;
+      if (
+        question.correct_option_id !== null &&
+        String(question.correct_option_id) === normalized
+      ) {
+        score += 1;
+      }
     }
 
-    return {
-      attempt_id: attempt_id,
-
-      question_id: r.question_id,
-
-      selected_option_id: r.selected_option_id,
-
-      status: r.status,
-
-      is_correct: isCorrect,
-
-      time_spent_seconds: r.time_spent_seconds || 0,
-
-      answered_at: r.answered_at,
-    };
-  });
-
-  if (updates.length) {
-    await admin.from("attempt_responses").upsert(updates, {
-      onConflict: "attempt_id,question_id",
+    answerRows.push({
+      attempt_id,
+      question_id: questionId,
+      selected_option_id: normalized,
     });
   }
 
-  const score = correct * marks - incorrect * negMark;
+  if (answerRows.length > 0) {
+    const { error: answersError } = await admin
+      .from("attempt_answers")
+      .upsert(answerRows, {
+        onConflict: "attempt_id,question_id",
+      });
 
-  const startedAt = new Date(attempt.started_at).getTime();
+    if (answersError) {
+      return NextResponse.json(
+        {
+          error: `Unable to save answers: ${answersError.message}`,
+        },
+        { status: 500 },
+      );
+    }
+  }
 
-  const timeTaken = Math.floor((Date.now() - startedAt) / 1000);
-
-  const { error: uErr } = await admin
-    .from("test_attempts")
+  const { data: updatedAttempt, error: updateError } = await admin
+    .from("attempts")
     .update({
-      status: auto_submitted ? "auto_submitted" : "submitted",
-
+      status: "submitted",
       submitted_at: new Date().toISOString(),
-
-      time_taken_seconds: timeTaken,
-
       score,
-
-      correct_count: correct,
-
-      incorrect_count: incorrect,
-
-      unattempted_count: unattempted,
+      attempted,
     })
-    .eq("id", attempt_id);
+    .eq("id", attempt_id)
+    .eq("user_id", user.id)
+    .select()
+    .single();
 
-  if (uErr) {
-    return NextResponse.json({ error: uErr.message }, { status: 500 });
+  if (updateError) {
+    return NextResponse.json(
+      {
+        error: `Unable to submit attempt: ${updateError.message}`,
+      },
+      { status: 500 },
+    );
   }
 
   return NextResponse.json({
     ok: true,
+    attempt: updatedAttempt,
     score,
-    correct,
-    incorrect,
-    unattempted,
+    attempted,
   });
 }
 
@@ -1176,127 +896,100 @@ async function handleCustomTestCreate(request) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  // Custom tests are a premium Test Series feature. This check is server-side
-  // and cannot be bypassed by changing the client request body.
-  const entitlement = await getTestEntitlement(user.id);
-  if (!entitlement.entitled) {
+  const entitlement = await getTestEntitlement(user.id, "custom");
+
+  if (!entitlement?.allowed) {
     return NextResponse.json(
-      { error: "Custom tests require an active Test Series subscription." },
+      {
+        error:
+          entitlement?.reason ||
+          "You do not have access to the custom test builder.",
+      },
       { status: 403 },
     );
   }
 
   const admin = getSupabaseAdmin();
 
-  const {
-    unit_ids = [],
-    topic_ids = [],
-    difficulties = [],
-    count = 20,
-  } = await request.json();
+  let body;
 
-  if (count < 1) {
-    return NextResponse.json({ error: "count must be >= 1" }, { status: 400 });
-  }
-
-  let q = admin.from("questions").select("id").eq("status", "published");
-
-  if (unit_ids.length) {
-    q = q.in("unit_id", unit_ids);
-  }
-
-  if (topic_ids.length) {
-    q = q.in("topic_id", topic_ids);
-  }
-
-  if (difficulties.length && difficulties.length < 3) {
-    q = q.in("difficulty", difficulties);
-  }
-
-  const { data: pool, error } = await q.limit(2000);
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-
-  if (!pool || pool.length === 0) {
+  try {
+    body = await request.json();
+  } catch {
     return NextResponse.json(
-      {
-        error: "No matching questions",
-      },
+      { error: "Invalid request body" },
       { status: 400 },
     );
   }
 
-  const ids = pool.map((r) => r.id);
+  const {
+    unit,
+    topic,
+    difficulty,
+    question_count,
+  } = body || {};
 
-  // Fisher-Yates shuffle.
-  for (let i = ids.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
+  const count = Math.min(
+    Math.max(Number(question_count || 10), 1),
+    100,
+  );
 
-    [ids[i], ids[j]] = [ids[j], ids[i]];
+  let query = admin
+    .from("questions")
+    .select(
+      `
+      id,
+      question_code,
+      sequence_number,
+      question_text,
+      question_type,
+      correct_option_id,
+      explanation,
+      subject,
+      unit,
+      topic,
+      difficulty,
+      passage_id,
+      options (
+        id,
+        option_id,
+        option_text
+      )
+    `,
+    );
+
+  if (unit) {
+    query = query.eq("unit", unit);
   }
 
-  const chosen = ids.slice(0, Math.min(count, ids.length));
-
-  const testKey = `CUSTOM_${user.id.slice(0, 8)}_${Date.now()}`;
-
-  const { data: t, error: tErr } = await admin
-    .from("tests")
-    .insert({
-      test_id: testKey,
-
-      title: `Custom test · ${chosen.length} Q`,
-
-      test_type: "custom",
-
-      total_questions: chosen.length,
-
-      duration_minutes: Math.max(10, chosen.length * 1),
-
-      marks_per_question: 2,
-
-      negative_marking: false,
-
-      is_premium: true,
-
-      is_user_generated: true,
-
-      created_by: user.id,
-
-      status: "published",
-    })
-    .select()
-    .single();
-
-  if (tErr) {
-    return NextResponse.json({ error: tErr.message }, { status: 500 });
+  if (topic) {
+    query = query.eq("topic", topic);
   }
 
-  const tqRows = chosen.map((qid, i) => ({
-    test_id: t.id,
-
-    question_id: qid,
-
-    sequence_number: i + 1,
-  }));
-
-  const { error: tqErr } = await admin.from("test_questions").insert(tqRows);
-
-  if (tqErr) {
-    return NextResponse.json({ error: tqErr.message }, { status: 500 });
+  if (difficulty) {
+    query = query.eq("difficulty", difficulty);
   }
+
+  const { data: questions, error } = await query.limit(count * 3);
+
+  if (error) {
+    return NextResponse.json(
+      {
+        error: `Unable to build custom test: ${error.message}`,
+      },
+      { status: 500 },
+    );
+  }
+
+  const shuffled = [...(questions || [])].sort(
+    () => Math.random() - 0.5,
+  );
 
   return NextResponse.json({
     ok: true,
-    test_uuid: t.id,
-    total: chosen.length,
+    questions: shuffled.slice(0, count),
   });
 }
-
-// ----------------------------------------------------------------------------
-// POST /api/billing/create-subscription
-// ----------------------------------------------------------------------------
 
 // ----------------------------------------------------------------------------
 // POST /api/billing/create-subscription
@@ -1431,10 +1124,15 @@ async function handleCreateSubscription(request) {
       );
     }) || null;
 
-  const unfinishedSubscription =
-    (existingSubscriptions || []).find((sub) => {
-      return ["created", "past_due"].includes(sub.status);
-    }) || null;
+  const createdSubscription =
+    (existingSubscriptions || []).find(
+      (sub) => sub.status === "created",
+    ) || null;
+
+  const pastDueSubscription =
+    (existingSubscriptions || []).find(
+      (sub) => sub.status === "past_due",
+    ) || null;
 
   // --------------------------------------------------------------------------
   // An active Combined subscription means the user already has the highest
@@ -1485,20 +1183,83 @@ async function handleCreateSubscription(request) {
   }
 
   // --------------------------------------------------------------------------
-  // Do not create another subscription while an earlier one is still
-  // being created or has an unresolved payment state.
+  // A past_due subscription represents an unresolved payment state.
+  // Do not create another subscription automatically.
   // --------------------------------------------------------------------------
 
-  if (unfinishedSubscription) {
+  if (pastDueSubscription) {
     return NextResponse.json(
       {
         error:
-          "You already have a subscription that is still being processed. Please wait before starting another subscription.",
-        subscription_id: unfinishedSubscription.razorpay_subscription_id,
+          "You already have a subscription with an unresolved payment status.",
+        subscription_id: pastDueSubscription.razorpay_subscription_id,
       },
       { status: 409 },
     );
   }
+
+  // --------------------------------------------------------------------------
+  // A created subscription may simply be an abandoned Checkout.
+  // Check Razorpay directly before blocking a new attempt.
+  // --------------------------------------------------------------------------
+
+  if (createdSubscription) {
+    let providerSubscription;
+
+    try {
+      providerSubscription = await rzp.subscriptions.fetch(
+        createdSubscription.razorpay_subscription_id,
+      );
+    } catch (e) {
+      return NextResponse.json(
+        {
+          error:
+            `Unable to check your existing Razorpay subscription: ` +
+            `${e?.error?.description || e?.message || "Unknown Razorpay error."}`,
+        },
+        { status: 500 },
+      );
+    }
+
+    if (
+      providerSubscription.status === "cancelled" ||
+      providerSubscription.status === "expired"
+    ) {
+      await admin
+        .from("subscriptions")
+        .update({
+          status:
+            providerSubscription.status === "cancelled"
+              ? "cancelled"
+              : "expired",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", createdSubscription.id)
+        .eq("user_id", user.id);
+    } else if (
+      providerSubscription.status === "active" ||
+      providerSubscription.status === "authenticated"
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "You already have a subscription that has been authorised or activated.",
+          subscription_id: providerSubscription.id,
+        },
+        { status: 409 },
+      );
+    } else {
+      return NextResponse.json(
+        {
+          error:
+            "You already have a subscription that is still being processed. Please finish or close the current payment window before starting another subscription.",
+          subscription_id: createdSubscription.razorpay_subscription_id,
+        },
+        { status: 409 },
+      );
+    }
+  }
+
   // --------------------------------------------------------------------------
   // Create the Razorpay subscription.
   //
@@ -1520,6 +1281,10 @@ async function handleCreateSubscription(request) {
       quantity: 1,
 
       customer_notify: 1,
+
+      // Limit the authorisation window so abandoned subscriptions do not
+      // remain in the "created" state indefinitely at Razorpay.
+      expire_by: Math.floor(Date.now() / 1000) + 30 * 60,
 
       notes: {
         forensique_user_id: user.id,
@@ -1551,7 +1316,11 @@ async function handleCreateSubscription(request) {
 
   const now = new Date();
 
-  const placeholderExpiry = new Date(now.getTime() + 30 * 86400 * 1000);
+  const expireBy = subscription.expire_by;
+
+  const authorizationExpiry = new Date(
+    (expireBy || Math.floor(Date.now() / 1000) + 30 * 60) * 1000,
+  );
 
   const { error: subscriptionRowError } = await admin
     .from("subscriptions")
@@ -1570,7 +1339,7 @@ async function handleCreateSubscription(request) {
 
       started_at: now.toISOString(),
 
-      expires_at: placeholderExpiry.toISOString(),
+      expires_at: authorizationExpiry.toISOString(),
     });
 
   if (subscriptionRowError) {
@@ -1931,6 +1700,174 @@ async function handleCancel(request) {
 }
 
 // ----------------------------------------------------------------------------
+// POST /api/billing/cancel-pending
+//
+// Cancels an uncompleted Razorpay subscription when Checkout is dismissed.
+// Only subscriptions still in Razorpay's "created" state are cancelled.
+// Authorised/active subscriptions are never cancelled by this endpoint.
+// ----------------------------------------------------------------------------
+
+async function handleCancelPending(request) {
+  const user = await getUserFromRequest(request);
+
+  if (!user) {
+    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  }
+
+  const admin = getSupabaseAdmin();
+
+  let body;
+
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json(
+      { error: "Invalid request body" },
+      { status: 400 },
+    );
+  }
+
+  const { razorpay_subscription_id } = body || {};
+
+  if (!razorpay_subscription_id) {
+    return NextResponse.json(
+      { error: "Missing Razorpay subscription ID." },
+      { status: 400 },
+    );
+  }
+
+  // --------------------------------------------------------------------------
+  // Verify that the subscription belongs to the logged-in user.
+  // --------------------------------------------------------------------------
+
+  const { data: sub, error: subLookupError } = await admin
+    .from("subscriptions")
+    .select("id, user_id, razorpay_subscription_id, status")
+    .eq("razorpay_subscription_id", razorpay_subscription_id)
+    .maybeSingle();
+
+  if (subLookupError) {
+    return NextResponse.json(
+      {
+        error: `Unable to find subscription: ${subLookupError.message}`,
+      },
+      { status: 500 },
+    );
+  }
+
+  if (!sub) {
+    return NextResponse.json(
+      { error: "Subscription was not found." },
+      { status: 404 },
+    );
+  }
+
+  if (sub.user_id !== user.id) {
+    return NextResponse.json(
+      { error: "This subscription does not belong to the current user." },
+      { status: 403 },
+    );
+  }
+
+  // --------------------------------------------------------------------------
+  // If our local state is no longer "created", do not use this endpoint to
+  // cancel it. Normal active/past_due lifecycle handling remains separate.
+  // --------------------------------------------------------------------------
+
+  if (sub.status !== "created") {
+    return NextResponse.json({
+      ok: true,
+      cancelled: false,
+      status: sub.status,
+    });
+  }
+
+  let providerSubscription;
+
+  try {
+    const rzp = getRazorpay();
+
+    providerSubscription = await rzp.subscriptions.fetch(
+      razorpay_subscription_id,
+    );
+  } catch (e) {
+    return NextResponse.json(
+      {
+        error:
+          `Unable to check Razorpay subscription: ` +
+          `${e?.error?.description || e?.message || "Unknown Razorpay error."}`,
+      },
+      { status: 500 },
+    );
+  }
+
+  // --------------------------------------------------------------------------
+  // Never cancel a subscription that has already been authorised or activated.
+  // Razorpay can remain "created" locally for a short time after successful
+  // authorisation, so the provider state is authoritative here.
+  // --------------------------------------------------------------------------
+
+  if (
+    providerSubscription.status === "authenticated" ||
+    providerSubscription.status === "active"
+  ) {
+    return NextResponse.json({
+      ok: true,
+      cancelled: false,
+      status: providerSubscription.status,
+    });
+  }
+
+  if (
+    providerSubscription.status === "cancelled" ||
+    providerSubscription.status === "expired"
+  ) {
+    return NextResponse.json({
+      ok: true,
+      cancelled: false,
+      status: providerSubscription.status,
+    });
+  }
+
+  // --------------------------------------------------------------------------
+  // Only an actually-created, unauthorised subscription is cancelled here.
+  // --------------------------------------------------------------------------
+
+  if (providerSubscription.status !== "created") {
+    return NextResponse.json({
+      ok: true,
+      cancelled: false,
+      status: providerSubscription.status,
+    });
+  }
+
+  try {
+    const rzp = getRazorpay();
+
+    await rzp.subscriptions.cancel(razorpay_subscription_id, {
+      cancel_at_cycle_end: false,
+    });
+  } catch (e) {
+    return NextResponse.json(
+      {
+        error:
+          `Razorpay cancellation failed: ` +
+          `${e?.error?.description || e?.message || "Unknown Razorpay error."}`,
+      },
+      { status: 500 },
+    );
+  }
+
+  // The Razorpay subscription.cancelled webhook remains the authoritative
+  // lifecycle update for the local subscription row.
+
+  return NextResponse.json({
+    ok: true,
+    cancelled: true,
+  });
+}
+
+// ----------------------------------------------------------------------------
 // POST /api/webhooks/razorpay
 // ----------------------------------------------------------------------------
 
@@ -2098,6 +2035,10 @@ async function dispatch(request, method) {
 
   if (method === "POST" && path === "/billing/cancel") {
     return handleCancel(request);
+  }
+
+  if (method === "POST" && path === "/billing/cancel-pending") {
+    return handleCancelPending(request);
   }
 
   if (method === "POST" && path === "/webhooks/razorpay") {
