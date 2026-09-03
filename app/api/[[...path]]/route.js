@@ -187,13 +187,10 @@ async function handleImport(request) {
     }
 
     for (const o of q.options) {
-      if (
-        typeof o?.option_text !== "string" ||
-        !o.option_text.trim()
-      ) {
+      if (typeof o?.option_text !== "string" || !o.option_text.trim()) {
         return NextResponse.json(
           {
-            error: `${q.question_code}: option ${o?.option_id ?? "?"} is missing option_text`,
+            error: `${q.question_code}: option ${o?.option_id ?? "?"} is empty`,
           },
           { status: 400 },
         );
@@ -202,270 +199,345 @@ async function handleImport(request) {
       if (placeholderOption.test(o.option_text.trim())) {
         return NextResponse.json(
           {
-            error:
-              `${q.question_code}: option ${o.option_id} contains placeholder data ` +
-              `("${o.option_text}"). Import cancelled.`,
+            error: `${q.question_code}: option ${o.option_id} contains placeholder data ("${o.option_text}"). Import cancelled.`,
           },
           { status: 400 },
         );
       }
     }
 
-    if (
-      q.correct_option_id !== null &&
-      q.correct_option_id !== undefined &&
-      !["1", "2", "3", "4"].includes(String(q.correct_option_id))
-    ) {
+    if (q.answer_status === "valid" && !q.correct_option_label) {
       return NextResponse.json(
         {
-          error:
-            `${q.question_code}: correct_option_id must be 1, 2, 3, or 4.`,
+          error: `${q.question_code}: valid question missing correct_option_label`,
         },
         { status: 400 },
       );
     }
 
     if (
-      q.question_type === "assertion_reason" &&
-      (!q.assertion || !q.reason)
+      q.answer_status === "valid" &&
+      !["1", "2", "3", "4"].includes(String(q.correct_option_label))
     ) {
-      warnings.push(
-        `${q.question_code}: assertion/reason question is missing assertion or reason text.`,
+      return NextResponse.json(
+        {
+          error: `${q.question_code}: correct_option_label must be 1, 2, 3, or 4`,
+        },
+        { status: 400 },
       );
     }
 
-    if (
-      q.question_type === "match" &&
-      (!Array.isArray(q.match_items) || q.match_items.length === 0)
-    ) {
+    if (q.answer_status === "dropped" && q.correct_option_label) {
       warnings.push(
-        `${q.question_code}: match question has no match_items.`,
+        `${q.question_code}: answer_status=dropped but has correct_option_label; storing NULL.`,
       );
     }
 
-    if (
-      q.question_type === "statement" &&
-      (!Array.isArray(q.statements) || q.statements.length === 0)
-    ) {
-      warnings.push(
-        `${q.question_code}: statement question has no statements.`,
-      );
-    }
-
-    if (
-      q.passage_id !== null &&
-      q.passage_id !== undefined &&
-      !passageList.some(
-        (p) => String(p?.passage_id) === String(q.passage_id),
-      )
-    ) {
-      warnings.push(
-        `${q.question_code}: passage_id ${q.passage_id} does not match a supplied passage.`,
-      );
+    if (q.passage_id) {
+      const passage = passageList.find((p) => p.passage_id === q.passage_id);
+      if (!passage) {
+        return NextResponse.json(
+          {
+            error: `${q.question_code}: references passage ${q.passage_id} not in payload.passages`,
+          },
+          { status: 400 },
+        );
+      }
     }
   }
 
-  const {
-    data: existingTest,
-    error: existingTestError,
-  } = await admin
-    .from("tests")
-    .select("id")
-    .eq("test_id", payload.test_id)
+  const examName = payload.exam_name
+    ? `${payload.exam_name} ${payload.session || ""} ${payload.year || ""}`.trim()
+    : `Test ${payload.test_id}`;
+
+  const { data: existingExam, error: examLookupError } = await admin
+    .from("exams")
+    .select("*")
+    .eq("exam_name", payload.exam_name || examName)
+    .eq("session", payload.session || null)
+    .eq("year", payload.year || null)
     .maybeSingle();
 
-  if (existingTestError) {
+  if (examLookupError) {
     return NextResponse.json(
-      {
-        error: `Unable to check existing test: ${existingTestError.message}`,
-      },
+      { error: `Exam lookup failed: ${examLookupError.message}` },
       { status: 500 },
     );
   }
 
-  let testRow;
+  let exam = existingExam;
 
-  if (existingTest) {
-    const { data, error } = await admin
-      .from("tests")
-      .update({
-        title: payload.title || payload.test_id,
-        test_type: payload.test_type,
-        total_questions: Number(payload.total_questions),
-        duration_minutes: Number(payload.duration_minutes),
-        metadata: payload.metadata || null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", existingTest.id)
-      .select()
-      .single();
-
-    if (error) {
-      return NextResponse.json(
-        {
-          error: `Unable to update test: ${error.message}`,
-        },
-        { status: 500 },
-      );
-    }
-
-    testRow = data;
-  } else {
-    const { data, error } = await admin
-      .from("tests")
+  if (!exam) {
+    const { data: newExam, error: examErr } = await admin
+      .from("exams")
       .insert({
-        test_id: payload.test_id,
-        title: payload.title || payload.test_id,
-        test_type: payload.test_type,
-        total_questions: Number(payload.total_questions),
-        duration_minutes: Number(payload.duration_minutes),
-        metadata: payload.metadata || null,
+        exam_name: payload.exam_name || examName,
+        subject: payload.subject || "Forensic Science",
+        paper: payload.paper || "Paper-II",
+        session: payload.session || null,
+        year: payload.year || null,
+        exam_date: payload.exam_date || null,
+        agency: payload.agency || "NTA",
       })
       .select()
       .single();
 
-    if (error) {
+    if (examErr) {
       return NextResponse.json(
-        {
-          error: `Unable to create test: ${error.message}`,
-        },
+        { error: `Insert exam failed: ${examErr.message}` },
         { status: 500 },
       );
     }
 
-    testRow = data;
+    exam = newExam;
   }
 
-  if (passageList.length > 0) {
-    const passageRows = passageList.map((p) => ({
-      test_id: testRow.id,
-      passage_id: p.passage_id,
-      passage_text: p.passage_text || p.text || "",
-      metadata: p.metadata || null,
-    }));
-
-    const { error: passageError } = await admin
-      .from("passages")
-      .upsert(passageRows, {
-        onConflict: "test_id,passage_id",
-      });
-
-    if (passageError) {
-      return NextResponse.json(
-        {
-          error: `Unable to save passages: ${passageError.message}`,
-        },
-        { status: 500 },
-      );
-    }
-  }
-
-  const questionRows = payload.questions.map((q, index) => ({
-    test_id: testRow.id,
-    question_code: q.question_code,
-    sequence_number:
-      q.sequence_number !== undefined
-        ? Number(q.sequence_number)
-        : index + 1,
-    question_text: q.question_text,
-    question_type: q.question_type || "mcq",
-    correct_option_id:
-      q.correct_option_id !== null &&
-      q.correct_option_id !== undefined
-        ? String(q.correct_option_id)
-        : null,
-    explanation: q.explanation || null,
-    subject: q.subject || null,
-    unit: q.unit || null,
-    topic: q.topic || null,
-    difficulty: q.difficulty || null,
-    passage_id: q.passage_id || null,
-    metadata: q.metadata || null,
+  const passageRows = (payload.passages || []).map((p) => ({
+    exam_id: exam.id,
+    passage_code: p.passage_id,
+    passage_label: p.passage_label || null,
+    passage_text: p.passage_text || "",
   }));
 
-  const { data: insertedQuestions, error: questionError } = await admin
-    .from("questions")
-    .upsert(questionRows, {
-      onConflict: "test_id,question_code",
-    })
-    .select("id, question_code");
+  const passageMap = {};
 
-  if (questionError) {
+  if (passageRows.length) {
+    const invalidPassage = passageRows.find((p) => !p.passage_code);
+    if (invalidPassage) {
+      return NextResponse.json(
+        { error: "A passage is missing passage_id" },
+        { status: 400 },
+      );
+    }
+
+    const { data: existingPassages, error: passageLookupError } = await admin
+      .from("passages")
+      .select("id, passage_code")
+      .eq("exam_id", exam.id)
+      .in(
+        "passage_code",
+        passageRows.map((p) => p.passage_code),
+      );
+
+    if (passageLookupError) {
+      return NextResponse.json(
+        {
+          error: `Passage lookup failed: ${passageLookupError.message}`,
+        },
+        { status: 500 },
+      );
+    }
+
+    const existingMap = new Map(
+      (existingPassages || []).map((p) => [p.passage_code, p]),
+    );
+
+    const upsertPassageRows = passageRows.map((p) => ({
+      exam_id: p.exam_id,
+      passage_code: p.passage_code,
+      passage_label: p.passage_label,
+      passage_text: p.passage_text,
+    }));
+
+    const { data: upsertedPassages, error: passageUpsertError } = await admin
+      .from("passages")
+      .upsert(upsertPassageRows, { onConflict: "exam_id,passage_code" })
+      .select("id, passage_code");
+
+    if (passageUpsertError) {
+      return NextResponse.json(
+        {
+          error: `Upsert passages failed: ${passageUpsertError.message}`,
+        },
+        { status: 500 },
+      );
+    }
+
+    for (const row of upsertedPassages || []) {
+      passageMap[row.passage_code] = row.id;
+    }
+  }
+
+  const unitNames = [
+    ...new Set(
+      payload.questions
+        .map((q) => q.unit)
+        .filter((value) => typeof value === "string" && value.trim()),
+    ),
+  ];
+
+  const unitsByName = {};
+  const { data: existingUnits, error: unitsError } = unitNames.length
+    ? await admin
+        .from("units")
+        .select("id, name")
+        .in("name", unitNames)
+    : { data: [], error: null };
+
+  if (unitsError) {
     return NextResponse.json(
-      {
-        error: `Unable to save questions: ${questionError.message}`,
-      },
+      { error: `Unit lookup failed: ${unitsError.message}` },
       { status: 500 },
     );
   }
 
-  const questionIdByCode = new Map(
-    (insertedQuestions || []).map((q) => [q.question_code, q.id]),
-  );
+  for (const unit of existingUnits || []) {
+    unitsByName[unit.name] = unit.id;
+  }
+
+  const missingUnitNames = unitNames.filter((name) => !unitsByName[name]);
+
+  if (missingUnitNames.length) {
+    const { data: createdUnits, error: unitInsertError } = await admin
+      .from("units")
+      .insert(
+        missingUnitNames.map((name, index) => ({
+          name,
+          sort_order: index + 1,
+        })),
+      )
+      .select("id, name");
+
+    if (unitInsertError) {
+      return NextResponse.json(
+        { error: `Insert units failed: ${unitInsertError.message}` },
+        { status: 500 },
+      );
+    }
+
+    for (const unit of createdUnits || []) {
+      unitsByName[unit.name] = unit.id;
+    }
+  }
 
   for (const q of payload.questions) {
-    const questionId = questionIdByCode.get(q.question_code);
+    const { data: existingQuestion, error: questionLookupError } = await admin
+      .from("questions")
+      .select("*")
+      .eq("question_code", q.question_code)
+      .maybeSingle();
 
-    if (!questionId) {
+    if (questionLookupError) {
       return NextResponse.json(
         {
           error:
-            `Question ${q.question_code} was not returned after database upsert.`,
+            `Question lookup failed for ${q.question_code}: ` +
+            `${questionLookupError.message}`,
         },
         { status: 500 },
       );
     }
 
-    await admin
-      .from("options")
-      .delete()
-      .eq("question_id", questionId);
+    const questionPayload = {
+      exam_id: exam.id,
+      unit_id: q.unit ? unitsByName[q.unit] || null : null,
+      sequence_number: q.sequence_number,
+      question_code: q.question_code,
+      question_text: q.question_text,
+      question_type: q.question_type || "mcq",
+      difficulty: q.difficulty || null,
+      passage_id: q.passage_id ? passageMap[q.passage_id] || null : null,
+      answer_status: q.answer_status || null,
+      correct_option_label:
+        q.answer_status === "dropped"
+          ? null
+          : q.correct_option_label || null,
+      explanation: q.explanation || null,
+      source_reference: q.source_reference || null,
+      updated_at: new Date().toISOString(),
+    };
+
+    let question = existingQuestion;
+
+    if (question) {
+      const { data: updatedQuestion, error: questionUpdateError } = await admin
+        .from("questions")
+        .update(questionPayload)
+        .eq("id", question.id)
+        .select()
+        .single();
+
+      if (questionUpdateError) {
+        return NextResponse.json(
+          {
+            error:
+              `Update question failed for ${q.question_code}: ` +
+              `${questionUpdateError.message}`,
+          },
+          { status: 500 },
+        );
+      }
+
+      question = updatedQuestion;
+    } else {
+      const { data: insertedQuestion, error: questionInsertError } =
+        await admin
+          .from("questions")
+          .insert({
+            ...questionPayload,
+            created_at: new Date().toISOString(),
+          })
+          .select()
+          .single();
+
+      if (questionInsertError) {
+        return NextResponse.json(
+          {
+            error:
+              `Insert question failed for ${q.question_code}: ` +
+              `${questionInsertError.message}`,
+          },
+          { status: 500 },
+        );
+      }
+
+      question = insertedQuestion;
+    }
+
+    await admin.from("question_options").delete().eq("question_id", question.id);
 
     const optionRows = q.options.map((o) => ({
-      question_id: questionId,
+      question_id: question.id,
       option_id: String(o.option_id),
       option_text: o.option_text,
     }));
 
-    const { error: optionError } = await admin
-      .from("options")
+    const { error: optionInsertError } = await admin
+      .from("question_options")
       .insert(optionRows);
 
-    if (optionError) {
+    if (optionInsertError) {
       return NextResponse.json(
         {
           error:
-            `Unable to save options for ${q.question_code}: ` +
-            `${optionError.message}`,
+            `Insert options failed for ${q.question_code}: ` +
+            `${optionInsertError.message}`,
         },
         { status: 500 },
       );
     }
 
-    await admin
-      .from("statements")
-      .delete()
-      .eq("question_id", questionId);
+    await admin.from("question_statements").delete().eq("question_id", question.id);
 
-    if (Array.isArray(q.statements) && q.statements.length > 0) {
-      const statementRows = q.statements.map((s, index) => ({
-        question_id: questionId,
-        statement_number:
-          s.statement_number !== undefined
-            ? Number(s.statement_number)
-            : index + 1,
-        statement_text: s.statement_text || s.text || "",
+    if (Array.isArray(q.statements) && q.statements.length) {
+      const statementRows = q.statements.map((statement, index) => ({
+        question_id: question.id,
+        statement_number: index + 1,
+        statement_text:
+          typeof statement === "string"
+            ? statement
+            : statement?.statement_text || "",
       }));
 
       const { error: statementError } = await admin
-        .from("statements")
+        .from("question_statements")
         .insert(statementRows);
 
       if (statementError) {
         return NextResponse.json(
           {
             error:
-              `Unable to save statements for ${q.question_code}: ` +
+              `Insert statements failed for ${q.question_code}: ` +
               `${statementError.message}`,
           },
           { status: 500 },
@@ -473,20 +545,15 @@ async function handleImport(request) {
       }
     }
 
-    await admin
-      .from("match_items")
-      .delete()
-      .eq("question_id", questionId);
+    await admin.from("match_items").delete().eq("question_id", question.id);
 
-    if (Array.isArray(q.match_items) && q.match_items.length > 0) {
-      const matchRows = q.match_items.map((item, index) => ({
-        question_id: questionId,
-        item_number:
-          item.item_number !== undefined
-            ? Number(item.item_number)
-            : index + 1,
-        left_text: item.left_text || item.left || "",
-        right_text: item.right_text || item.right || "",
+    if (Array.isArray(q.match_items) && q.match_items.length) {
+      const matchRows = q.match_items.map((item) => ({
+        question_id: question.id,
+        left_label: item.left_label || null,
+        left_text: item.left_text || null,
+        right_label: item.right_label || null,
+        right_text: item.right_text || null,
       }));
 
       const { error: matchError } = await admin
@@ -497,37 +564,8 @@ async function handleImport(request) {
         return NextResponse.json(
           {
             error:
-              `Unable to save match items for ${q.question_code}: ` +
+              `Insert match items failed for ${q.question_code}: ` +
               `${matchError.message}`,
-          },
-          { status: 500 },
-        );
-      }
-    }
-
-    await admin
-      .from("answers")
-      .delete()
-      .eq("question_id", questionId);
-
-    if (Array.isArray(q.answers) && q.answers.length > 0) {
-      const answerRows = q.answers.map((answer) => ({
-        question_id: questionId,
-        answer_text: answer.answer_text || answer.text || "",
-        answer_type: answer.answer_type || null,
-        metadata: answer.metadata || null,
-      }));
-
-      const { error: answerError } = await admin
-        .from("answers")
-        .insert(answerRows);
-
-      if (answerError) {
-        return NextResponse.json(
-          {
-            error:
-              `Unable to save answers for ${q.question_code}: ` +
-              `${answerError.message}`,
           },
           { status: 500 },
         );
@@ -538,7 +576,7 @@ async function handleImport(request) {
   return NextResponse.json({
     ok: true,
     test_id: payload.test_id,
-    test_database_id: testRow.id,
+    exam_id: exam.id,
     imported_questions: payload.questions.length,
     warnings,
   });
@@ -582,88 +620,35 @@ async function handleCreateAttempt(request) {
   if (!entitlement?.allowed) {
     return NextResponse.json(
       {
-        error: entitlement?.reason || "You do not have access to this test.",
+        error:
+          entitlement?.reason ||
+          "You do not have access to this test.",
       },
       { status: 403 },
     );
   }
 
-  const { data: test, error: testError } = await admin
-    .from("tests")
+  const { data: exam, error: examError } = await admin
+    .from("exams")
     .select("*")
     .eq("id", test_id)
     .maybeSingle();
 
-  if (testError) {
+  if (examError) {
     return NextResponse.json(
-      {
-        error: `Unable to load test: ${testError.message}`,
-      },
+      { error: `Exam lookup failed: ${examError.message}` },
       { status: 500 },
     );
   }
 
-  if (!test) {
+  if (!exam) {
     return NextResponse.json(
       { error: "Test not found." },
       { status: 404 },
     );
   }
 
-  const { data: questions, error: questionsError } = await admin
-    .from("questions")
-    .select(
-      `
-      id,
-      question_code,
-      sequence_number,
-      question_text,
-      question_type,
-      correct_option_id,
-      explanation,
-      subject,
-      unit,
-      topic,
-      difficulty,
-      passage_id,
-      options (
-        id,
-        option_id,
-        option_text
-      ),
-      statements (
-        id,
-        statement_number,
-        statement_text
-      ),
-      match_items (
-        id,
-        item_number,
-        left_text,
-        right_text
-      )
-    `,
-    )
-    .eq("test_id", test_id)
-    .order("sequence_number", { ascending: true });
-
-  if (questionsError) {
-    return NextResponse.json(
-      {
-        error: `Unable to load test questions: ${questionsError.message}`,
-      },
-      { status: 500 },
-    );
-  }
-
-  if (!questions?.length) {
-    return NextResponse.json(
-      { error: "This test has no questions." },
-      { status: 400 },
-    );
-  }
-
-  const { data: existingAttempt } = await admin
+  const { data: existingAttempt, error: attemptLookupError } = await admin
     .from("attempts")
     .select("*")
     .eq("user_id", user.id)
@@ -671,15 +656,24 @@ async function handleCreateAttempt(request) {
     .eq("status", "in_progress")
     .maybeSingle();
 
+  if (attemptLookupError) {
+    return NextResponse.json(
+      {
+        error: `Attempt lookup failed: ${attemptLookupError.message}`,
+      },
+      { status: 500 },
+    );
+  }
+
   if (existingAttempt) {
     return NextResponse.json({
       ok: true,
       attempt: existingAttempt,
-      questions,
+      resumed: true,
     });
   }
 
-  const { data: attempt, error: attemptError } = await admin
+  const { data: attempt, error: attemptInsertError } = await admin
     .from("attempts")
     .insert({
       user_id: user.id,
@@ -690,10 +684,10 @@ async function handleCreateAttempt(request) {
     .select()
     .single();
 
-  if (attemptError) {
+  if (attemptInsertError) {
     return NextResponse.json(
       {
-        error: `Unable to create attempt: ${attemptError.message}`,
+        error: `Unable to create attempt: ${attemptInsertError.message}`,
       },
       { status: 500 },
     );
@@ -702,7 +696,7 @@ async function handleCreateAttempt(request) {
   return NextResponse.json({
     ok: true,
     attempt,
-    questions,
+    resumed: false,
   });
 }
 
@@ -732,9 +726,9 @@ async function handleSubmitAttempt(request) {
 
   const { attempt_id, answers } = body || {};
 
-  if (!attempt_id || !answers) {
+  if (!attempt_id || !Array.isArray(answers)) {
     return NextResponse.json(
-      { error: "Missing attempt_id or answers" },
+      { error: "attempt_id and answers are required." },
       { status: 400 },
     );
   }
@@ -743,13 +737,12 @@ async function handleSubmitAttempt(request) {
     .from("attempts")
     .select("*")
     .eq("id", attempt_id)
+    .eq("user_id", user.id)
     .maybeSingle();
 
   if (attemptError) {
     return NextResponse.json(
-      {
-        error: `Unable to load attempt: ${attemptError.message}`,
-      },
+      { error: `Attempt lookup failed: ${attemptError.message}` },
       { status: 500 },
     );
   }
@@ -758,13 +751,6 @@ async function handleSubmitAttempt(request) {
     return NextResponse.json(
       { error: "Attempt not found." },
       { status: 404 },
-    );
-  }
-
-  if (attempt.user_id !== user.id) {
-    return NextResponse.json(
-      { error: "This attempt does not belong to the current user." },
-      { status: 403 },
     );
   }
 
@@ -780,98 +766,110 @@ async function handleSubmitAttempt(request) {
     .select(
       `
       id,
-      correct_option_id,
-      options (
-        id,
+      correct_option_label,
+      answer_status,
+      question_options (
         option_id,
         option_text
       )
     `,
     )
-    .eq("test_id", attempt.test_id);
+    .eq("exam_id", attempt.test_id)
+    .order("sequence_number");
 
   if (questionsError) {
     return NextResponse.json(
       {
-        error: `Unable to load answer key: ${questionsError.message}`,
+        error: `Unable to load questions: ${questionsError.message}`,
       },
       { status: 500 },
     );
   }
 
-  const questionMap = new Map(
-    (questions || []).map((q) => [q.id, q]),
-  );
+  const answerMap = new Map();
+
+  for (const answer of answers) {
+    if (!answer?.question_id) continue;
+
+    answerMap.set(String(answer.question_id), {
+      selected_option: answer.selected_option
+        ? String(answer.selected_option)
+        : null,
+    });
+  }
 
   let score = 0;
   let attempted = 0;
 
   const answerRows = [];
 
-  for (const [questionId, selectedOption] of Object.entries(answers)) {
-    const question = questionMap.get(questionId);
+  for (const question of questions || []) {
+    const answer = answerMap.get(String(question.id));
+    const selectedOption = answer?.selected_option || null;
 
-    if (!question) continue;
-
-    const normalized =
-      selectedOption === null ||
-      selectedOption === undefined ||
-      selectedOption === ""
-        ? null
-        : String(selectedOption);
-
-    if (normalized !== null) {
+    if (selectedOption) {
       attempted += 1;
+    }
 
-      if (
-        question.correct_option_id !== null &&
-        String(question.correct_option_id) === normalized
-      ) {
+    let isCorrect = null;
+
+    if (question.answer_status === "valid") {
+      isCorrect =
+        selectedOption &&
+        String(selectedOption) === String(question.correct_option_label);
+
+      if (isCorrect) {
         score += 1;
       }
     }
 
     answerRows.push({
-      attempt_id,
-      question_id: questionId,
-      selected_option_id: normalized,
+      attempt_id: attempt.id,
+      question_id: question.id,
+      selected_option: selectedOption,
+      is_correct: isCorrect,
     });
   }
 
-  if (answerRows.length > 0) {
-    const { error: answersError } = await admin
-      .from("attempt_answers")
-      .upsert(answerRows, {
-        onConflict: "attempt_id,question_id",
-      });
+  await admin.from("attempt_answers").delete().eq("attempt_id", attempt.id);
 
-    if (answersError) {
+  if (answerRows.length) {
+    const { error: answerInsertError } = await admin
+      .from("attempt_answers")
+      .insert(answerRows);
+
+    if (answerInsertError) {
       return NextResponse.json(
         {
-          error: `Unable to save answers: ${answersError.message}`,
+          error:
+            `Unable to save answers: ${answerInsertError.message}`,
         },
         { status: 500 },
       );
     }
   }
 
-  const { data: updatedAttempt, error: updateError } = await admin
+  const completedAt = new Date().toISOString();
+
+  const { data: updatedAttempt, error: updateAttemptError } = await admin
     .from("attempts")
     .update({
-      status: "submitted",
-      submitted_at: new Date().toISOString(),
+      status: "completed",
       score,
       attempted,
+      total_questions: questions?.length || 0,
+      completed_at: completedAt,
     })
-    .eq("id", attempt_id)
+    .eq("id", attempt.id)
     .eq("user_id", user.id)
     .select()
     .single();
 
-  if (updateError) {
+  if (updateAttemptError) {
     return NextResponse.json(
       {
-        error: `Unable to submit attempt: ${updateError.message}`,
+        error:
+          `Unable to complete attempt: ${updateAttemptError.message}`,
       },
       { status: 500 },
     );
@@ -882,6 +880,7 @@ async function handleSubmitAttempt(request) {
     attempt: updatedAttempt,
     score,
     attempted,
+    total_questions: questions?.length || 0,
   });
 }
 
@@ -894,19 +893,6 @@ async function handleCustomTestCreate(request) {
 
   if (!user) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  }
-
-  const entitlement = await getTestEntitlement(user.id, "custom");
-
-  if (!entitlement?.allowed) {
-    return NextResponse.json(
-      {
-        error:
-          entitlement?.reason ||
-          "You do not have access to the custom test builder.",
-      },
-      { status: 403 },
-    );
   }
 
   const admin = getSupabaseAdmin();
@@ -923,71 +909,91 @@ async function handleCustomTestCreate(request) {
   }
 
   const {
-    unit,
-    topic,
-    difficulty,
-    question_count,
+    unit_ids = [],
+    difficulty = null,
+    question_count = 20,
   } = body || {};
 
-  const count = Math.min(
-    Math.max(Number(question_count || 10), 1),
-    100,
-  );
+  if (!Array.isArray(unit_ids)) {
+    return NextResponse.json(
+      { error: "unit_ids must be an array." },
+      { status: 400 },
+    );
+  }
+
+  const count = Math.max(1, Math.min(Number(question_count) || 20, 100));
+
+  const entitlement = await getTestEntitlement(user.id, "custom");
+
+  if (!entitlement?.allowed) {
+    return NextResponse.json(
+      {
+        error:
+          entitlement?.reason ||
+          "You do not have access to the custom test builder.",
+      },
+      { status: 403 },
+    );
+  }
 
   let query = admin
     .from("questions")
     .select(
       `
       id,
-      question_code,
-      sequence_number,
+      exam_id,
+      unit_id,
       question_text,
       question_type,
-      correct_option_id,
-      explanation,
-      subject,
-      unit,
-      topic,
       difficulty,
-      passage_id,
-      options (
-        id,
+      sequence_number,
+      answer_status,
+      correct_option_label,
+      explanation,
+      question_options (
         option_id,
         option_text
       )
     `,
-    );
+    )
+    .limit(500);
 
-  if (unit) {
-    query = query.eq("unit", unit);
-  }
-
-  if (topic) {
-    query = query.eq("topic", topic);
+  if (unit_ids.length) {
+    query = query.in("unit_id", unit_ids);
   }
 
   if (difficulty) {
     query = query.eq("difficulty", difficulty);
   }
 
-  const { data: questions, error } = await query.limit(count * 3);
+  const { data: questions, error: questionsError } = await query;
 
-  if (error) {
+  if (questionsError) {
     return NextResponse.json(
       {
-        error: `Unable to build custom test: ${error.message}`,
+        error:
+          `Unable to load questions for custom test: ${questionsError.message}`,
       },
       { status: 500 },
     );
   }
 
-  const shuffled = [...(questions || [])].sort(
-    () => Math.random() - 0.5,
-  );
+  if (!questions?.length) {
+    return NextResponse.json(
+      {
+        error: "No questions match the selected criteria.",
+      },
+      { status: 404 },
+    );
+  }
+
+  const shuffled = [...questions].sort(() => Math.random() - 0.5);
+  const selected = shuffled.slice(0, count);
 
   return NextResponse.json({
     ok: true,
-    questions: shuffled.slice(0, count),
+    questions: selected,
+    total_questions: selected.length,
   });
 }
 
@@ -999,7 +1005,10 @@ async function handleCreateSubscription(request) {
   const user = await getUserFromRequest(request);
 
   if (!user) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    return NextResponse.json(
+      { error: "Not authenticated" },
+      { status: 401 },
+    );
   }
 
   const admin = getSupabaseAdmin();
@@ -1018,174 +1027,77 @@ async function handleCreateSubscription(request) {
   const { plan_id } = body || {};
 
   if (!plan_id) {
-    return NextResponse.json({ error: "Missing plan_id" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Missing plan_id." },
+      { status: 400 },
+    );
   }
-
-  // --------------------------------------------------------------------------
-  // Load the plan from our database.
-  // --------------------------------------------------------------------------
 
   const { data: plan, error: planError } = await admin
     .from("plans")
     .select("*")
     .eq("id", plan_id)
+    .eq("is_active", true)
     .maybeSingle();
 
   if (planError) {
     return NextResponse.json(
-      {
-        error: `Failed to load plan: ${planError.message}`,
-      },
+      { error: `Plan lookup failed: ${planError.message}` },
       { status: 500 },
     );
   }
 
   if (!plan) {
-    return NextResponse.json({ error: "Plan not found" }, { status: 404 });
-  }
-
-  if (!plan.is_active) {
     return NextResponse.json(
-      { error: "This plan is not active." },
-      { status: 400 },
+      { error: "Selected plan is not available." },
+      { status: 404 },
     );
   }
 
   if (!plan.is_purchasable) {
     return NextResponse.json(
-      {
-        error: "This plan is not purchasable yet.",
-      },
+      { error: "This plan is not currently available for purchase." },
       { status: 400 },
     );
   }
 
-  if (!plan.razorpay_plan_id) {
+  const { data: existingSubscriptions, error: existingError } = await admin
+    .from("subscriptions")
+    .select("*")
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: false });
+
+  if (existingError) {
     return NextResponse.json(
       {
-        error: "This plan is not linked to a Razorpay plan yet.",
+        error:
+          `Unable to check existing subscriptions: ${existingError.message}`,
       },
       { status: 500 },
     );
   }
-
-  // --------------------------------------------------------------------------
-  // Initialise Razorpay.
-  // --------------------------------------------------------------------------
-
-  let rzp;
-
-  try {
-    rzp = getRazorpay();
-  } catch (e) {
-    return NextResponse.json(
-      {
-        error: e?.message || "Razorpay is not configured on the server.",
-      },
-      { status: 500 },
-    );
-  }
-
-  // --------------------------------------------------------------------------
-  // Do not create a second active subscription for the same user/plan.
-  //
-  // --------------------------------------------------------------------------
-  // Check the user's existing subscriptions before creating another one.
-  // --------------------------------------------------------------------------
-
-  const { data: existingSubscriptions, error: existingSubscriptionError } =
-    await admin
-      .from("subscriptions")
-      .select(
-        "id, plan_id, razorpay_subscription_id, status, expires_at, cancel_at_period_end",
-      )
-      .eq("user_id", user.id)
-      .order("created_at", {
-        ascending: false,
-      });
-
-  if (existingSubscriptionError) {
-    return NextResponse.json(
-      {
-        error: `Unable to check existing subscriptions: ${existingSubscriptionError.message}`,
-      },
-      { status: 500 },
-    );
-  }
-
-  const currentTime = new Date();
 
   const activeSubscription =
-    (existingSubscriptions || []).find((sub) => {
-      return (
+    (existingSubscriptions || []).find(
+      (sub) =>
         sub.status === "active" &&
-        sub.expires_at &&
-        new Date(sub.expires_at) > currentTime
-      );
-    }) || null;
-
-  const createdSubscription =
-    (existingSubscriptions || []).find(
-      (sub) => sub.status === "created",
+        (!sub.expires_at || new Date(sub.expires_at) > new Date()),
     ) || null;
 
-  const pastDueSubscription =
-    (existingSubscriptions || []).find(
-      (sub) => sub.status === "past_due",
-    ) || null;
-
-  // --------------------------------------------------------------------------
-  // An active Combined subscription means the user already has the highest
-  // available plan.
-  // --------------------------------------------------------------------------
-
-  if (activeSubscription && activeSubscription.plan_id === plan.id) {
+  if (activeSubscription) {
     return NextResponse.json(
       {
-        error: "You already have an active subscription for this plan.",
+        error: "You already have an active subscription.",
         subscription_id: activeSubscription.razorpay_subscription_id,
       },
       { status: 409 },
     );
   }
 
-  // --------------------------------------------------------------------------
-  // If the user is already on Combined, do not allow another subscription.
-  // --------------------------------------------------------------------------
-
-  if (activeSubscription && activeSubscription.plan_id !== plan.id) {
-    const { data: activePlan } = await admin
-      .from("plans")
-      .select("id, name")
-      .eq("id", activeSubscription.plan_id)
-      .maybeSingle();
-
-    if (activePlan?.name === "Combined") {
-      return NextResponse.json(
-        {
-          error: "You already have an active Combined subscription.",
-          subscription_id: activeSubscription.razorpay_subscription_id,
-        },
-        { status: 409 },
-      );
-    }
-
-    // Allow an upgrade from another active plan to Combined.
-    if (plan.name !== "Combined") {
-      return NextResponse.json(
-        {
-          error: "You already have an active subscription.",
-          subscription_id: activeSubscription.razorpay_subscription_id,
-        },
-        { status: 409 },
-      );
-    }
-  }
-
-  // --------------------------------------------------------------------------
-  // A past_due subscription represents an unresolved payment state.
-  // Do not create another subscription automatically.
-  // --------------------------------------------------------------------------
+  const pastDueSubscription =
+    (existingSubscriptions || []).find(
+      (sub) => sub.status === "past_due",
+    ) || null;
 
   if (pastDueSubscription) {
     return NextResponse.json(
@@ -1198,15 +1110,17 @@ async function handleCreateSubscription(request) {
     );
   }
 
-  // --------------------------------------------------------------------------
-  // A created subscription may simply be an abandoned Checkout.
-  // Check Razorpay directly before blocking a new attempt.
-  // --------------------------------------------------------------------------
+  const createdSubscription =
+    (existingSubscriptions || []).find(
+      (sub) => sub.status === "created",
+    ) || null;
 
   if (createdSubscription) {
     let providerSubscription;
 
     try {
+      const rzp = getRazorpay();
+
       providerSubscription = await rzp.subscriptions.fetch(
         createdSubscription.razorpay_subscription_id,
       );
@@ -1214,7 +1128,7 @@ async function handleCreateSubscription(request) {
       return NextResponse.json(
         {
           error:
-            `Unable to check your existing Razorpay subscription: ` +
+            `Unable to check existing Razorpay subscription: ` +
             `${e?.error?.description || e?.message || "Unknown Razorpay error."}`,
         },
         { status: 500 },
@@ -1236,15 +1150,20 @@ async function handleCreateSubscription(request) {
         })
         .eq("id", createdSubscription.id)
         .eq("user_id", user.id);
-    } else if (
-      providerSubscription.status === "active" ||
-      providerSubscription.status === "authenticated"
-    ) {
+    } else if (providerSubscription.status === "active") {
+      return NextResponse.json(
+        {
+          error: "You already have an active subscription.",
+          subscription_id: providerSubscription.id,
+        },
+        { status: 409 },
+      );
+    } else if (providerSubscription.customer_id) {
       return NextResponse.json(
         {
           error:
-            "You already have a subscription that has been authorised or activated.",
-          subscription_id: providerSubscription.id,
+            "Your payment authorization is already in progress. Please finish the current payment before starting another subscription.",
+          subscription_id: providerSubscription.razorpay_subscription_id,
         },
         { status: 409 },
       );
@@ -1260,130 +1179,235 @@ async function handleCreateSubscription(request) {
     }
   }
 
-  // --------------------------------------------------------------------------
-  // Create the Razorpay subscription.
-  //
-  // IMPORTANT:
-  // Do NOT create a Razorpay customer here.
-  //
-  // Razorpay creates/associates the customer during the subscription
-  // authorization Checkout flow.
-  // --------------------------------------------------------------------------
+  const rzp = getRazorpay();
 
-  let subscription;
+  const expireBy = Math.floor(Date.now() / 1000) + 30 * 60;
+
+  let razorpaySubscription;
 
   try {
-    subscription = await rzp.subscriptions.create({
+    razorpaySubscription = await rzp.subscriptions.create({
       plan_id: plan.razorpay_plan_id,
-
       total_count: 12,
-
-      quantity: 1,
-
       customer_notify: 1,
-
-      // Limit the authorisation window so abandoned subscriptions do not
-      // remain in the "created" state indefinitely at Razorpay.
-      expire_by: Math.floor(Date.now() / 1000) + 30 * 60,
-
-      notes: {
-        forensique_user_id: user.id,
-
-        forensique_plan_id: plan.id,
-      },
+      expire_by: expireBy,
     });
   } catch (e) {
-    const description =
-      e?.error?.description ||
-      e?.description ||
-      e?.message ||
-      "Unknown Razorpay error.";
-
     return NextResponse.json(
       {
-        error: `Razorpay subscription error: ${description}`,
+        error:
+          `Unable to create Razorpay subscription: ` +
+          `${e?.error?.description || e?.message || "Unknown Razorpay error."}`,
       },
       { status: 500 },
     );
   }
 
-  // --------------------------------------------------------------------------
-  // Save the newly-created subscription in Supabase.
-  //
-  // The Razorpay subscription is initially "created".
-  // Webhooks will later update it to active/pending/etc.
-  // --------------------------------------------------------------------------
-
-  const now = new Date();
-
-  const expireBy = subscription.expire_by;
-
   const authorizationExpiry = new Date(
-    (expireBy || Math.floor(Date.now() / 1000) + 30 * 60) * 1000,
+    (razorpaySubscription.expire_by || expireBy) * 1000,
   );
 
-  const { error: subscriptionRowError } = await admin
+  const { data: insertedSubscription, error: insertError } = await admin
     .from("subscriptions")
     .insert({
       user_id: user.id,
-
       plan_id: plan.id,
-
-      // Razorpay associates the customer after
-      // the authorization transaction.
-      razorpay_customer_id: subscription.customer_id || null,
-
-      razorpay_subscription_id: subscription.id,
-
-      status: "created",
-
-      started_at: now.toISOString(),
-
+      razorpay_subscription_id: razorpaySubscription.id,
+      razorpay_customer_id: razorpaySubscription.customer_id || null,
+      status: razorpaySubscription.status || "created",
+      cancel_at_period_end: false,
       expires_at: authorizationExpiry.toISOString(),
-    });
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .select()
+    .single();
 
-  if (subscriptionRowError) {
-    // We created the Razorpay subscription but failed
-    // to persist our local record. Try to cancel the
-    // orphaned Razorpay subscription immediately.
+  if (insertError) {
     try {
-      await rzp.subscriptions.cancel(subscription.id, {
+      await rzp.subscriptions.cancel(razorpaySubscription.id, {
         cancel_at_cycle_end: false,
       });
-    } catch (cleanupError) {
+    } catch (cancelError) {
       console.error(
         "Failed to clean up orphaned Razorpay subscription:",
-        cleanupError,
+        cancelError,
       );
     }
 
     return NextResponse.json(
       {
-        error: `Subscription record could not be saved: ${subscriptionRowError.message}`,
+        error:
+          `Unable to save subscription: ${insertError.message}`,
       },
       { status: 500 },
     );
   }
 
   return NextResponse.json({
-    subscription_id: subscription.id,
-
+    ok: true,
+    subscription_id: insertedSubscription.razorpay_subscription_id,
     razorpay_key_id: process.env.RAZORPAY_KEY_ID,
   });
 }
 
 // ----------------------------------------------------------------------------
 // POST /api/billing/verify
-//
-// Body:
-// {
-//   razorpay_payment_id,
-//   razorpay_subscription_id,
-//   razorpay_signature
-// }
 // ----------------------------------------------------------------------------
 
 async function handleVerify(request) {
+  const user = await getUserFromRequest(request);
+
+  if (!user) {
+    return NextResponse.json(
+      { error: "Not authenticated" },
+      { status: 401 },
+    );
+  }
+
+  const admin = getSupabaseAdmin();
+
+  let body;
+
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json(
+      { error: "Invalid request body" },
+      { status: 400 },
+    );
+  }
+
+  const {
+    razorpay_payment_id,
+    razorpay_subscription_id,
+    razorpay_signature,
+  } = body || {};
+
+  if (
+    !razorpay_payment_id ||
+    !razorpay_subscription_id ||
+    !razorpay_signature
+  ) {
+    return NextResponse.json(
+      {
+        error: "Incomplete Razorpay verification data.",
+      },
+      { status: 400 },
+    );
+  }
+
+  const { data: sub, error: subError } = await admin
+    .from("subscriptions")
+    .select("*")
+    .eq("razorpay_subscription_id", razorpay_subscription_id)
+    .maybeSingle();
+
+  if (subError) {
+    return NextResponse.json(
+      { error: `Subscription lookup failed: ${subError.message}` },
+      { status: 500 },
+    );
+  }
+
+  if (!sub || sub.user_id !== user.id) {
+    return NextResponse.json(
+      { error: "Not your subscription" },
+      { status: 403 },
+    );
+  }
+
+  const secret = process.env.RAZORPAY_KEY_SECRET;
+
+  if (!secret) {
+    return NextResponse.json(
+      { error: "Razorpay secret is not configured." },
+      { status: 500 },
+    );
+  }
+
+  const generatedSignature = crypto
+    .createHmac("sha256", secret)
+    .update(`${razorpay_payment_id}|${razorpay_subscription_id}`)
+    .digest("hex");
+
+  if (generatedSignature !== razorpay_signature) {
+    return NextResponse.json(
+      { error: "Invalid Razorpay signature." },
+      { status: 400 },
+    );
+  }
+
+  const rzp = getRazorpay();
+
+  let providerSubscription;
+
+  try {
+    providerSubscription = await rzp.subscriptions.fetch(
+      razorpay_subscription_id,
+    );
+  } catch (e) {
+    return NextResponse.json(
+      {
+        error:
+          `Unable to verify Razorpay subscription: ` +
+          `${e?.error?.description || e?.message || "Unknown Razorpay error."}`,
+      },
+      { status: 500 },
+    );
+  }
+
+  const patch = {
+    status:
+      providerSubscription.status === "active"
+        ? "active"
+        : providerSubscription.status || "active",
+    razorpay_customer_id:
+      providerSubscription.customer_id || sub.razorpay_customer_id || null,
+    updated_at: new Date().toISOString(),
+  };
+
+  if (providerSubscription.current_start) {
+    patch.started_at = new Date(
+      providerSubscription.current_start * 1000,
+    ).toISOString();
+  }
+
+  if (providerSubscription.current_end) {
+    patch.expires_at = new Date(
+      providerSubscription.current_end * 1000,
+    ).toISOString();
+  }
+
+  const { error: updateError } = await admin
+    .from("subscriptions")
+    .update(patch)
+    .eq("id", sub.id)
+    .eq("user_id", user.id);
+
+  if (updateError) {
+    return NextResponse.json(
+      {
+        error:
+          `Unable to update subscription: ${updateError.message}`,
+      },
+      { status: 500 },
+    );
+  }
+
+  return NextResponse.json({
+    ok: true,
+    status: patch.status,
+  });
+}
+
+// ----------------------------------------------------------------------------
+// POST /api/billing/cancel
+//
+// Normal user cancellation for an active subscription.
+// This remains a cycle-end cancellation.
+// ----------------------------------------------------------------------------
+async function handleCancel(request) {
   const user = await getUserFromRequest(request);
 
   if (!user) {
@@ -1403,262 +1427,27 @@ async function handleVerify(request) {
     );
   }
 
-  const { razorpay_payment_id, razorpay_subscription_id, razorpay_signature } =
-    body || {};
-
-  if (
-    !razorpay_payment_id ||
-    !razorpay_subscription_id ||
-    !razorpay_signature
-  ) {
-    return NextResponse.json(
-      {
-        error: "Missing Razorpay verification parameters.",
-      },
-      { status: 400 },
-    );
-  }
-
-  // --------------------------------------------------------------------------
-  // First make sure this subscription belongs to the logged-in user.
-  // --------------------------------------------------------------------------
-
-  const { data: localSubscription, error: subscriptionLookupError } =
-    await admin
-      .from("subscriptions")
-      .select(
-        `
-        id,
-        user_id,
-        plan_id,
-        razorpay_subscription_id,
-        status,
-        expires_at
-      `,
-      )
-      .eq("razorpay_subscription_id", razorpay_subscription_id)
-      .maybeSingle();
-
-  if (subscriptionLookupError) {
-    return NextResponse.json(
-      {
-        error: `Unable to find subscription: ${subscriptionLookupError.message}`,
-      },
-      { status: 500 },
-    );
-  }
-
-  if (!localSubscription) {
-    return NextResponse.json(
-      {
-        error: "Subscription was not found in our database.",
-      },
-      { status: 404 },
-    );
-  }
-
-  if (localSubscription.user_id !== user.id) {
-    return NextResponse.json(
-      {
-        error: "This subscription does not belong to the current user.",
-      },
-      { status: 403 },
-    );
-  }
-
-  // --------------------------------------------------------------------------
-  // Verify Razorpay signature.
-  //
-  // Razorpay subscription verification uses:
-  //
-  // payment_id + "|" + subscription_id
-  //
-  // signed using RAZORPAY_KEY_SECRET.
-  // --------------------------------------------------------------------------
-
-  const secret = process.env.RAZORPAY_KEY_SECRET;
-
-  if (!secret) {
-    return NextResponse.json(
-      {
-        error: "Razorpay is not configured on the server.",
-      },
-      { status: 500 },
-    );
-  }
-
-  const expected = crypto
-    .createHmac("sha256", secret)
-    .update(`${razorpay_payment_id}|${razorpay_subscription_id}`)
-    .digest("hex");
-
-  const expectedBuffer = Buffer.from(expected);
-
-  const receivedBuffer = Buffer.from(razorpay_signature);
-
-  if (
-    expectedBuffer.length !== receivedBuffer.length ||
-    !crypto.timingSafeEqual(expectedBuffer, receivedBuffer)
-  ) {
-    return NextResponse.json(
-      {
-        ok: false,
-        error: "Razorpay signature verification failed.",
-      },
-      { status: 400 },
-    );
-  }
-
-  // --------------------------------------------------------------------------
-  // Fetch the subscription directly from Razorpay.
-  //
-  // This prevents us from blindly trusting the status supplied by the
-  // browser callback.
-  // --------------------------------------------------------------------------
-
-  let providerSubscription;
-
-  try {
-    const rzp = getRazorpay();
-
-    providerSubscription = await rzp.subscriptions.fetch(
-      razorpay_subscription_id,
-    );
-  } catch (e) {
-    return NextResponse.json(
-      {
-        error: `Unable to verify Razorpay subscription: ${
-          e?.error?.description || e?.message || "Unknown Razorpay error."
-        }`,
-      },
-      { status: 500 },
-    );
-  }
-
-  // --------------------------------------------------------------------------
-  // Make sure the provider subscription is actually for the plan we sold.
-  // --------------------------------------------------------------------------
-
-  const { data: localPlan, error: planLookupError } = await admin
-    .from("plans")
-    .select("id, name, razorpay_plan_id")
-    .eq("id", localSubscription.plan_id)
-    .maybeSingle();
-
-  if (planLookupError) {
-    return NextResponse.json(
-      {
-        error: `Unable to verify plan: ${planLookupError.message}`,
-      },
-      { status: 500 },
-    );
-  }
-
-  if (
-    !localPlan ||
-    localPlan.razorpay_plan_id !== providerSubscription.plan_id
-  ) {
-    return NextResponse.json(
-      {
-        error: "Razorpay subscription does not match the selected plan.",
-      },
-      { status: 400 },
-    );
-  }
-
-  // --------------------------------------------------------------------------
-  // Map the actual Razorpay state to our application state.
-  //
-  // For the current immediate-start Test Series subscription, a successful
-  // authorization should result in "active".
-  //
-  // If Razorpay reports "authenticated" instead, keep the local subscription
-  // non-active and let the webhook move it to active when appropriate.
-  // --------------------------------------------------------------------------
-
-  let nextStatus = "created";
-
-  if (providerSubscription.status === "active") {
-    nextStatus = "active";
-  } else if (providerSubscription.status === "pending") {
-    nextStatus = "past_due";
-  } else if (providerSubscription.status === "halted") {
-    nextStatus = "past_due";
-  } else if (providerSubscription.status === "cancelled") {
-    nextStatus = "cancelled";
-  } else if (providerSubscription.status === "completed") {
-    nextStatus = "expired";
-  } else if (providerSubscription.status === "expired") {
-    nextStatus = "expired";
-  }
-
-  const patch = {
-    status: nextStatus,
-
-    updated_at: new Date().toISOString(),
-  };
-
-  if (providerSubscription.customer_id) {
-    patch.razorpay_customer_id = providerSubscription.customer_id;
-  }
-
-  if (providerSubscription.current_start) {
-    patch.started_at = new Date(
-      providerSubscription.current_start * 1000,
-    ).toISOString();
-  }
-
-  if (providerSubscription.current_end) {
-    patch.expires_at = new Date(
-      providerSubscription.current_end * 1000,
-    ).toISOString();
-  }
-
-  const { error: updateError } = await admin
-    .from("subscriptions")
-    .update(patch)
-    .eq("id", localSubscription.id)
-    .eq("user_id", user.id);
-
-  if (updateError) {
-    return NextResponse.json(
-      {
-        error: `Payment was verified but the subscription could not be updated: ${updateError.message}`,
-      },
-      { status: 500 },
-    );
-  }
-
-  return NextResponse.json({
-    ok: true,
-    status: nextStatus,
-  });
-}
-
-// ----------------------------------------------------------------------------
-// POST /api/billing/cancel
-// ----------------------------------------------------------------------------
-
-async function handleCancel(request) {
-  const user = await getUserFromRequest(request);
-
-  if (!user) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  }
-
-  const admin = getSupabaseAdmin();
-
-  const { razorpay_subscription_id } = await request.json();
+  const { razorpay_subscription_id } = body || {};
 
   if (!razorpay_subscription_id) {
-    return NextResponse.json({ error: "Missing id" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Missing Razorpay subscription ID." },
+      { status: 400 },
+    );
   }
 
-  const { data: sub } = await admin
+  const { data: sub, error: subError } = await admin
     .from("subscriptions")
     .select("*")
     .eq("razorpay_subscription_id", razorpay_subscription_id)
     .maybeSingle();
+
+  if (subError) {
+    return NextResponse.json(
+      { error: `Subscription lookup failed: ${subError.message}` },
+      { status: 500 },
+    );
+  }
 
   if (!sub || sub.user_id !== user.id) {
     return NextResponse.json(
@@ -1702,9 +1491,11 @@ async function handleCancel(request) {
 // ----------------------------------------------------------------------------
 // POST /api/billing/cancel-pending
 //
-// Cancels an uncompleted Razorpay subscription when Checkout is dismissed.
-// Only subscriptions still in Razorpay's "created" state are cancelled.
-// Authorised/active subscriptions are never cancelled by this endpoint.
+// Razorpay does not reliably allow an immediate Cancel API call while an
+// authorization-only subscription is still in the initial `created` state.
+// In that state there is no billing cycle to cancel. We therefore treat a
+// dismissed Checkout as locally abandoned, while Razorpay's `expire_by`
+// remains the provider-side safety net.
 // ----------------------------------------------------------------------------
 
 async function handleCancelPending(request) {
@@ -1736,21 +1527,17 @@ async function handleCancelPending(request) {
     );
   }
 
-  // --------------------------------------------------------------------------
-  // Verify that the subscription belongs to the logged-in user.
-  // --------------------------------------------------------------------------
-
   const { data: sub, error: subLookupError } = await admin
     .from("subscriptions")
-    .select("id, user_id, razorpay_subscription_id, status")
+    .select(
+      "id, user_id, razorpay_subscription_id, status, cancel_at_period_end",
+    )
     .eq("razorpay_subscription_id", razorpay_subscription_id)
     .maybeSingle();
 
   if (subLookupError) {
     return NextResponse.json(
-      {
-        error: `Unable to find subscription: ${subLookupError.message}`,
-      },
+      { error: `Unable to find subscription: ${subLookupError.message}` },
       { status: 500 },
     );
   }
@@ -1769,11 +1556,7 @@ async function handleCancelPending(request) {
     );
   }
 
-  // --------------------------------------------------------------------------
-  // If our local state is no longer "created", do not use this endpoint to
-  // cancel it. Normal active/past_due lifecycle handling remains separate.
-  // --------------------------------------------------------------------------
-
+  // Never use this endpoint to alter an active or unresolved payment state.
   if (sub.status !== "created") {
     return NextResponse.json({
       ok: true,
@@ -1786,7 +1569,6 @@ async function handleCancelPending(request) {
 
   try {
     const rzp = getRazorpay();
-
     providerSubscription = await rzp.subscriptions.fetch(
       razorpay_subscription_id,
     );
@@ -1794,27 +1576,18 @@ async function handleCancelPending(request) {
     return NextResponse.json(
       {
         error:
-          `Unable to check Razorpay subscription: ` +
+          "Unable to check Razorpay subscription: " +
           `${e?.error?.description || e?.message || "Unknown Razorpay error."}`,
       },
       { status: 500 },
     );
   }
 
-  // --------------------------------------------------------------------------
-  // Never cancel a subscription that has already been authorised or activated.
-  // Razorpay can remain "created" locally for a short time after successful
-  // authorisation, so the provider state is authoritative here.
-  // --------------------------------------------------------------------------
-
-  if (
-    providerSubscription.status === "authenticated" ||
-    providerSubscription.status === "active"
-  ) {
+  if (providerSubscription.status === "active") {
     return NextResponse.json({
       ok: true,
       cancelled: false,
-      status: providerSubscription.status,
+      status: "active",
     });
   }
 
@@ -1822,6 +1595,26 @@ async function handleCancelPending(request) {
     providerSubscription.status === "cancelled" ||
     providerSubscription.status === "expired"
   ) {
+    await admin
+      .from("subscriptions")
+      .update({
+        status: providerSubscription.status,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", sub.id)
+      .eq("user_id", user.id);
+
+    return NextResponse.json({
+      ok: true,
+      cancelled: providerSubscription.status === "cancelled",
+      status: providerSubscription.status,
+    });
+  }
+
+  // If Razorpay has already associated a customer, authorization may have
+  // completed even though an immediate-start subscription can still report
+  // `created` until its first charge. Do not mark that subscription abandoned.
+  if (providerSubscription.customer_id) {
     return NextResponse.json({
       ok: true,
       cancelled: false,
@@ -1829,41 +1622,33 @@ async function handleCancelPending(request) {
     });
   }
 
-  // --------------------------------------------------------------------------
-  // Only an actually-created, unauthorised subscription is cancelled here.
-  // --------------------------------------------------------------------------
+  // The user closed Checkout before authorization. We cannot reliably cancel
+  // the provider subscription in this state, so release the local checkout
+  // lock. Razorpay will expire the authorization window automatically.
+  const { error: updateError } = await admin
+    .from("subscriptions")
+    .update({
+      status: "cancelled",
+      cancel_at_period_end: false,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", sub.id)
+    .eq("user_id", user.id)
+    .eq("status", "created");
 
-  if (providerSubscription.status !== "created") {
-    return NextResponse.json({
-      ok: true,
-      cancelled: false,
-      status: providerSubscription.status,
-    });
-  }
-
-  try {
-    const rzp = getRazorpay();
-
-    await rzp.subscriptions.cancel(razorpay_subscription_id, {
-      cancel_at_cycle_end: false,
-    });
-  } catch (e) {
+  if (updateError) {
     return NextResponse.json(
-      {
-        error:
-          `Razorpay cancellation failed: ` +
-          `${e?.error?.description || e?.message || "Unknown Razorpay error."}`,
-      },
+      { error: `Unable to release pending subscription: ${updateError.message}` },
       { status: 500 },
     );
   }
 
-  // The Razorpay subscription.cancelled webhook remains the authoritative
-  // lifecycle update for the local subscription row.
-
   return NextResponse.json({
     ok: true,
     cancelled: true,
+    status: "cancelled",
+    provider_status: providerSubscription.status,
+    provider_action: "expire_by",
   });
 }
 
@@ -1965,6 +1750,8 @@ async function handleRazorpayWebhook(request) {
       "subscription.cancelled": "cancelled",
 
       "subscription.completed": "expired",
+
+      "subscription.expired": "expired",
     };
 
     const nextStatus = statusMap[evt.event] || sub.status || "active";

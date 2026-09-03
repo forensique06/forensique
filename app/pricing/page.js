@@ -6,12 +6,7 @@ import Script from "next/script";
 import { getSupabaseBrowser } from "@/lib/supabase/browser";
 import SiteHeader from "@/components/site-header";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Check, X, Loader2 } from "lucide-react";
 
@@ -139,9 +134,7 @@ export default function PricingPage() {
         }
       } catch (e) {
         if (mounted) {
-          setError(
-            e?.message || "Unable to load pricing information.",
-          );
+          setError(e?.message || "Unable to load pricing information.");
         }
       } finally {
         if (mounted) {
@@ -211,22 +204,14 @@ export default function PricingPage() {
       const json = await res.json();
 
       if (!res.ok) {
-        throw new Error(
-          json.error || "Unable to create subscription.",
-        );
+        throw new Error(json.error || "Unable to create subscription.");
       }
 
       if (!json.subscription_id || !json.razorpay_key_id) {
-        throw new Error(
-          "Server returned incomplete Razorpay checkout data.",
-        );
+        throw new Error("Server returned incomplete Razorpay checkout data.");
       }
 
-      openRazorpay(
-        json.subscription_id,
-        json.razorpay_key_id,
-        selectedPlan,
-      );
+      openRazorpay(json.subscription_id, json.razorpay_key_id, selectedPlan);
     } catch (e) {
       console.error("Checkout initialization failed:", e);
 
@@ -247,11 +232,9 @@ export default function PricingPage() {
       );
     }
 
-    const price = Math.round(
-      Number(plan.price_paise || 0) / 100,
-    );
-
     let checkoutCompleted = false;
+
+    const price = Math.round(Number(plan.price_paise || 0) / 100);
 
     const rzp = new window.Razorpay({
       key: keyId,
@@ -317,21 +300,15 @@ export default function PricingPage() {
 
           if (!verifyRes.ok) {
             throw new Error(
-              verifyJson.error ||
-                "Payment verification failed.",
+              verifyJson.error || "Payment verification failed.",
             );
           }
 
           window.location.href = "/dashboard?upgraded=1";
         } catch (e) {
-          console.error(
-            "Payment verification failed:",
-            e,
-          );
+          console.error("Payment verification failed:", e);
 
-          setError(
-            e?.message || "Payment verification failed.",
-          );
+          setError(e?.message || "Payment verification failed.");
 
           setBusy(false);
         }
@@ -354,34 +331,32 @@ export default function PricingPage() {
                 "Checkout dismissed, but the user session is unavailable. " +
                   "The Razorpay subscription will rely on expire_by.",
               );
+
               return;
             }
 
-            const cancelRes = await fetch(
-              "/api/billing/cancel-pending",
-              {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  Authorization: `Bearer ${session.access_token}`,
-                },
-                body: JSON.stringify({
-                  razorpay_subscription_id: subscriptionId,
-                }),
+            const cancelRes = await fetch("/api/billing/cancel-pending", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${session.access_token}`,
               },
-            );
+              body: JSON.stringify({
+                razorpay_subscription_id: subscriptionId,
+              }),
+            });
 
             const cancelJson = await cancelRes.json();
 
             if (!cancelRes.ok) {
               console.error(
-                "Unable to cancel abandoned Razorpay subscription:",
+                "Unable to release abandoned Razorpay subscription:",
                 cancelJson,
               );
             }
           } catch (e) {
             console.error(
-              "Failed to cancel abandoned Razorpay subscription:",
+              "Failed to release abandoned Razorpay subscription:",
               e,
             );
           } finally {
@@ -392,10 +367,7 @@ export default function PricingPage() {
     });
 
     rzp.on("payment.failed", (response) => {
-      console.error(
-        "Razorpay payment failed:",
-        response,
-      );
+      console.error("Razorpay payment failed:", response);
 
       const description =
         response?.error?.description ||
@@ -427,13 +399,9 @@ export default function PricingPage() {
 
       <div className="container mx-auto px-4 py-12 max-w-6xl">
         <div className="text-center mb-10">
-          <Badge variant="secondary">
-            Simple, monthly, cancel anytime
-          </Badge>
+          <Badge variant="secondary">Simple, monthly, cancel anytime</Badge>
 
-          <h1 className="text-4xl font-bold mt-3">
-            Pricing
-          </h1>
+          <h1 className="text-4xl font-bold mt-3">Pricing</h1>
 
           <p className="text-muted-foreground mt-2">
             Every plan renews monthly via UPI Autopay or e-mandate.
@@ -448,50 +416,34 @@ export default function PricingPage() {
           <>
             <div className="grid gap-4 md:grid-cols-3 mb-12">
               {PLAN_ORDER.map((planName) => {
-                const plan = plans.find(
-                  (p) => p.name === planName,
-                );
+                const plan = plans.find((p) => p.name === planName);
 
                 if (!plan) return null;
 
                 const isTS = plan.name === "Test Series";
 
-                const price = (
-                  Number(plan.price_paise || 0) / 100
-                ).toFixed(0);
+                const price = (Number(plan.price_paise || 0) / 100).toFixed(0);
 
                 return (
                   <Card
                     key={plan.id}
-                    className={
-                      isTS ? "ring-2 ring-primary" : ""
-                    }
+                    className={isTS ? "ring-2 ring-primary" : ""}
                   >
                     <CardHeader>
                       <div className="flex justify-between items-start">
-                        <CardTitle className="text-xl">
-                          {plan.name}
-                        </CardTitle>
+                        <CardTitle className="text-xl">{plan.name}</CardTitle>
 
                         {isTS ? (
-                          <Badge>
-                            Most popular
-                          </Badge>
+                          <Badge>Most popular</Badge>
                         ) : (
-                          <Badge variant="outline">
-                            Coming soon
-                          </Badge>
+                          <Badge variant="outline">Coming soon</Badge>
                         )}
                       </div>
 
                       <div className="mt-4">
-                        <span className="text-4xl font-bold">
-                          ₹{price}
-                        </span>
+                        <span className="text-4xl font-bold">₹{price}</span>
 
-                        <span className="text-muted-foreground">
-                          /month
-                        </span>
+                        <span className="text-muted-foreground">/month</span>
                       </div>
                     </CardHeader>
 
@@ -523,13 +475,10 @@ export default function PricingPage() {
                       </ul>
 
                       {plan.is_purchasable ? (
-                        subscription?.plans?.name ===
-                        plan.name ? (
+                        subscription?.plans?.name === plan.name ? (
                           <div className="mt-4 space-y-2">
                             <div className="flex items-center justify-center gap-2 rounded-md border p-3 text-sm">
-                              <Badge variant="default">
-                                Active
-                              </Badge>
+                              <Badge variant="default">Active</Badge>
 
                               <span>
                                 {subscription.cancel_at_period_end
@@ -542,24 +491,18 @@ export default function PricingPage() {
                               {subscription.cancel_at_period_end
                                 ? `Access until ${new Date(
                                     subscription.expires_at,
-                                  ).toLocaleDateString(
-                                    "en-IN",
-                                    {
-                                      day: "numeric",
-                                      month: "short",
-                                      year: "numeric",
-                                    },
-                                  )}`
+                                  ).toLocaleDateString("en-IN", {
+                                    day: "numeric",
+                                    month: "short",
+                                    year: "numeric",
+                                  })}`
                                 : `Renews ${new Date(
                                     subscription.expires_at,
-                                  ).toLocaleDateString(
-                                    "en-IN",
-                                    {
-                                      day: "numeric",
-                                      month: "short",
-                                      year: "numeric",
-                                    },
-                                  )}`}
+                                  ).toLocaleDateString("en-IN", {
+                                    day: "numeric",
+                                    month: "short",
+                                    year: "numeric",
+                                  })}`}
                             </div>
 
                             <Button
@@ -573,12 +516,8 @@ export default function PricingPage() {
                         ) : (
                           <Button
                             className="w-full mt-4"
-                            disabled={
-                              busy || !razorpayLoaded
-                            }
-                            onClick={() =>
-                              startCheckout(plan.id)
-                            }
+                            disabled={busy || !razorpayLoaded}
+                            onClick={() => startCheckout(plan.id)}
                           >
                             {busy && (
                               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -628,21 +567,13 @@ export default function PricingPage() {
                           Feature
                         </th>
 
-                        <th className="py-2 font-normal">
-                          Free
-                        </th>
+                        <th className="py-2 font-normal">Free</th>
 
-                        <th className="py-2 font-normal">
-                          Test Series
-                        </th>
+                        <th className="py-2 font-normal">Test Series</th>
 
-                        <th className="py-2 font-normal">
-                          Notes
-                        </th>
+                        <th className="py-2 font-normal">Notes</th>
 
-                        <th className="py-2 font-normal">
-                          Combined
-                        </th>
+                        <th className="py-2 font-normal">Combined</th>
                       </tr>
                     </thead>
 
@@ -652,9 +583,7 @@ export default function PricingPage() {
                           key={row.name}
                           className="border-b border-border/50"
                         >
-                          <td className="py-2.5">
-                            {row.name}
-                          </td>
+                          <td className="py-2.5">{row.name}</td>
 
                           <td className="py-2.5 text-center">
                             <Cell v={row.keys.free} />
@@ -681,17 +610,11 @@ export default function PricingPage() {
 
             <div className="text-center mt-8 text-sm text-muted-foreground">
               Questions? See our{" "}
-              <Link
-                href="/faq"
-                className="underline text-primary"
-              >
+              <Link href="/faq" className="underline text-primary">
                 FAQ
               </Link>{" "}
               and{" "}
-              <Link
-                href="/refund"
-                className="underline text-primary"
-              >
+              <Link href="/refund" className="underline text-primary">
                 refund policy
               </Link>
               .
@@ -714,20 +637,12 @@ function FeatureLine({ children }) {
 
 function Cell({ v }) {
   if (v === true) {
-    return (
-      <Check className="h-4 w-4 text-emerald-600 mx-auto" />
-    );
+    return <Check className="h-4 w-4 text-emerald-600 mx-auto" />;
   }
 
   if (v === false) {
-    return (
-      <X className="h-4 w-4 text-muted-foreground mx-auto opacity-40" />
-    );
+    return <X className="h-4 w-4 text-muted-foreground mx-auto opacity-40" />;
   }
 
-  return (
-    <span className="text-xs text-muted-foreground">
-      {v}
-    </span>
-  );
+  return <span className="text-xs text-muted-foreground">{v}</span>;
 }
