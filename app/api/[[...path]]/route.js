@@ -586,251 +586,234 @@ async function handleImport(request) {
 // POST /api/attempt/create
 // ----------------------------------------------------------------------------
 
-async function handleCreateAttempt(request) {
-  const user = await getUserFromRequest(request);
+async function handleCustomTestCreate(request) {
+  const user = await getUserFromRequest(request)
 
   if (!user) {
     return NextResponse.json(
-      { error: "Not authenticated" },
-      { status: 401 },
-    );
+      { error: 'Not authenticated' },
+      { status: 401 }
+    )
   }
 
-  const admin = getSupabaseAdmin();
+  const admin = getSupabaseAdmin()
 
-  let body;
+  let body
 
   try {
-    body = await request.json();
+    body = await request.json()
   } catch {
     return NextResponse.json(
-      { error: "Invalid request body" },
-      { status: 400 },
-    );
+      { error: 'Invalid request body' },
+      { status: 400 }
+    )
   }
 
-  const { test_id } = body || {};
+  const {
+    unit_ids = [],
+    topic_ids = [],
+    difficulties = [],
+    count = 20,
+  } = body || {}
 
-  if (!test_id) {
+  if (!Array.isArray(unit_ids)) {
     return NextResponse.json(
-      { error: "Missing test_id" },
-      { status: 400 },
-    );
+      { error: 'unit_ids must be an array.' },
+      { status: 400 }
+    )
   }
 
-  // --------------------------------------------------------------------------
-  // 1. Look up the actual test from the `tests` table.
-  // --------------------------------------------------------------------------
-
-  const { data: test, error: testError } = await admin
-    .from("tests")
-    .select("*")
-    .eq("id", test_id)
-    .maybeSingle();
-
-  if (testError) {
+  if (!Array.isArray(topic_ids)) {
     return NextResponse.json(
-      { error: `Test lookup failed: ${testError.message}` },
-      { status: 500 },
-    );
+      { error: 'topic_ids must be an array.' },
+      { status: 400 }
+    )
   }
 
-  if (!test) {
+  if (!Array.isArray(difficulties)) {
     return NextResponse.json(
-      { error: "Test not found." },
-      { status: 404 },
-    );
+      { error: 'difficulties must be an array.' },
+      { status: 400 }
+    )
   }
 
+  const requestedCount = Number(count)
+
+  if (!Number.isFinite(requestedCount) || requestedCount < 1) {
+    return NextResponse.json(
+      { error: 'count must be at least 1.' },
+      { status: 400 }
+    )
+  }
+
+  const requestedQuestionCount = Math.min(
+    Math.floor(requestedCount),
+    100
+  )
+
   // --------------------------------------------------------------------------
-  // 2. Check whether this user is allowed to access this particular test.
-  //    Free tests are handled by getTestEntitlement().
+  // Custom tests require Test Series entitlement.
+  // "custom" is intentionally handled as a special entitlement check.
   // --------------------------------------------------------------------------
 
-  const entitlement = await getTestEntitlement(user.id, test_id);
+  const entitlement = await getTestEntitlement(user.id, 'custom')
 
   if (!entitlement?.allowed) {
     return NextResponse.json(
       {
         error:
           entitlement?.reason ||
-          "You do not have access to this test.",
+          'An active Test Series subscription is required for custom tests.',
       },
-      { status: 403 },
-    );
+      { status: 403 }
+    )
   }
 
   // --------------------------------------------------------------------------
-  // 3. Check whether the user already has an in-progress attempt.
-  //    If so, resume it instead of creating another one.
+  // Build the matching question pool.
   // --------------------------------------------------------------------------
 
-  const { data: existingAttempt, error: attemptLookupError } = await admin
-    .from("test_attempts")
-    .select("*")
-    .eq("user_id", user.id)
-    .eq("test_id", test_id)
-    .eq("status", "in_progress")
-    .maybeSingle();
+  let query = admin
+    .from('questions')
+    .select('id')
+    .eq('status', 'published')
 
-  if (attemptLookupError) {
+  if (unit_ids.length) {
+    query = query.in('unit_id', unit_ids)
+  }
+
+  if (topic_ids.length) {
+    query = query.in('topic_id', topic_ids)
+  }
+
+  if (difficulties.length && difficulties.length < 3) {
+    query = query.in('difficulty', difficulties)
+  }
+
+  const {
+    data: pool,
+    error: poolError,
+  } = await query.limit(2000)
+
+  if (poolError) {
     return NextResponse.json(
       {
-        error: `Attempt lookup failed: ${attemptLookupError.message}`,
+        error:
+          `Unable to load matching questions: ${poolError.message}`,
       },
-      { status: 500 },
-    );
+      { status: 500 }
+    )
   }
 
-  if (existingAttempt) {
-    // Make sure all response rows exist. This is required because the
-    // browser only UPDATEs attempt_responses; it does not INSERT them.
-    const { data: testQuestions, error: testQuestionsError } = await admin
-      .from("test_questions")
-      .select("question_id")
-      .eq("test_id", test_id);
-
-    if (testQuestionsError) {
-      return NextResponse.json(
-        {
-          error:
-            `Unable to load test questions: ${testQuestionsError.message}`,
-        },
-        { status: 500 },
-      );
-    }
-
-    if (testQuestions?.length) {
-      const responseRows = testQuestions.map((row) => ({
-        attempt_id: existingAttempt.id,
-        question_id: row.question_id,
-      }));
-
-      const { error: responseInsertError } = await admin
-        .from("attempt_responses")
-        .upsert(responseRows, {
-          onConflict: "attempt_id,question_id",
-          ignoreDuplicates: true,
-        });
-
-      if (responseInsertError) {
-        return NextResponse.json(
-          {
-            error:
-              `Unable to initialize responses: ${responseInsertError.message}`,
-          },
-          { status: 500 },
-        );
-      }
-    }
-
-    return NextResponse.json({
-      ok: true,
-      attempt_id: existingAttempt.id,
-      attempt: existingAttempt,
-      resumed: true,
-    });
+  if (!pool || pool.length === 0) {
+    return NextResponse.json(
+      {
+        error: 'No questions match the selected criteria.',
+      },
+      { status: 400 }
+    )
   }
 
   // --------------------------------------------------------------------------
-  // 4. Create a new attempt in the current `test_attempts` table.
+  // Randomize the question pool using Fisher-Yates.
   // --------------------------------------------------------------------------
 
-  const { data: attempt, error: attemptInsertError } = await admin
-    .from("test_attempts")
+  const ids = pool.map((row) => row.id)
+
+  for (let i = ids.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+
+    ;[ids[i], ids[j]] = [ids[j], ids[i]]
+  }
+
+  const chosen = ids.slice(
+    0,
+    Math.min(requestedQuestionCount, ids.length)
+  )
+
+  // --------------------------------------------------------------------------
+  // Create the actual test.
+  //
+  // Custom tests are premium objects because only Test Series users/admins
+  // are allowed to create them.
+  // --------------------------------------------------------------------------
+
+  const testKey =
+    `CUSTOM_${user.id.slice(0, 8)}_${Date.now()}`
+
+  const {
+    data: test,
+    error: testError,
+  } = await admin
+    .from('tests')
     .insert({
-      user_id: user.id,
-      test_id,
-      status: "in_progress",
-      started_at: new Date().toISOString(),
+      test_id: testKey,
+      title: `Custom test · ${chosen.length} Q`,
+      test_type: 'custom',
+      total_questions: chosen.length,
+      duration_minutes: Math.max(10, chosen.length),
+      marks_per_question: 2,
+      negative_marking: false,
+      is_premium: true,
+      is_user_generated: true,
+      created_by: user.id,
+      status: 'published',
     })
     .select()
-    .single();
+    .single()
 
-  if (attemptInsertError) {
+  if (testError) {
     return NextResponse.json(
       {
         error:
-          `Unable to create attempt: ${attemptInsertError.message}`,
+          `Unable to create custom test: ${testError.message}`,
       },
-      { status: 500 },
-    );
+      { status: 500 }
+    )
   }
 
   // --------------------------------------------------------------------------
-  // 5. Pre-create one attempt_responses row for every question.
-  //
-  //    The attempt page intentionally only UPDATEs these rows because of
-  //    the current RLS policy.
+  // Attach the selected questions to the newly-created test.
   // --------------------------------------------------------------------------
 
-  const { data: testQuestions, error: testQuestionsError } = await admin
-    .from("test_questions")
-    .select("question_id")
-    .eq("test_id", test_id);
+  const testQuestionRows = chosen.map((questionId, index) => ({
+    test_id: test.id,
+    question_id: questionId,
+    sequence_number: index + 1,
+  }))
+
+  const {
+    error: testQuestionsError,
+  } = await admin
+    .from('test_questions')
+    .insert(testQuestionRows)
 
   if (testQuestionsError) {
-    // Remove the newly-created attempt if its response initialization failed.
+    // Do not leave an orphaned custom test if question assignment fails.
     await admin
-      .from("test_attempts")
+      .from('tests')
       .delete()
-      .eq("id", attempt.id)
-      .eq("user_id", user.id);
+      .eq('id', test.id)
 
     return NextResponse.json(
       {
         error:
-          `Unable to load test questions: ${testQuestionsError.message}`,
+          `Unable to attach questions to custom test: ${testQuestionsError.message}`,
       },
-      { status: 500 },
-    );
+      { status: 500 }
+    )
   }
 
-  if (!testQuestions?.length) {
-    await admin
-      .from("test_attempts")
-      .delete()
-      .eq("id", attempt.id)
-      .eq("user_id", user.id);
-
-    return NextResponse.json(
-      { error: "This test has no questions." },
-      { status: 400 },
-    );
-  }
-
-  const responseRows = testQuestions.map((row) => ({
-    attempt_id: attempt.id,
-    question_id: row.question_id,
-  }));
-
-  const { error: responseInsertError } = await admin
-    .from("attempt_responses")
-    .insert(responseRows);
-
-  if (responseInsertError) {
-    // Do not leave an unusable attempt behind.
-    await admin
-      .from("test_attempts")
-      .delete()
-      .eq("id", attempt.id)
-      .eq("user_id", user.id);
-
-    return NextResponse.json(
-      {
-        error:
-          `Unable to initialize responses: ${responseInsertError.message}`,
-      },
-      { status: 500 },
-    );
-  }
+  // --------------------------------------------------------------------------
+  // The custom-test page expects test_uuid and immediately sends it to
+  // /api/attempt/create.
+  // --------------------------------------------------------------------------
 
   return NextResponse.json({
     ok: true,
-    attempt_id: attempt.id,
-    attempt,
-    resumed: false,
-  });
+    test_uuid: test.id,
+    total: chosen.length,
+  })
 }
 // ----------------------------------------------------------------------------
 // POST /api/attempt/submit
