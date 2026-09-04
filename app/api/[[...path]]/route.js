@@ -586,6 +586,440 @@ async function handleImport(request) {
 // POST /api/attempt/create
 // ----------------------------------------------------------------------------
 
+async function handleCreateAttempt(request) {
+  const user = await getUserFromRequest(request);
+
+  if (!user) {
+    return NextResponse.json(
+      { error: "Not authenticated" },
+      { status: 401 },
+    );
+  }
+
+  const admin = getSupabaseAdmin();
+
+  let body;
+
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json(
+      { error: "Invalid request body" },
+      { status: 400 },
+    );
+  }
+
+  const { test_id } = body || {};
+
+  if (!test_id) {
+    return NextResponse.json(
+      { error: "Missing test_id" },
+      { status: 400 },
+    );
+  }
+
+  // --------------------------------------------------------------------------
+  // 1. Look up the actual test from the `tests` table.
+  // --------------------------------------------------------------------------
+
+  const { data: test, error: testError } = await admin
+    .from("tests")
+    .select("*")
+    .eq("id", test_id)
+    .maybeSingle();
+
+  if (testError) {
+    return NextResponse.json(
+      { error: `Test lookup failed: ${testError.message}` },
+      { status: 500 },
+    );
+  }
+
+  if (!test) {
+    return NextResponse.json(
+      { error: "Test not found." },
+      { status: 404 },
+    );
+  }
+
+  // --------------------------------------------------------------------------
+  // 2. Check whether this user is allowed to access this particular test.
+  //    Free tests are handled by getTestEntitlement().
+  // --------------------------------------------------------------------------
+
+  const entitlement = await getTestEntitlement(user.id, test_id);
+
+  if (!entitlement?.allowed) {
+    return NextResponse.json(
+      {
+        error:
+          entitlement?.reason ||
+          "You do not have access to this test.",
+      },
+      { status: 403 },
+    );
+  }
+
+  // --------------------------------------------------------------------------
+  // 3. Check whether the user already has an in-progress attempt.
+  //    If so, resume it instead of creating another one.
+  // --------------------------------------------------------------------------
+
+  const { data: existingAttempt, error: attemptLookupError } = await admin
+    .from("test_attempts")
+    .select("*")
+    .eq("user_id", user.id)
+    .eq("test_id", test_id)
+    .eq("status", "in_progress")
+    .maybeSingle();
+
+  if (attemptLookupError) {
+    return NextResponse.json(
+      {
+        error: `Attempt lookup failed: ${attemptLookupError.message}`,
+      },
+      { status: 500 },
+    );
+  }
+
+  if (existingAttempt) {
+    // Make sure all response rows exist. This is required because the
+    // browser only UPDATEs attempt_responses; it does not INSERT them.
+    const { data: testQuestions, error: testQuestionsError } = await admin
+      .from("test_questions")
+      .select("question_id")
+      .eq("test_id", test_id);
+
+    if (testQuestionsError) {
+      return NextResponse.json(
+        {
+          error:
+            `Unable to load test questions: ${testQuestionsError.message}`,
+        },
+        { status: 500 },
+      );
+    }
+
+    if (testQuestions?.length) {
+      const responseRows = testQuestions.map((row) => ({
+        attempt_id: existingAttempt.id,
+        question_id: row.question_id,
+      }));
+
+      const { error: responseInsertError } = await admin
+        .from("attempt_responses")
+        .upsert(responseRows, {
+          onConflict: "attempt_id,question_id",
+          ignoreDuplicates: true,
+        });
+
+      if (responseInsertError) {
+        return NextResponse.json(
+          {
+            error:
+              `Unable to initialize responses: ${responseInsertError.message}`,
+          },
+          { status: 500 },
+        );
+      }
+    }
+
+    return NextResponse.json({
+      ok: true,
+      attempt_id: existingAttempt.id,
+      attempt: existingAttempt,
+      resumed: true,
+    });
+  }
+
+  // --------------------------------------------------------------------------
+  // 4. Create a new attempt in the current `test_attempts` table.
+  // --------------------------------------------------------------------------
+
+  const { data: attempt, error: attemptInsertError } = await admin
+    .from("test_attempts")
+    .insert({
+      user_id: user.id,
+      test_id,
+      status: "in_progress",
+      started_at: new Date().toISOString(),
+    })
+    .select()
+    .single();
+
+  if (attemptInsertError) {
+    return NextResponse.json(
+      {
+        error:
+          `Unable to create attempt: ${attemptInsertError.message}`,
+      },
+      { status: 500 },
+    );
+  }
+
+  // --------------------------------------------------------------------------
+  // 5. Pre-create one attempt_responses row for every question.
+  //
+  //    The attempt page intentionally only UPDATEs these rows because of
+  //    the current RLS policy.
+  // --------------------------------------------------------------------------
+
+  const { data: testQuestions, error: testQuestionsError } = await admin
+    .from("test_questions")
+    .select("question_id")
+    .eq("test_id", test_id);
+
+  if (testQuestionsError) {
+    // Remove the newly-created attempt if its response initialization failed.
+    await admin
+      .from("test_attempts")
+      .delete()
+      .eq("id", attempt.id)
+      .eq("user_id", user.id);
+
+    return NextResponse.json(
+      {
+        error:
+          `Unable to load test questions: ${testQuestionsError.message}`,
+      },
+      { status: 500 },
+    );
+  }
+
+  if (!testQuestions?.length) {
+    await admin
+      .from("test_attempts")
+      .delete()
+      .eq("id", attempt.id)
+      .eq("user_id", user.id);
+
+    return NextResponse.json(
+      { error: "This test has no questions." },
+      { status: 400 },
+    );
+  }
+
+  const responseRows = testQuestions.map((row) => ({
+    attempt_id: attempt.id,
+    question_id: row.question_id,
+  }));
+
+  const { error: responseInsertError } = await admin
+    .from("attempt_responses")
+    .insert(responseRows);
+
+  if (responseInsertError) {
+    // Do not leave an unusable attempt behind.
+    await admin
+      .from("test_attempts")
+      .delete()
+      .eq("id", attempt.id)
+      .eq("user_id", user.id);
+
+    return NextResponse.json(
+      {
+        error:
+          `Unable to initialize responses: ${responseInsertError.message}`,
+      },
+      { status: 500 },
+    );
+  }
+
+  return NextResponse.json({
+    ok: true,
+    attempt_id: attempt.id,
+    attempt,
+    resumed: false,
+  });
+}
+// ----------------------------------------------------------------------------
+// POST /api/attempt/submit
+// ----------------------------------------------------------------------------
+
+async function handleSubmitAttempt(request) {
+  const user = await getUserFromRequest(request);
+
+  if (!user) {
+    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  }
+
+  const admin = getSupabaseAdmin();
+
+  let body;
+
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json(
+      { error: "Invalid request body" },
+      { status: 400 },
+    );
+  }
+
+  const { attempt_id, answers } = body || {};
+
+  if (!attempt_id || !Array.isArray(answers)) {
+    return NextResponse.json(
+      { error: "attempt_id and answers are required." },
+      { status: 400 },
+    );
+  }
+
+  const { data: attempt, error: attemptError } = await admin
+    .from("attempts")
+    .select("*")
+    .eq("id", attempt_id)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (attemptError) {
+    return NextResponse.json(
+      { error: `Attempt lookup failed: ${attemptError.message}` },
+      { status: 500 },
+    );
+  }
+
+  if (!attempt) {
+    return NextResponse.json(
+      { error: "Attempt not found." },
+      { status: 404 },
+    );
+  }
+
+  if (attempt.status !== "in_progress") {
+    return NextResponse.json(
+      { error: "This attempt has already been submitted." },
+      { status: 409 },
+    );
+  }
+
+  const { data: questions, error: questionsError } = await admin
+    .from("questions")
+    .select(
+      `
+      id,
+      correct_option_label,
+      answer_status,
+      question_options (
+        option_id,
+        option_text
+      )
+    `,
+    )
+    .eq("exam_id", attempt.test_id)
+    .order("sequence_number");
+
+  if (questionsError) {
+    return NextResponse.json(
+      {
+        error: `Unable to load questions: ${questionsError.message}`,
+      },
+      { status: 500 },
+    );
+  }
+
+  const answerMap = new Map();
+
+  for (const answer of answers) {
+    if (!answer?.question_id) continue;
+
+    answerMap.set(String(answer.question_id), {
+      selected_option: answer.selected_option
+        ? String(answer.selected_option)
+        : null,
+    });
+  }
+
+  let score = 0;
+  let attempted = 0;
+
+  const answerRows = [];
+
+  for (const question of questions || []) {
+    const answer = answerMap.get(String(question.id));
+    const selectedOption = answer?.selected_option || null;
+
+    if (selectedOption) {
+      attempted += 1;
+    }
+
+    let isCorrect = null;
+
+    if (question.answer_status === "valid") {
+      isCorrect =
+        selectedOption &&
+        String(selectedOption) === String(question.correct_option_label);
+
+      if (isCorrect) {
+        score += 1;
+      }
+    }
+
+    answerRows.push({
+      attempt_id: attempt.id,
+      question_id: question.id,
+      selected_option: selectedOption,
+      is_correct: isCorrect,
+    });
+  }
+
+  await admin.from("attempt_answers").delete().eq("attempt_id", attempt.id);
+
+  if (answerRows.length) {
+    const { error: answerInsertError } = await admin
+      .from("attempt_answers")
+      .insert(answerRows);
+
+    if (answerInsertError) {
+      return NextResponse.json(
+        {
+          error:
+            `Unable to save answers: ${answerInsertError.message}`,
+        },
+        { status: 500 },
+      );
+    }
+  }
+
+  const completedAt = new Date().toISOString();
+
+  const { data: updatedAttempt, error: updateAttemptError } = await admin
+    .from("attempts")
+    .update({
+      status: "completed",
+      score,
+      attempted,
+      total_questions: questions?.length || 0,
+      completed_at: completedAt,
+    })
+    .eq("id", attempt.id)
+    .eq("user_id", user.id)
+    .select()
+    .single();
+
+  if (updateAttemptError) {
+    return NextResponse.json(
+      {
+        error:
+          `Unable to complete attempt: ${updateAttemptError.message}`,
+      },
+      { status: 500 },
+    );
+  }
+
+  return NextResponse.json({
+    ok: true,
+    attempt: updatedAttempt,
+    score,
+    attempted,
+    total_questions: questions?.length || 0,
+  });
+}
+
+// ----------------------------------------------------------------------------
+// POST /api/custom-test/create
+// ----------------------------------------------------------------------------
+
 async function handleCustomTestCreate(request) {
   const user = await getUserFromRequest(request)
 
@@ -814,302 +1248,6 @@ async function handleCustomTestCreate(request) {
     test_uuid: test.id,
     total: chosen.length,
   })
-}
-// ----------------------------------------------------------------------------
-// POST /api/attempt/submit
-// ----------------------------------------------------------------------------
-
-async function handleSubmitAttempt(request) {
-  const user = await getUserFromRequest(request);
-
-  if (!user) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  }
-
-  const admin = getSupabaseAdmin();
-
-  let body;
-
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json(
-      { error: "Invalid request body" },
-      { status: 400 },
-    );
-  }
-
-  const { attempt_id, answers } = body || {};
-
-  if (!attempt_id || !Array.isArray(answers)) {
-    return NextResponse.json(
-      { error: "attempt_id and answers are required." },
-      { status: 400 },
-    );
-  }
-
-  const { data: attempt, error: attemptError } = await admin
-    .from("attempts")
-    .select("*")
-    .eq("id", attempt_id)
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  if (attemptError) {
-    return NextResponse.json(
-      { error: `Attempt lookup failed: ${attemptError.message}` },
-      { status: 500 },
-    );
-  }
-
-  if (!attempt) {
-    return NextResponse.json(
-      { error: "Attempt not found." },
-      { status: 404 },
-    );
-  }
-
-  if (attempt.status !== "in_progress") {
-    return NextResponse.json(
-      { error: "This attempt has already been submitted." },
-      { status: 409 },
-    );
-  }
-
-  const { data: questions, error: questionsError } = await admin
-    .from("questions")
-    .select(
-      `
-      id,
-      correct_option_label,
-      answer_status,
-      question_options (
-        option_id,
-        option_text
-      )
-    `,
-    )
-    .eq("exam_id", attempt.test_id)
-    .order("sequence_number");
-
-  if (questionsError) {
-    return NextResponse.json(
-      {
-        error: `Unable to load questions: ${questionsError.message}`,
-      },
-      { status: 500 },
-    );
-  }
-
-  const answerMap = new Map();
-
-  for (const answer of answers) {
-    if (!answer?.question_id) continue;
-
-    answerMap.set(String(answer.question_id), {
-      selected_option: answer.selected_option
-        ? String(answer.selected_option)
-        : null,
-    });
-  }
-
-  let score = 0;
-  let attempted = 0;
-
-  const answerRows = [];
-
-  for (const question of questions || []) {
-    const answer = answerMap.get(String(question.id));
-    const selectedOption = answer?.selected_option || null;
-
-    if (selectedOption) {
-      attempted += 1;
-    }
-
-    let isCorrect = null;
-
-    if (question.answer_status === "valid") {
-      isCorrect =
-        selectedOption &&
-        String(selectedOption) === String(question.correct_option_label);
-
-      if (isCorrect) {
-        score += 1;
-      }
-    }
-
-    answerRows.push({
-      attempt_id: attempt.id,
-      question_id: question.id,
-      selected_option: selectedOption,
-      is_correct: isCorrect,
-    });
-  }
-
-  await admin.from("attempt_answers").delete().eq("attempt_id", attempt.id);
-
-  if (answerRows.length) {
-    const { error: answerInsertError } = await admin
-      .from("attempt_answers")
-      .insert(answerRows);
-
-    if (answerInsertError) {
-      return NextResponse.json(
-        {
-          error:
-            `Unable to save answers: ${answerInsertError.message}`,
-        },
-        { status: 500 },
-      );
-    }
-  }
-
-  const completedAt = new Date().toISOString();
-
-  const { data: updatedAttempt, error: updateAttemptError } = await admin
-    .from("attempts")
-    .update({
-      status: "completed",
-      score,
-      attempted,
-      total_questions: questions?.length || 0,
-      completed_at: completedAt,
-    })
-    .eq("id", attempt.id)
-    .eq("user_id", user.id)
-    .select()
-    .single();
-
-  if (updateAttemptError) {
-    return NextResponse.json(
-      {
-        error:
-          `Unable to complete attempt: ${updateAttemptError.message}`,
-      },
-      { status: 500 },
-    );
-  }
-
-  return NextResponse.json({
-    ok: true,
-    attempt: updatedAttempt,
-    score,
-    attempted,
-    total_questions: questions?.length || 0,
-  });
-}
-
-// ----------------------------------------------------------------------------
-// POST /api/custom-test/create
-// ----------------------------------------------------------------------------
-
-async function handleCustomTestCreate(request) {
-  const user = await getUserFromRequest(request);
-
-  if (!user) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  }
-
-  const admin = getSupabaseAdmin();
-
-  let body;
-
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json(
-      { error: "Invalid request body" },
-      { status: 400 },
-    );
-  }
-
-  const {
-    unit_ids = [],
-    difficulty = null,
-    question_count = 20,
-  } = body || {};
-
-  if (!Array.isArray(unit_ids)) {
-    return NextResponse.json(
-      { error: "unit_ids must be an array." },
-      { status: 400 },
-    );
-  }
-
-  const count = Math.max(1, Math.min(Number(question_count) || 20, 100));
-
-  const entitlement = await getTestEntitlement(user.id, "custom");
-
-  if (!entitlement?.allowed) {
-    return NextResponse.json(
-      {
-        error:
-          entitlement?.reason ||
-          "You do not have access to the custom test builder.",
-      },
-      { status: 403 },
-    );
-  }
-
-  let query = admin
-    .from("questions")
-    .select(
-      `
-      id,
-      exam_id,
-      unit_id,
-      question_text,
-      question_type,
-      difficulty,
-      sequence_number,
-      answer_status,
-      correct_option_label,
-      explanation,
-      question_options (
-        option_id,
-        option_text
-      )
-    `,
-    )
-    .limit(500);
-
-  if (unit_ids.length) {
-    query = query.in("unit_id", unit_ids);
-  }
-
-  if (difficulty) {
-    query = query.eq("difficulty", difficulty);
-  }
-
-  const { data: questions, error: questionsError } = await query;
-
-  if (questionsError) {
-    return NextResponse.json(
-      {
-        error:
-          `Unable to load questions for custom test: ${questionsError.message}`,
-      },
-      { status: 500 },
-    );
-  }
-
-  if (!questions?.length) {
-    return NextResponse.json(
-      {
-        error: "No questions match the selected criteria.",
-      },
-      { status: 404 },
-    );
-  }
-
-  const shuffled = [...questions].sort(() => Math.random() - 0.5);
-  const selected = shuffled.slice(0, count);
-
-  return NextResponse.json({
-    ok: true,
-    questions: selected,
-    total_questions: selected.length,
-  });
 }
 
 // ----------------------------------------------------------------------------
