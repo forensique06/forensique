@@ -590,7 +590,10 @@ async function handleCreateAttempt(request) {
   const user = await getUserFromRequest(request);
 
   if (!user) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    return NextResponse.json(
+      { error: "Not authenticated" },
+      { status: 401 },
+    );
   }
 
   const admin = getSupabaseAdmin();
@@ -615,6 +618,35 @@ async function handleCreateAttempt(request) {
     );
   }
 
+  // --------------------------------------------------------------------------
+  // 1. Look up the actual test from the `tests` table.
+  // --------------------------------------------------------------------------
+
+  const { data: test, error: testError } = await admin
+    .from("tests")
+    .select("*")
+    .eq("id", test_id)
+    .maybeSingle();
+
+  if (testError) {
+    return NextResponse.json(
+      { error: `Test lookup failed: ${testError.message}` },
+      { status: 500 },
+    );
+  }
+
+  if (!test) {
+    return NextResponse.json(
+      { error: "Test not found." },
+      { status: 404 },
+    );
+  }
+
+  // --------------------------------------------------------------------------
+  // 2. Check whether this user is allowed to access this particular test.
+  //    Free tests are handled by getTestEntitlement().
+  // --------------------------------------------------------------------------
+
   const entitlement = await getTestEntitlement(user.id, test_id);
 
   if (!entitlement?.allowed) {
@@ -628,28 +660,13 @@ async function handleCreateAttempt(request) {
     );
   }
 
-  const { data: exam, error: examError } = await admin
-    .from("exams")
-    .select("*")
-    .eq("id", test_id)
-    .maybeSingle();
-
-  if (examError) {
-    return NextResponse.json(
-      { error: `Exam lookup failed: ${examError.message}` },
-      { status: 500 },
-    );
-  }
-
-  if (!exam) {
-    return NextResponse.json(
-      { error: "Test not found." },
-      { status: 404 },
-    );
-  }
+  // --------------------------------------------------------------------------
+  // 3. Check whether the user already has an in-progress attempt.
+  //    If so, resume it instead of creating another one.
+  // --------------------------------------------------------------------------
 
   const { data: existingAttempt, error: attemptLookupError } = await admin
-    .from("attempts")
+    .from("test_attempts")
     .select("*")
     .eq("user_id", user.id)
     .eq("test_id", test_id)
@@ -666,15 +683,61 @@ async function handleCreateAttempt(request) {
   }
 
   if (existingAttempt) {
+    // Make sure all response rows exist. This is required because the
+    // browser only UPDATEs attempt_responses; it does not INSERT them.
+    const { data: testQuestions, error: testQuestionsError } = await admin
+      .from("test_questions")
+      .select("question_id")
+      .eq("test_id", test_id);
+
+    if (testQuestionsError) {
+      return NextResponse.json(
+        {
+          error:
+            `Unable to load test questions: ${testQuestionsError.message}`,
+        },
+        { status: 500 },
+      );
+    }
+
+    if (testQuestions?.length) {
+      const responseRows = testQuestions.map((row) => ({
+        attempt_id: existingAttempt.id,
+        question_id: row.question_id,
+      }));
+
+      const { error: responseInsertError } = await admin
+        .from("attempt_responses")
+        .upsert(responseRows, {
+          onConflict: "attempt_id,question_id",
+          ignoreDuplicates: true,
+        });
+
+      if (responseInsertError) {
+        return NextResponse.json(
+          {
+            error:
+              `Unable to initialize responses: ${responseInsertError.message}`,
+          },
+          { status: 500 },
+        );
+      }
+    }
+
     return NextResponse.json({
       ok: true,
+      attempt_id: existingAttempt.id,
       attempt: existingAttempt,
       resumed: true,
     });
   }
 
+  // --------------------------------------------------------------------------
+  // 4. Create a new attempt in the current `test_attempts` table.
+  // --------------------------------------------------------------------------
+
   const { data: attempt, error: attemptInsertError } = await admin
-    .from("attempts")
+    .from("test_attempts")
     .insert({
       user_id: user.id,
       test_id,
@@ -687,7 +750,76 @@ async function handleCreateAttempt(request) {
   if (attemptInsertError) {
     return NextResponse.json(
       {
-        error: `Unable to create attempt: ${attemptInsertError.message}`,
+        error:
+          `Unable to create attempt: ${attemptInsertError.message}`,
+      },
+      { status: 500 },
+    );
+  }
+
+  // --------------------------------------------------------------------------
+  // 5. Pre-create one attempt_responses row for every question.
+  //
+  //    The attempt page intentionally only UPDATEs these rows because of
+  //    the current RLS policy.
+  // --------------------------------------------------------------------------
+
+  const { data: testQuestions, error: testQuestionsError } = await admin
+    .from("test_questions")
+    .select("question_id")
+    .eq("test_id", test_id);
+
+  if (testQuestionsError) {
+    // Remove the newly-created attempt if its response initialization failed.
+    await admin
+      .from("test_attempts")
+      .delete()
+      .eq("id", attempt.id)
+      .eq("user_id", user.id);
+
+    return NextResponse.json(
+      {
+        error:
+          `Unable to load test questions: ${testQuestionsError.message}`,
+      },
+      { status: 500 },
+    );
+  }
+
+  if (!testQuestions?.length) {
+    await admin
+      .from("test_attempts")
+      .delete()
+      .eq("id", attempt.id)
+      .eq("user_id", user.id);
+
+    return NextResponse.json(
+      { error: "This test has no questions." },
+      { status: 400 },
+    );
+  }
+
+  const responseRows = testQuestions.map((row) => ({
+    attempt_id: attempt.id,
+    question_id: row.question_id,
+  }));
+
+  const { error: responseInsertError } = await admin
+    .from("attempt_responses")
+    .insert(responseRows);
+
+  if (responseInsertError) {
+    // Do not leave an unusable attempt behind.
+    await admin
+      .from("test_attempts")
+      .delete()
+      .eq("id", attempt.id)
+      .eq("user_id", user.id);
+
+    return NextResponse.json(
+      {
+        error:
+          `Unable to initialize responses: ${responseInsertError.message}`,
       },
       { status: 500 },
     );
@@ -695,11 +827,11 @@ async function handleCreateAttempt(request) {
 
   return NextResponse.json({
     ok: true,
+    attempt_id: attempt.id,
     attempt,
     resumed: false,
   });
 }
-
 // ----------------------------------------------------------------------------
 // POST /api/attempt/submit
 // ----------------------------------------------------------------------------
