@@ -368,10 +368,7 @@ async function handleImport(request) {
 
   const unitsByName = {};
   const { data: existingUnits, error: unitsError } = unitNames.length
-    ? await admin
-        .from("units")
-        .select("id, name")
-        .in("name", unitNames)
+    ? await admin.from("units").select("id, name").in("name", unitNames)
     : { data: [], error: null };
 
   if (unitsError) {
@@ -439,9 +436,7 @@ async function handleImport(request) {
       passage_id: q.passage_id ? passageMap[q.passage_id] || null : null,
       answer_status: q.answer_status || null,
       correct_option_label:
-        q.answer_status === "dropped"
-          ? null
-          : q.correct_option_label || null,
+        q.answer_status === "dropped" ? null : q.correct_option_label || null,
       explanation: q.explanation || null,
       source_reference: q.source_reference || null,
       updated_at: new Date().toISOString(),
@@ -470,15 +465,14 @@ async function handleImport(request) {
 
       question = updatedQuestion;
     } else {
-      const { data: insertedQuestion, error: questionInsertError } =
-        await admin
-          .from("questions")
-          .insert({
-            ...questionPayload,
-            created_at: new Date().toISOString(),
-          })
-          .select()
-          .single();
+      const { data: insertedQuestion, error: questionInsertError } = await admin
+        .from("questions")
+        .insert({
+          ...questionPayload,
+          created_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
 
       if (questionInsertError) {
         return NextResponse.json(
@@ -494,7 +488,10 @@ async function handleImport(request) {
       question = insertedQuestion;
     }
 
-    await admin.from("question_options").delete().eq("question_id", question.id);
+    await admin
+      .from("question_options")
+      .delete()
+      .eq("question_id", question.id);
 
     const optionRows = q.options.map((o) => ({
       question_id: question.id,
@@ -517,7 +514,10 @@ async function handleImport(request) {
       );
     }
 
-    await admin.from("question_statements").delete().eq("question_id", question.id);
+    await admin
+      .from("question_statements")
+      .delete()
+      .eq("question_id", question.id);
 
     if (Array.isArray(q.statements) && q.statements.length) {
       const statementRows = q.statements.map((statement, index) => ({
@@ -590,10 +590,7 @@ async function handleCreateAttempt(request) {
   const user = await getUserFromRequest(request);
 
   if (!user) {
-    return NextResponse.json(
-      { error: "Not authenticated" },
-      { status: 401 },
-    );
+    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
   const admin = getSupabaseAdmin();
@@ -612,10 +609,7 @@ async function handleCreateAttempt(request) {
   const { test_id } = body || {};
 
   if (!test_id) {
-    return NextResponse.json(
-      { error: "Missing test_id" },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: "Missing test_id" }, { status: 400 });
   }
 
   // --------------------------------------------------------------------------
@@ -636,9 +630,12 @@ async function handleCreateAttempt(request) {
   }
 
   if (!test) {
+    return NextResponse.json({ error: "Test not found." }, { status: 404 });
+  }
+  if (test.is_user_generated && test.created_by !== user.id) {
     return NextResponse.json(
-      { error: "Test not found." },
-      { status: 404 },
+      { error: "You do not have access to this custom test." },
+      { status: 403 },
     );
   }
 
@@ -652,9 +649,7 @@ async function handleCreateAttempt(request) {
   if (!entitlement?.allowed) {
     return NextResponse.json(
       {
-        error:
-          entitlement?.reason ||
-          "You do not have access to this test.",
+        error: entitlement?.reason || "You do not have access to this test.",
       },
       { status: 403 },
     );
@@ -693,8 +688,7 @@ async function handleCreateAttempt(request) {
     if (testQuestionsError) {
       return NextResponse.json(
         {
-          error:
-            `Unable to load test questions: ${testQuestionsError.message}`,
+          error: `Unable to load test questions: ${testQuestionsError.message}`,
         },
         { status: 500 },
       );
@@ -716,8 +710,7 @@ async function handleCreateAttempt(request) {
       if (responseInsertError) {
         return NextResponse.json(
           {
-            error:
-              `Unable to initialize responses: ${responseInsertError.message}`,
+            error: `Unable to initialize responses: ${responseInsertError.message}`,
           },
           { status: 500 },
         );
@@ -750,8 +743,7 @@ async function handleCreateAttempt(request) {
   if (attemptInsertError) {
     return NextResponse.json(
       {
-        error:
-          `Unable to create attempt: ${attemptInsertError.message}`,
+        error: `Unable to create attempt: ${attemptInsertError.message}`,
       },
       { status: 500 },
     );
@@ -779,8 +771,7 @@ async function handleCreateAttempt(request) {
 
     return NextResponse.json(
       {
-        error:
-          `Unable to load test questions: ${testQuestionsError.message}`,
+        error: `Unable to load test questions: ${testQuestionsError.message}`,
       },
       { status: 500 },
     );
@@ -818,8 +809,7 @@ async function handleCreateAttempt(request) {
 
     return NextResponse.json(
       {
-        error:
-          `Unable to initialize responses: ${responseInsertError.message}`,
+        error: `Unable to initialize responses: ${responseInsertError.message}`,
       },
       { status: 500 },
     );
@@ -880,10 +870,7 @@ async function handleSubmitAttempt(request) {
   }
 
   if (!attempt) {
-    return NextResponse.json(
-      { error: "Attempt not found." },
-      { status: 404 },
-    );
+    return NextResponse.json({ error: "Attempt not found." }, { status: 404 });
   }
 
   if (attempt.status !== "in_progress") {
@@ -973,8 +960,7 @@ async function handleSubmitAttempt(request) {
     if (answerInsertError) {
       return NextResponse.json(
         {
-          error:
-            `Unable to save answers: ${answerInsertError.message}`,
+          error: `Unable to save answers: ${answerInsertError.message}`,
         },
         { status: 500 },
       );
@@ -1000,8 +986,7 @@ async function handleSubmitAttempt(request) {
   if (updateAttemptError) {
     return NextResponse.json(
       {
-        error:
-          `Unable to complete attempt: ${updateAttemptError.message}`,
+        error: `Unable to complete attempt: ${updateAttemptError.message}`,
       },
       { status: 500 },
     );
@@ -1021,26 +1006,23 @@ async function handleSubmitAttempt(request) {
 // ----------------------------------------------------------------------------
 
 async function handleCustomTestCreate(request) {
-  const user = await getUserFromRequest(request)
+  const user = await getUserFromRequest(request);
 
   if (!user) {
-    return NextResponse.json(
-      { error: 'Not authenticated' },
-      { status: 401 }
-    )
+    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  const admin = getSupabaseAdmin()
+  const admin = getSupabaseAdmin();
 
-  let body
+  let body;
 
   try {
-    body = await request.json()
+    body = await request.json();
   } catch {
     return NextResponse.json(
-      { error: 'Invalid request body' },
-      { status: 400 }
-    )
+      { error: "Invalid request body" },
+      { status: 400 },
+    );
   }
 
   const {
@@ -1048,122 +1030,109 @@ async function handleCustomTestCreate(request) {
     topic_ids = [],
     difficulties = [],
     count = 20,
-  } = body || {}
+  } = body || {};
 
   if (!Array.isArray(unit_ids)) {
     return NextResponse.json(
-      { error: 'unit_ids must be an array.' },
-      { status: 400 }
-    )
+      { error: "unit_ids must be an array." },
+      { status: 400 },
+    );
   }
 
   if (!Array.isArray(topic_ids)) {
     return NextResponse.json(
-      { error: 'topic_ids must be an array.' },
-      { status: 400 }
-    )
+      { error: "topic_ids must be an array." },
+      { status: 400 },
+    );
   }
 
   if (!Array.isArray(difficulties)) {
     return NextResponse.json(
-      { error: 'difficulties must be an array.' },
-      { status: 400 }
-    )
+      { error: "difficulties must be an array." },
+      { status: 400 },
+    );
   }
 
-  const requestedCount = Number(count)
+  const requestedCount = Number(count);
 
   if (!Number.isFinite(requestedCount) || requestedCount < 1) {
     return NextResponse.json(
-      { error: 'count must be at least 1.' },
-      { status: 400 }
-    )
+      { error: "count must be at least 1." },
+      { status: 400 },
+    );
   }
 
-  const requestedQuestionCount = Math.min(
-    Math.floor(requestedCount),
-    100
-  )
+  const requestedQuestionCount = Math.min(Math.floor(requestedCount), 100);
 
   // --------------------------------------------------------------------------
   // Custom tests require Test Series entitlement.
   // "custom" is intentionally handled as a special entitlement check.
   // --------------------------------------------------------------------------
 
-  const entitlement = await getTestEntitlement(user.id, 'custom')
+  const entitlement = await getTestEntitlement(user.id, "custom");
 
   if (!entitlement?.allowed) {
     return NextResponse.json(
       {
         error:
           entitlement?.reason ||
-          'An active Test Series subscription is required for custom tests.',
+          "An active Test Series subscription is required for custom tests.",
       },
-      { status: 403 }
-    )
+      { status: 403 },
+    );
   }
 
   // --------------------------------------------------------------------------
   // Build the matching question pool.
   // --------------------------------------------------------------------------
 
-  let query = admin
-    .from('questions')
-    .select('id')
-    .eq('status', 'published')
+  let query = admin.from("questions").select("id").eq("status", "published");
 
   if (unit_ids.length) {
-    query = query.in('unit_id', unit_ids)
+    query = query.in("unit_id", unit_ids);
   }
 
   if (topic_ids.length) {
-    query = query.in('topic_id', topic_ids)
+    query = query.in("topic_id", topic_ids);
   }
 
   if (difficulties.length && difficulties.length < 3) {
-    query = query.in('difficulty', difficulties)
+    query = query.in("difficulty", difficulties);
   }
 
-  const {
-    data: pool,
-    error: poolError,
-  } = await query.limit(2000)
+  const { data: pool, error: poolError } = await query.limit(2000);
 
   if (poolError) {
     return NextResponse.json(
       {
-        error:
-          `Unable to load matching questions: ${poolError.message}`,
+        error: `Unable to load matching questions: ${poolError.message}`,
       },
-      { status: 500 }
-    )
+      { status: 500 },
+    );
   }
 
   if (!pool || pool.length === 0) {
     return NextResponse.json(
       {
-        error: 'No questions match the selected criteria.',
+        error: "No questions match the selected criteria.",
       },
-      { status: 400 }
-    )
+      { status: 400 },
+    );
   }
 
   // --------------------------------------------------------------------------
   // Randomize the question pool using Fisher-Yates.
   // --------------------------------------------------------------------------
 
-  const ids = pool.map((row) => row.id)
+  const ids = pool.map((row) => row.id);
 
   for (let i = ids.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1))
+    const j = Math.floor(Math.random() * (i + 1));
 
-    ;[ids[i], ids[j]] = [ids[j], ids[i]]
+    [ids[i], ids[j]] = [ids[j], ids[i]];
   }
 
-  const chosen = ids.slice(
-    0,
-    Math.min(requestedQuestionCount, ids.length)
-  )
+  const chosen = ids.slice(0, Math.min(requestedQuestionCount, ids.length));
 
   // --------------------------------------------------------------------------
   // Create the actual test.
@@ -1172,18 +1141,14 @@ async function handleCustomTestCreate(request) {
   // are allowed to create them.
   // --------------------------------------------------------------------------
 
-  const testKey =
-    `CUSTOM_${user.id.slice(0, 8)}_${Date.now()}`
+  const testKey = `CUSTOM_${user.id.slice(0, 8)}_${Date.now()}`;
 
-  const {
-    data: test,
-    error: testError,
-  } = await admin
-    .from('tests')
+  const { data: test, error: testError } = await admin
+    .from("tests")
     .insert({
       test_id: testKey,
       title: `Custom test · ${chosen.length} Q`,
-      test_type: 'custom',
+      test_type: "custom",
       total_questions: chosen.length,
       duration_minutes: Math.max(10, chosen.length),
       marks_per_question: 2,
@@ -1191,19 +1156,18 @@ async function handleCustomTestCreate(request) {
       is_premium: true,
       is_user_generated: true,
       created_by: user.id,
-      status: 'published',
+      status: "published",
     })
     .select()
-    .single()
+    .single();
 
   if (testError) {
     return NextResponse.json(
       {
-        error:
-          `Unable to create custom test: ${testError.message}`,
+        error: `Unable to create custom test: ${testError.message}`,
       },
-      { status: 500 }
-    )
+      { status: 500 },
+    );
   }
 
   // --------------------------------------------------------------------------
@@ -1214,28 +1178,22 @@ async function handleCustomTestCreate(request) {
     test_id: test.id,
     question_id: questionId,
     sequence_number: index + 1,
-  }))
+  }));
 
-  const {
-    error: testQuestionsError,
-  } = await admin
-    .from('test_questions')
-    .insert(testQuestionRows)
+  const { error: testQuestionsError } = await admin
+    .from("test_questions")
+    .insert(testQuestionRows);
 
   if (testQuestionsError) {
     // Do not leave an orphaned custom test if question assignment fails.
-    await admin
-      .from('tests')
-      .delete()
-      .eq('id', test.id)
+    await admin.from("tests").delete().eq("id", test.id);
 
     return NextResponse.json(
       {
-        error:
-          `Unable to attach questions to custom test: ${testQuestionsError.message}`,
+        error: `Unable to attach questions to custom test: ${testQuestionsError.message}`,
       },
-      { status: 500 }
-    )
+      { status: 500 },
+    );
   }
 
   // --------------------------------------------------------------------------
@@ -1247,7 +1205,7 @@ async function handleCustomTestCreate(request) {
     ok: true,
     test_uuid: test.id,
     total: chosen.length,
-  })
+  });
 }
 
 // ----------------------------------------------------------------------------
@@ -1258,10 +1216,7 @@ async function handleCreateSubscription(request) {
   const user = await getUserFromRequest(request);
 
   if (!user) {
-    return NextResponse.json(
-      { error: "Not authenticated" },
-      { status: 401 },
-    );
+    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
   const admin = getSupabaseAdmin();
@@ -1280,10 +1235,7 @@ async function handleCreateSubscription(request) {
   const { plan_id } = body || {};
 
   if (!plan_id) {
-    return NextResponse.json(
-      { error: "Missing plan_id." },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: "Missing plan_id." }, { status: 400 });
   }
 
   const { data: plan, error: planError } = await admin
@@ -1323,8 +1275,7 @@ async function handleCreateSubscription(request) {
   if (existingError) {
     return NextResponse.json(
       {
-        error:
-          `Unable to check existing subscriptions: ${existingError.message}`,
+        error: `Unable to check existing subscriptions: ${existingError.message}`,
       },
       { status: 500 },
     );
@@ -1348,9 +1299,8 @@ async function handleCreateSubscription(request) {
   }
 
   const pastDueSubscription =
-    (existingSubscriptions || []).find(
-      (sub) => sub.status === "past_due",
-    ) || null;
+    (existingSubscriptions || []).find((sub) => sub.status === "past_due") ||
+    null;
 
   if (pastDueSubscription) {
     return NextResponse.json(
@@ -1364,9 +1314,8 @@ async function handleCreateSubscription(request) {
   }
 
   const createdSubscription =
-    (existingSubscriptions || []).find(
-      (sub) => sub.status === "created",
-    ) || null;
+    (existingSubscriptions || []).find((sub) => sub.status === "created") ||
+    null;
 
   if (createdSubscription) {
     let providerSubscription;
@@ -1490,8 +1439,7 @@ async function handleCreateSubscription(request) {
 
     return NextResponse.json(
       {
-        error:
-          `Unable to save subscription: ${insertError.message}`,
+        error: `Unable to save subscription: ${insertError.message}`,
       },
       { status: 500 },
     );
@@ -1512,10 +1460,7 @@ async function handleVerify(request) {
   const user = await getUserFromRequest(request);
 
   if (!user) {
-    return NextResponse.json(
-      { error: "Not authenticated" },
-      { status: 401 },
-    );
+    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
   const admin = getSupabaseAdmin();
@@ -1531,11 +1476,8 @@ async function handleVerify(request) {
     );
   }
 
-  const {
-    razorpay_payment_id,
-    razorpay_subscription_id,
-    razorpay_signature,
-  } = body || {};
+  const { razorpay_payment_id, razorpay_subscription_id, razorpay_signature } =
+    body || {};
 
   if (
     !razorpay_payment_id ||
@@ -1641,8 +1583,7 @@ async function handleVerify(request) {
   if (updateError) {
     return NextResponse.json(
       {
-        error:
-          `Unable to update subscription: ${updateError.message}`,
+        error: `Unable to update subscription: ${updateError.message}`,
       },
       { status: 500 },
     );
@@ -1891,7 +1832,9 @@ async function handleCancelPending(request) {
 
   if (updateError) {
     return NextResponse.json(
-      { error: `Unable to release pending subscription: ${updateError.message}` },
+      {
+        error: `Unable to release pending subscription: ${updateError.message}`,
+      },
       { status: 500 },
     );
   }

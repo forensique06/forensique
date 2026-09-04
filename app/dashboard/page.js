@@ -204,8 +204,8 @@ function DashboardInner() {
                 "id, test_id, title, test_type, total_questions, duration_minutes, marks_per_question, is_premium, is_user_generated, created_by, status",
               )
               .eq("status", "published")
+              .or(`is_user_generated.eq.false,created_by.eq.${user.id}`)
               .order("created_at", { ascending: false }),
-
             supabase
               .from("test_attempts")
               .select(
