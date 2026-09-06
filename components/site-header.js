@@ -13,7 +13,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuItem,
 } from '@/components/ui/dropdown-menu'
-import { Microscope, LogOut, Menu, ChevronDown } from 'lucide-react'
+import { LogOut, Menu, ChevronDown } from 'lucide-react'
 
 const PUBLIC_LINKS = [
   { href: '/pricing', label: 'Pricing' },
@@ -94,16 +94,21 @@ export default function SiteHeader() {
     <header className="border-b border-border sticky top-0 z-30 bg-background/85 backdrop-blur">
       <div className="container mx-auto flex h-14 items-center justify-between px-4">
 
-        {/* Logo */}
+        {/* Brand */}
         <Link
           href={email ? '/dashboard' : '/'}
-          className="flex items-center gap-2 font-semibold"
+          className="flex items-center min-w-0"
+          aria-label="Forensique home"
         >
-          <Microscope className="h-5 w-5 text-primary" />
-          <span>Forensique</span>
-          <span className="hidden sm:inline text-xs font-normal text-muted-foreground">
+          <img
+            src="/brand/logos.png"
+            alt="Forensique"
+            className="h-12 w-auto max-w-[150px] object-contain"
+          />
+
+          {/* <span className="hidden sm:inline ml-2 text-xs font-normal text-muted-foreground whitespace-nowrap">
             · UGC NET FS Paper II
-          </span>
+          </span> */}
         </Link>
 
         {/* Desktop nav */}
@@ -184,7 +189,7 @@ export default function SiteHeader() {
           )}
         </nav>
 
-        {/* Mobile: hamburger + sheet */}
+        {/* Mobile */}
         <div className="md:hidden flex items-center gap-2">
           {!email && (
             <Link href="/auth?mode=signup">
@@ -248,7 +253,6 @@ export default function SiteHeader() {
                   <>
                     <div className="h-px bg-border my-2" />
 
-                    {/* Mobile user menu */}
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <button

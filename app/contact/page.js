@@ -17,7 +17,7 @@ export default function ContactPage() {
             <Mail className="h-5 w-5 text-primary mt-0.5"/>
             <div>
               <div className="font-semibold">General &amp; billing</div>
-              <div className="text-sm text-muted-foreground mt-0.5"><a href="mailto:support@forensique.in" className="underline">support@forensique.in</a></div>
+              <div className="text-sm text-muted-foreground mt-0.5"><a href="mailto:support@forensique.app" className="underline">support@forensique.app</a></div>
               <p className="text-xs text-muted-foreground mt-1">Refund requests, subscription issues, general questions.</p>
             </div>
           </div>
@@ -28,7 +28,7 @@ export default function ContactPage() {
             <Bug className="h-5 w-5 text-primary mt-0.5"/>
             <div>
               <div className="font-semibold">Question error / answer-key dispute</div>
-              <div className="text-sm text-muted-foreground mt-0.5"><a href="mailto:content@forensique.in" className="underline">content@forensique.in</a></div>
+              <div className="text-sm text-muted-foreground mt-0.5"><a href="mailto:content@forensique.app" className="underline">content@forensique.app</a></div>
               <p className="text-xs text-muted-foreground mt-1">Include the question code (visible above the question text on the review screen).</p>
             </div>
           </div>
@@ -39,7 +39,7 @@ export default function ContactPage() {
             <MessageSquare className="h-5 w-5 text-primary mt-0.5"/>
             <div>
               <div className="font-semibold">Privacy / data requests</div>
-              <div className="text-sm text-muted-foreground mt-0.5"><a href="mailto:privacy@forensique.in" className="underline">privacy@forensique.in</a></div>
+              <div className="text-sm text-muted-foreground mt-0.5"><a href="mailto:privacy@forensique.app" className="underline">privacy@forensique.app</a></div>
               <p className="text-xs text-muted-foreground mt-1">Data export, account deletion, other privacy rights covered in our Privacy Policy.</p>
             </div>
           </div>
