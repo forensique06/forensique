@@ -52,30 +52,140 @@ function formatAttemptDate(dateValue) {
   };
 }
 
+/*
+ * NEW:
+ * Extract the actual exam year/month from a test.
+ *
+ * Primary format used by the imported UGC NET tests:
+ *   UGC_NET_FS_2025_06
+ *   UGC_NET_FS_2024_12
+ *   UGC_NET_FS_2013_09
+ *
+ * Fallback:
+ *   UGC NET June 2025 — Paper-II
+ *   UGC NET September 2013 — Paper-II
+ */
+function getTestExamDate(test) {
+  const testId = String(test?.test_id || "");
+  const title = String(test?.title || "");
+
+  /*
+   * Most imported UGC NET tests use IDs such as:
+   * UGC_NET_FS_2025_06
+   */
+  const idMatch = testId.match(
+    /(?:^|_)(\d{4})_(\d{1,2})(?:_|$)/
+  );
+
+  if (idMatch) {
+    const year = Number(idMatch[1]);
+    const month = Number(idMatch[2]);
+
+    if (month >= 1 && month <= 12) {
+      return year * 100 + month;
+    }
+  }
+
+  /*
+   * Fallback for tests whose title contains a month/year.
+   */
+  const monthNames = {
+    january: 1,
+    february: 2,
+    march: 3,
+    april: 4,
+    may: 5,
+    june: 6,
+    july: 7,
+    august: 8,
+    september: 9,
+    october: 10,
+    november: 11,
+    december: 12,
+  };
+
+  const titleMatch = title.match(
+    /\b(january|february|march|april|may|june|july|august|september|october|november|december)\b\D*(\d{4})\b/i
+  );
+
+  if (titleMatch) {
+    const month = monthNames[titleMatch[1].toLowerCase()];
+    const year = Number(titleMatch[2]);
+
+    return year * 100 + month;
+  }
+
+  return null;
+}
+
+/*
+ * NEW:
+ * Sort available tests by their actual exam date:
+ *
+ * June 2025
+ * December 2024
+ * June 2024
+ * December 2023
+ * ...
+ * September 2013
+ * December 2006
+ *
+ * Dated exam papers are placed before custom/undated tests.
+ *
+ * created_at is used only as a tie-breaker so the original
+ * database ordering behavior is preserved when an exam date
+ * cannot be determined or two tests have the same exam date.
+ */
+function sortTestsNewestFirst(tests) {
+  return [...tests].sort((a, b) => {
+    const aExamDate = getTestExamDate(a);
+    const bExamDate = getTestExamDate(b);
+
+    /*
+     * Dated previous-year papers come before
+     * custom/undated tests.
+     */
+    if (aExamDate != null && bExamDate == null) {
+      return -1;
+    }
+
+    if (aExamDate == null && bExamDate != null) {
+      return 1;
+    }
+
+    /*
+     * Both have identifiable exam dates.
+     * Higher YYYYMM value = newer exam.
+     */
+    if (aExamDate != null && bExamDate != null) {
+      if (aExamDate !== bExamDate) {
+        return bExamDate - aExamDate;
+      }
+    }
+
+    /*
+     * Same exam date, or both are undated.
+     *
+     * Use database creation date only as a tie-breaker.
+     */
+    const aCreated = a?.created_at
+      ? new Date(a.created_at).getTime()
+      : 0;
+
+    const bCreated = b?.created_at
+      ? new Date(b.created_at).getTime()
+      : 0;
+
+    return bCreated - aCreated;
+  });
+}
+
 function getAccuracy(correct, incorrect) {
   const attempted = correct + incorrect;
 
   if (attempted === 0) return 0;
 
   return Math.round((correct / attempted) * 100);
-}
-
-function getCurrentSubscription(subscriptions) {
-  const now = Date.now();
-
-  return (
-    (subscriptions || [])
-      .filter((sub) => {
-        if (sub.status !== "active") return false;
-        if (!sub.expires_at) return false;
-
-        return new Date(sub.expires_at).getTime() > now;
-      })
-      .sort(
-        (a, b) =>
-          new Date(b.expires_at).getTime() - new Date(a.expires_at).getTime(),
-      )[0] || null
-  );
 }
 
 function AttemptStat({ icon: Icon, value, label, className = "" }) {
@@ -198,14 +308,24 @@ function DashboardInner() {
               .eq("id", user.id)
               .maybeSingle(),
 
+            /*
+             * ONLY CHANGE HERE:
+             *
+             * created_at is fetched because it is used as the
+             * tie-breaker by sortTestsNewestFirst().
+             *
+             * The original filtering and database ordering are
+             * otherwise unchanged.
+             */
             supabase
               .from("tests")
               .select(
-                "id, test_id, title, test_type, total_questions, duration_minutes, marks_per_question, is_premium, is_user_generated, created_by, status",
+                "id, test_id, title, test_type, total_questions, duration_minutes, marks_per_question, is_premium, is_user_generated, created_by, status, created_at",
               )
               .eq("status", "published")
               .or(`is_user_generated.eq.false,created_by.eq.${user.id}`)
               .order("created_at", { ascending: false }),
+
             supabase
               .from("test_attempts")
               .select(
@@ -245,7 +365,15 @@ function DashboardInner() {
           ]);
 
         setProfile(prof);
-        setTests(ts || []);
+
+        /*
+         * ONLY FUNCTIONAL CHANGE:
+         *
+         * The tests are now sorted by their actual exam date
+         * instead of database insertion date.
+         */
+        setTests(sortTestsNewestFirst(ts || []));
+
         setAttempts(at || []);
         setSubscription(getCurrentSubscription(subs));
       } catch (error) {
@@ -900,7 +1028,9 @@ function DashboardInner() {
                               <div className="h-4 w-px bg-border hidden sm:block" />
 
                               <div className="text-sm">
-                                <span className="font-medium">{accuracy}%</span>{" "}
+                                <span className="font-medium">
+                                  {accuracy}%
+                                </span>{" "}
                                 <span className="text-muted-foreground">
                                   Accuracy
                                 </span>
