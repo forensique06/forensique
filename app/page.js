@@ -21,6 +21,11 @@ import {
   ListChecks,
 } from 'lucide-react'
 
+import { getSupabaseAdmin } from '@/lib/supabase/admin'
+
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export const metadata = {
   title: 'Forensique — UGC NET/JRF Forensic Science Preparation',
   description:
@@ -95,7 +100,147 @@ const workflow = [
   },
 ]
 
-export default function LandingPage() {
+const fallbackPreviewQuestion = {
+  question_number: 43,
+  question_text:
+    'Elements placed in group VI of periodic table consists of transition metals known for their strength and corrosion resistance. Which of the following element from this group is commonly used to plate screwdriver shafts and blades?',
+  options: [
+    { option_id: '1', option_text: 'Iron', sort_order: 1 },
+    { option_id: '2', option_text: 'Chromium', sort_order: 2 },
+    { option_id: '3', option_text: 'Zinc', sort_order: 3 },
+    { option_id: '4', option_text: 'Nickel', sort_order: 4 },
+  ],
+}
+
+async function getPreviewQuestion() {
+  const fallback = fallbackPreviewQuestion
+
+  try {
+    const admin = getSupabaseAdmin()
+
+    /*
+     * The free test is explicitly identified in the Forensique database
+     * as UGC_NET_FS_2025_06.
+     */
+    const { data: test, error: testError } = await admin
+      .from('tests')
+      .select('id, test_id, title, total_questions')
+      .eq('test_id', 'UGC_NET_FS_2025_06')
+      .eq('status', 'published')
+      .eq('is_premium', false)
+      .maybeSingle()
+
+    if (testError || !test) {
+      console.error('Landing preview test lookup failed:', testError)
+      return fallback
+    }
+
+    /*
+     * Get the questions belonging to the June 2025 test.
+     *
+     * We deliberately select the question IDs first and then choose one
+     * randomly in application code. This avoids depending on database-
+     * specific random ordering syntax.
+     */
+    const { data: testQuestions, error: testQuestionsError } = await admin
+      .from('test_questions')
+      .select('question_id, sequence_number')
+      .eq('test_id', test.id)
+      .order('sequence_number', { ascending: true })
+
+    if (testQuestionsError || !testQuestions?.length) {
+      console.error(
+        'Landing preview test questions lookup failed:',
+        testQuestionsError
+      )
+      return fallback
+    }
+
+    const questionIds = testQuestions.map((row) => row.question_id)
+
+    /*
+     * Use only normal/plain questions for the landing-page preview.
+     *
+     * This prevents a statement-based, arrangement, or match-following
+     * question from appearing in a preview that only renders standard
+     * four-option MCQs.
+     */
+    const { data: questions, error: questionsError } = await admin
+      .from('questions')
+      .select(
+        'id, question_number, question_text, content_format, status, answer_status'
+      )
+      .in('id', questionIds)
+      .eq('status', 'published')
+      .eq('answer_status', 'valid')
+      .eq('content_format', 'plain')
+
+    if (questionsError || !questions?.length) {
+      console.error(
+        'Landing preview questions lookup failed:',
+        questionsError
+      )
+      return fallback
+    }
+
+    /*
+     * Every page request gets a random real question.
+     */
+    const selectedQuestion =
+      questions[Math.floor(Math.random() * questions.length)]
+
+    /*
+     * Fetch only the public selectable options.
+     *
+     * IMPORTANT:
+     * We do NOT fetch the answers table, correct option, or explanation.
+     */
+    const { data: options, error: optionsError } = await admin
+      .from('question_options')
+      .select('option_id, option_text, sort_order')
+      .eq('question_id', selectedQuestion.id)
+      .order('sort_order', { ascending: true })
+
+    if (optionsError || !options?.length) {
+      console.error(
+        'Landing preview options lookup failed:',
+        optionsError
+      )
+      return fallback
+    }
+
+    /*
+     * A normal MCQ should have four options.
+     * If malformed data somehow reaches the database, use the fallback
+     * rather than displaying an incomplete question.
+     */
+    if (options.length < 4) {
+      console.error(
+        'Landing preview question has fewer than four options:',
+        selectedQuestion.id
+      )
+      return fallback
+    }
+
+    return {
+      question_number:
+        selectedQuestion.question_number ||
+        testQuestions.find(
+          (row) => row.question_id === selectedQuestion.id
+        )?.sequence_number ||
+        1,
+      question_text: selectedQuestion.question_text,
+      options: options.slice(0, 4),
+    }
+  } catch (error) {
+    console.error('Landing preview question error:', error)
+    return fallback
+  }
+}
+
+export default async function LandingPage() {
+  const previewQuestion = await getPreviewQuestion()
+
   return (
     <>
       <SiteHeader />
@@ -117,9 +262,9 @@ export default function LandingPage() {
             </h1>
 
             <p className="mx-auto mt-6 max-w-2xl text-base leading-7 text-muted-foreground md:text-lg">
-              Practise previous-year papers in a real CBT environment, understand
-              exactly where you are losing marks, and build targeted tests around
-              your weak areas.
+              Practise previous-year papers in a real CBT environment,
+              understand exactly where you are losing marks, and build
+              targeted tests around your weak areas.
             </p>
 
             <div className="mt-6 flex flex-wrap justify-center gap-x-5 gap-y-2 text-sm text-muted-foreground">
@@ -183,7 +328,7 @@ export default function LandingPage() {
                       </div>
 
                       <div className="text-xs text-muted-foreground">
-                        Paper II · Practice Test
+                        June 2025 · Free Test
                       </div>
                     </div>
 
@@ -199,36 +344,30 @@ export default function LandingPage() {
                   <div className="p-6 md:p-8">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium">
-                        Question 42
+                        Question {previewQuestion.question_number}
                       </span>
 
                       <span className="text-xs text-muted-foreground">
-                        42 of 100
+                        {previewQuestion.question_number} of 100
                       </span>
                     </div>
 
                     <div className="mt-6 max-w-3xl">
                       <p className="text-base font-medium leading-7 md:text-lg">
-                        Which of the following techniques is most appropriate
-                        for the examination of a questioned document?
+                        {previewQuestion.question_text}
                       </p>
 
                       <div className="mt-6 space-y-3">
-                        {[
-                          'Option A',
-                          'Option B',
-                          'Option C',
-                          'Option D',
-                        ].map((option, index) => (
+                        {previewQuestion.options.map((option, index) => (
                           <div
-                            key={option}
+                            key={`${option.option_id}-${option.sort_order}`}
                             className="flex items-center gap-3 rounded-lg border px-4 py-3 text-sm"
                           >
                             <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-xs font-medium">
                               {String.fromCharCode(65 + index)}
                             </span>
 
-                            <span>{option}</span>
+                            <span>{option.option_text}</span>
                           </div>
                         ))}
                       </div>
@@ -291,8 +430,9 @@ export default function LandingPage() {
             </Card>
 
             <p className="mt-3 text-center text-xs text-muted-foreground">
-              Product preview. Your actual test interface contains the complete
-              question palette, navigation, timer, and test controls.
+              Real question from the UGC NET Forensic Science June 2025 free
+              test. Your actual test interface contains the complete question
+              palette, navigation, timer, and test controls.
             </p>
           </div>
         </section>
@@ -398,8 +538,8 @@ export default function LandingPage() {
 
                   <p className="mt-5 max-w-xl leading-7 opacity-85">
                     Forensique is focused specifically on UGC NET/JRF Forensic
-                    Science Paper II. The preparation experience is built around
-                    the way Forensic Science aspirants actually prepare.
+                    Science Paper II. The preparation experience is built
+                    around the way Forensic Science aspirants actually prepare.
                   </p>
                 </div>
 
