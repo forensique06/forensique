@@ -1,56 +1,56 @@
-import { NextResponse } from "next/server";
-import crypto from "crypto";
-import Razorpay from "razorpay";
-import { getSupabaseAdmin } from "@/lib/supabase/admin";
-import { getTestEntitlement } from "@/lib/auth/entitlements";
+import { NextResponse } from 'next/server'
+import crypto from 'crypto'
+import Razorpay from 'razorpay'
+import { getSupabaseAdmin } from '@/lib/supabase/admin'
+import { getTestEntitlement } from '@/lib/auth/entitlements'
 
 // Extract Supabase user from Bearer token
 async function getUserFromRequest(request) {
-  const auth = request.headers.get("authorization") || "";
-  const token = auth.startsWith("Bearer ") ? auth.slice(7) : null;
-  if (!token) return null;
+  const auth = request.headers.get('authorization') || ''
+  const token = auth.startsWith('Bearer ') ? auth.slice(7) : null
+  if (!token) return null
 
-  const admin = getSupabaseAdmin();
-  const { data, error } = await admin.auth.getUser(token);
+  const admin = getSupabaseAdmin()
+  const { data, error } = await admin.auth.getUser(token)
 
-  if (error || !data?.user) return null;
-  return data.user;
+  if (error || !data?.user) return null
+  return data.user
 }
 
 async function requireAdmin(request) {
-  const user = await getUserFromRequest(request);
+  const user = await getUserFromRequest(request)
 
   if (!user) {
-    return { error: "Not authenticated", status: 401 };
+    return { error: 'Not authenticated', status: 401 }
   }
 
-  const admin = getSupabaseAdmin();
+  const admin = getSupabaseAdmin()
 
   const { data: prof } = await admin
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .maybeSingle();
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .maybeSingle()
 
-  if (prof?.role !== "admin") {
-    return { error: "Admin only", status: 403 };
+  if (prof?.role !== 'admin') {
+    return { error: 'Admin only', status: 403 }
   }
 
-  return { user };
+  return { user }
 }
 
 function getRazorpay() {
-  const key_id = process.env.RAZORPAY_KEY_ID;
-  const key_secret = process.env.RAZORPAY_KEY_SECRET;
+  const key_id = process.env.RAZORPAY_KEY_ID
+  const key_secret = process.env.RAZORPAY_KEY_SECRET
 
   if (!key_id || !key_secret) {
-    throw new Error("Razorpay keys not configured on server");
+    throw new Error('Razorpay keys not configured on server')
   }
 
   return new Razorpay({
     key_id,
     key_secret,
-  });
+  })
 }
 
 // ----------------------------------------------------------------------------
@@ -65,50 +65,60 @@ function getRazorpay() {
 // - Replaces old options/statements/match-items/answers.
 // ----------------------------------------------------------------------------
 async function handleImport(request) {
-  const check = await requireAdmin(request);
+  const check = await requireAdmin(request)
 
   if (check.error) {
-    return NextResponse.json({ error: check.error }, { status: check.status });
+    return NextResponse.json(
+      { error: check.error },
+      { status: check.status }
+    )
   }
 
-  const admin = getSupabaseAdmin();
+  const admin = getSupabaseAdmin()
 
-  let payload;
+  let payload
 
   try {
-    payload = await request.json();
+    payload = await request.json()
   } catch (error) {
     return NextResponse.json(
       { error: `Invalid JSON: ${error.message}` },
-      { status: 400 },
-    );
+      { status: 400 }
+    )
   }
 
+  // --------------------------------------------------------------------------
+  // 1. BASIC PAYLOAD VALIDATION
+  // --------------------------------------------------------------------------
+
   const requiredTop = [
-    "test_id",
-    "test_type",
-    "total_questions",
-    "duration_minutes",
-    "questions",
-  ];
+    'test_id',
+    'test_type',
+    'total_questions',
+    'duration_minutes',
+    'questions',
+  ]
 
   for (const key of requiredTop) {
     if (!(key in payload)) {
       return NextResponse.json(
         { error: `Missing field: ${key}` },
-        { status: 400 },
-      );
+        { status: 400 }
+      )
     }
   }
 
   if (!Array.isArray(payload.questions)) {
     return NextResponse.json(
-      { error: "questions must be an array" },
-      { status: 400 },
-    );
+      { error: 'questions must be an array' },
+      { status: 400 }
+    )
   }
 
-  if (payload.questions.length !== Number(payload.total_questions)) {
+  if (
+    payload.questions.length !==
+    Number(payload.total_questions)
+  ) {
     return NextResponse.json(
       {
         error:
@@ -116,470 +126,1140 @@ async function handleImport(request) {
           `${payload.total_questions}, but payload contains ` +
           `${payload.questions.length}.`,
       },
-      { status: 400 },
-    );
+      { status: 400 }
+    )
   }
 
-  const warnings = [];
-  const seenCodes = new Set();
+  // --------------------------------------------------------------------------
+  // 2. VALIDATE COMPLETE PAYLOAD BEFORE ANY DATABASE WRITE
+  // --------------------------------------------------------------------------
+
+  const warnings = []
+  const seenCodes = new Set()
+
+  // These patterns identify the corrupted data that appeared in January.
   const placeholderQuestion =
-    /^Question\s+\d+(?:\s+as extracted from|\s+based on Passage)/i;
-  const placeholderOption = /^Option\s+[1-4]$/i;
-  const passageList = Array.isArray(payload.passages) ? payload.passages : [];
+    /^Question\s+\d+(?:\s+as extracted from|\s+based on Passage)/i
+
+  const placeholderOption =
+    /^Option\s+[1-4]$/i
 
   for (const q of payload.questions) {
+    // question_code
     if (!q?.question_code) {
       return NextResponse.json(
-        { error: "A question is missing question_code" },
-        { status: 400 },
-      );
+        {
+          error:
+            'A question is missing question_code',
+        },
+        { status: 400 }
+      )
     }
 
+    // Duplicate question_code
     if (seenCodes.has(q.question_code)) {
       return NextResponse.json(
         {
-          error: `Duplicate question_code in payload: ${q.question_code}`,
+          error:
+            `Duplicate question_code in payload: ` +
+            `${q.question_code}`,
         },
-        { status: 400 },
-      );
+        { status: 400 }
+      )
     }
 
-    seenCodes.add(q.question_code);
+    seenCodes.add(q.question_code)
 
-    if (typeof q.question_text !== "string" || !q.question_text.trim()) {
+    // question_text
+    if (
+      typeof q.question_text !== 'string' ||
+      !q.question_text.trim()
+    ) {
       return NextResponse.json(
-        { error: `${q.question_code}: question_text is missing or empty` },
-        { status: 400 },
-      );
+        {
+          error:
+            `${q.question_code}: question_text is missing or empty`,
+        },
+        { status: 400 }
+      )
     }
 
+    // Reject corrupted placeholder questions.
     if (placeholderQuestion.test(q.question_text.trim())) {
       return NextResponse.json(
         {
           error:
-            `${q.question_code}: question_text looks like importer placeholder data (` +
-            `"${q.question_text}"). Import cancelled so bad content cannot enter the database.`,
+            `${q.question_code}: question_text looks like ` +
+            `importer placeholder data ` +
+            `("${q.question_text}"). ` +
+            `Import cancelled so bad content cannot enter ` +
+            `the database.`,
         },
-        { status: 400 },
-      );
+        { status: 400 }
+      )
     }
 
-    if (!Array.isArray(q.options) || q.options.length !== 4) {
+    // Every question in this application must have four options.
+    if (
+      !Array.isArray(q.options) ||
+      q.options.length !== 4
+    ) {
       return NextResponse.json(
-        { error: `${q.question_code}: must have exactly 4 options` },
-        { status: 400 },
-      );
+        {
+          error:
+            `${q.question_code}: must have exactly 4 options`,
+        },
+        { status: 400 }
+      )
     }
 
-    const optionIds = q.options.map((o) => String(o?.option_id ?? ""));
-    const uniqueOptionIds = new Set(optionIds);
+    // Validate option IDs.
+    const optionIds = q.options.map(
+      (o) => String(o?.option_id ?? '')
+    )
+
+    const uniqueOptionIds = new Set(optionIds)
 
     if (
       uniqueOptionIds.size !== 4 ||
-      !["1", "2", "3", "4"].every((id) => uniqueOptionIds.has(id))
+      !['1', '2', '3', '4'].every(
+        (id) => uniqueOptionIds.has(id)
+      )
     ) {
       return NextResponse.json(
         {
-          error: `${q.question_code}: options must have exactly the labels 1, 2, 3, 4`,
+          error:
+            `${q.question_code}: options must have exactly ` +
+            `the labels 1, 2, 3, 4`,
         },
-        { status: 400 },
-      );
+        { status: 400 }
+      )
     }
 
+    // Validate option text.
     for (const o of q.options) {
-      if (typeof o?.option_text !== "string" || !o.option_text.trim()) {
+      if (
+        typeof o?.option_text !== 'string' ||
+        !o.option_text.trim()
+      ) {
         return NextResponse.json(
           {
-            error: `${q.question_code}: option ${o?.option_id ?? "?"} is empty`,
+            error:
+              `${q.question_code}: option ` +
+              `${o?.option_id ?? '?'} is empty`,
           },
-          { status: 400 },
-        );
+          { status: 400 }
+        )
       }
 
+      // Reject corrupted "Option 1", "Option 2", etc.
       if (placeholderOption.test(o.option_text.trim())) {
         return NextResponse.json(
           {
-            error: `${q.question_code}: option ${o.option_id} contains placeholder data ("${o.option_text}"). Import cancelled.`,
+            error:
+              `${q.question_code}: option ` +
+              `${o.option_id} contains placeholder data ` +
+              `("${o.option_text}"). Import cancelled.`,
           },
-          { status: 400 },
-        );
+          { status: 400 }
+        )
       }
     }
 
-    if (q.answer_status === "valid" && !q.correct_option_label) {
-      return NextResponse.json(
-        {
-          error: `${q.question_code}: valid question missing correct_option_label`,
-        },
-        { status: 400 },
-      );
-    }
-
+    // Answer validation.
     if (
-      q.answer_status === "valid" &&
-      !["1", "2", "3", "4"].includes(String(q.correct_option_label))
+      q.answer_status === 'valid' &&
+      !q.correct_option_label
     ) {
       return NextResponse.json(
         {
-          error: `${q.question_code}: correct_option_label must be 1, 2, 3, or 4`,
+          error:
+            `${q.question_code}: valid question missing ` +
+            `correct_option_label`,
         },
-        { status: 400 },
-      );
+        { status: 400 }
+      )
     }
 
-    if (q.answer_status === "dropped" && q.correct_option_label) {
+    if (
+      q.answer_status === 'valid' &&
+      !['1', '2', '3', '4'].includes(
+        String(q.correct_option_label)
+      )
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            `${q.question_code}: correct_option_label must ` +
+            `be 1, 2, 3, or 4`,
+        },
+        { status: 400 }
+      )
+    }
+
+    if (
+      q.answer_status === 'dropped' &&
+      q.correct_option_label
+    ) {
       warnings.push(
-        `${q.question_code}: answer_status=dropped but has correct_option_label; storing NULL.`,
-      );
+        `${q.question_code}: answer_status=dropped but ` +
+        `has correct_option_label; storing NULL.`
+      )
     }
 
+    // Passage validation.
     if (q.passage_id) {
-      const passage = passageList.find((p) => p.passage_id === q.passage_id);
+      const passages = Array.isArray(payload.passages)
+        ? payload.passages
+        : []
+
+      const passage = passages.find(
+        (p) => p.passage_id === q.passage_id
+      )
+
       if (!passage) {
         return NextResponse.json(
           {
-            error: `${q.question_code}: references passage ${q.passage_id} not in payload.passages`,
+            error:
+              `${q.question_code}: references passage ` +
+              `${q.passage_id} not in payload.passages`,
           },
-          { status: 400 },
-        );
+          { status: 400 }
+        )
       }
     }
   }
 
-  const examName = payload.exam_name
-    ? `${payload.exam_name} ${payload.session || ""} ${payload.year || ""}`.trim()
-    : `Test ${payload.test_id}`;
+  // --------------------------------------------------------------------------
+  // 3. UPSERT EXAM
+  // --------------------------------------------------------------------------
 
-  const { data: existingExam, error: examLookupError } = await admin
-    .from("exams")
-    .select("*")
-    .eq("exam_name", payload.exam_name || examName)
-    .eq("session", payload.session || null)
-    .eq("year", payload.year || null)
-    .maybeSingle();
+  const examName = payload.exam_name
+    ? `${payload.exam_name} ${payload.session || ''} ${payload.year || ''}`.trim()
+    : `Test ${payload.test_id}`
+
+  const { data: existingExam, error: examLookupError } =
+    await admin
+      .from('exams')
+      .select('*')
+      .eq('exam_name', payload.exam_name || examName)
+      .eq('session', payload.session || null)
+      .eq('year', payload.year || null)
+      .maybeSingle()
 
   if (examLookupError) {
     return NextResponse.json(
-      { error: `Exam lookup failed: ${examLookupError.message}` },
-      { status: 500 },
-    );
+      {
+        error:
+          `Exam lookup failed: ${examLookupError.message}`,
+      },
+      { status: 500 }
+    )
   }
 
-  let exam = existingExam;
+  let exam = existingExam
 
   if (!exam) {
-    const { data: newExam, error: examErr } = await admin
-      .from("exams")
-      .insert({
-        exam_name: payload.exam_name || examName,
-        subject: payload.subject || "Forensic Science",
-        paper: payload.paper || "Paper-II",
-        session: payload.session || null,
-        year: payload.year || null,
-        exam_date: payload.exam_date || null,
-        agency: payload.agency || "NTA",
-      })
-      .select()
-      .single();
+    const { data: newExam, error: examErr } =
+      await admin
+        .from('exams')
+        .insert({
+          exam_name:
+            payload.exam_name || examName,
+          subject:
+            payload.subject || 'Forensic Science',
+          paper:
+            payload.paper || 'Paper-II',
+          session:
+            payload.session || null,
+          year:
+            payload.year || null,
+          exam_date:
+            payload.exam_date || null,
+          agency:
+            payload.agency || 'NTA',
+        })
+        .select()
+        .single()
 
     if (examErr) {
       return NextResponse.json(
-        { error: `Insert exam failed: ${examErr.message}` },
-        { status: 500 },
-      );
+        {
+          error:
+            `Insert exam failed: ${examErr.message}`,
+        },
+        { status: 500 }
+      )
     }
 
-    exam = newExam;
+    exam = newExam
   }
 
-  const passageRows = (payload.passages || []).map((p) => ({
-    exam_id: exam.id,
-    passage_code: p.passage_id,
-    passage_label: p.passage_label || null,
-    passage_text: p.passage_text || "",
-  }));
+  // --------------------------------------------------------------------------
+  // 4. UPSERT PASSAGES
+  // --------------------------------------------------------------------------
 
-  const passageMap = {};
+  const passageMap = {}
 
-  if (passageRows.length) {
-    const invalidPassage = passageRows.find((p) => !p.passage_code);
-    if (invalidPassage) {
+  for (const p of payload.passages || []) {
+    if (!p?.passage_id) {
       return NextResponse.json(
-        { error: "A passage is missing passage_id" },
-        { status: 400 },
-      );
+        {
+          error: 'A passage is missing passage_id',
+        },
+        { status: 400 }
+      )
     }
 
-    const { data: existingPassages, error: passageLookupError } = await admin
-      .from("passages")
-      .select("id, passage_code")
-      .eq("exam_id", exam.id)
-      .in(
-        "passage_code",
-        passageRows.map((p) => p.passage_code),
-      );
+    const { data: existing, error: passageLookupError } =
+      await admin
+        .from('passages')
+        .select('*')
+        .eq('exam_id', exam.id)
+        .eq('passage_code', p.passage_id)
+        .maybeSingle()
 
     if (passageLookupError) {
       return NextResponse.json(
         {
-          error: `Passage lookup failed: ${passageLookupError.message}`,
+          error:
+            `Passage lookup failed for ${p.passage_id}: ` +
+            `${passageLookupError.message}`,
         },
-        { status: 500 },
-      );
+        { status: 500 }
+      )
     }
 
-    const existingMap = new Map(
-      (existingPassages || []).map((p) => [p.passage_code, p]),
-    );
+    if (existing) {
+      const {
+        data: updated,
+        error: updateErr,
+      } = await admin
+        .from('passages')
+        .update({
+          passage_label:
+            p.passage_label || null,
+          passage_text:
+            p.passage_text || '',
+        })
+        .eq('id', existing.id)
+        .select()
+        .single()
 
-    const upsertPassageRows = passageRows.map((p) => ({
-      exam_id: p.exam_id,
-      passage_code: p.passage_code,
-      passage_label: p.passage_label,
-      passage_text: p.passage_text,
-    }));
+      if (updateErr) {
+        return NextResponse.json(
+          {
+            error:
+              `Update passage failed: ${updateErr.message}`,
+          },
+          { status: 500 }
+        )
+      }
 
-    const { data: upsertedPassages, error: passageUpsertError } = await admin
-      .from("passages")
-      .upsert(upsertPassageRows, { onConflict: "exam_id,passage_code" })
-      .select("id, passage_code");
+      passageMap[p.passage_id] = updated.id
+      continue
+    }
 
-    if (passageUpsertError) {
+    const { data: newP, error } =
+      await admin
+        .from('passages')
+        .insert({
+          exam_id: exam.id,
+          passage_code: p.passage_id,
+          passage_label:
+            p.passage_label || null,
+          passage_text:
+            p.passage_text || '',
+        })
+        .select()
+        .single()
+
+    if (error) {
       return NextResponse.json(
         {
-          error: `Upsert passages failed: ${passageUpsertError.message}`,
+          error:
+            `Insert passage failed: ${error.message}`,
         },
-        { status: 500 },
-      );
+        { status: 500 }
+      )
     }
 
-    for (const row of upsertedPassages || []) {
-      passageMap[row.passage_code] = row.id;
-    }
+    passageMap[p.passage_id] = newP.id
   }
 
-  const unitNames = [
-    ...new Set(
-      payload.questions
-        .map((q) => q.unit)
-        .filter((value) => typeof value === "string" && value.trim()),
-    ),
-  ];
+  // --------------------------------------------------------------------------
+  // 5. LOAD / CREATE TAXONOMY
+  // --------------------------------------------------------------------------
 
-  const unitsByName = {};
-  const { data: existingUnits, error: unitsError } = unitNames.length
-    ? await admin.from("units").select("id, name").in("name", unitNames)
-    : { data: [], error: null };
+  const { data: unitsAll, error: unitsError } =
+    await admin
+      .from('units')
+      .select('*')
 
   if (unitsError) {
     return NextResponse.json(
-      { error: `Unit lookup failed: ${unitsError.message}` },
-      { status: 500 },
-    );
+      {
+        error:
+          `Loading units failed: ${unitsError.message}`,
+      },
+      { status: 500 }
+    )
   }
 
-  for (const unit of existingUnits || []) {
-    unitsByName[unit.name] = unit.id;
+  const unitsByName = Object.fromEntries(
+    (unitsAll || []).map((u) => [
+      u.name,
+      u,
+    ])
+  )
+
+  async function getOrCreateTopic(unitId, name) {
+    if (!name) return null
+
+    // If there is no unit, do not create a broken topic.
+    if (!unitId) return null
+
+    const {
+      data: existing,
+      error: lookupError,
+    } = await admin
+      .from('topics')
+      .select('*')
+      .eq('unit_id', unitId)
+      .eq('name', name)
+      .maybeSingle()
+
+    if (lookupError) return null
+    if (existing) return existing.id
+
+    const {
+      data: newT,
+      error,
+    } = await admin
+      .from('topics')
+      .insert({
+        unit_id: unitId,
+        name,
+      })
+      .select()
+      .single()
+
+    if (error) return null
+
+    return newT.id
   }
 
-  const missingUnitNames = unitNames.filter((name) => !unitsByName[name]);
+  async function getOrCreateSubtopic(
+    topicId,
+    name
+  ) {
+    if (!name || !topicId) return null
 
-  if (missingUnitNames.length) {
-    const { data: createdUnits, error: unitInsertError } = await admin
-      .from("units")
-      .insert(
-        missingUnitNames.map((name, index) => ({
-          name,
-          sort_order: index + 1,
-        })),
-      )
-      .select("id, name");
+    const {
+      data: existing,
+      error: lookupError,
+    } = await admin
+      .from('subtopics')
+      .select('*')
+      .eq('topic_id', topicId)
+      .eq('name', name)
+      .maybeSingle()
 
-    if (unitInsertError) {
+    if (lookupError) return null
+    if (existing) return existing.id
+
+    const {
+      data: newS,
+      error,
+    } = await admin
+      .from('subtopics')
+      .insert({
+        topic_id: topicId,
+        name,
+      })
+      .select()
+      .single()
+
+    if (error) return null
+
+    return newS.id
+  }
+
+  // --------------------------------------------------------------------------
+  // 6. UPSERT TEST
+  // --------------------------------------------------------------------------
+
+  const isSampleFreeTrial =
+    payload.test_id === 'UGC_NET_FS_2025_06'
+
+  const testTitle =
+    `${payload.exam_name || 'Test'}` +
+    `${payload.session ? ' ' + payload.session : ''}` +
+    `${payload.year ? ' ' + payload.year : ''}` +
+    ` — ${payload.paper || 'Paper II'}`
+
+  const {
+    data: existingTest,
+    error: testLookupError,
+  } = await admin
+    .from('tests')
+    .select('*')
+    .eq('test_id', payload.test_id)
+    .maybeSingle()
+
+  if (testLookupError) {
+    return NextResponse.json(
+      {
+        error:
+          `Test lookup failed: ${testLookupError.message}`,
+      },
+      { status: 500 }
+    )
+  }
+
+  let test = existingTest
+
+  if (!test) {
+    const {
+      data: newTest,
+      error: testErr,
+    } = await admin
+      .from('tests')
+      .insert({
+        test_id:
+          payload.test_id,
+        title:
+          testTitle,
+        test_type:
+          payload.test_type,
+        exam_id:
+          exam.id,
+        total_questions:
+          payload.total_questions,
+        duration_minutes:
+          payload.duration_minutes,
+        marks_per_question:
+          payload.marks_per_question ?? 2,
+        negative_marking:
+          !!payload.negative_marking,
+        is_premium:
+          !isSampleFreeTrial,
+        status:
+          'published',
+      })
+      .select()
+      .single()
+
+    if (testErr) {
       return NextResponse.json(
-        { error: `Insert units failed: ${unitInsertError.message}` },
-        { status: 500 },
-      );
+        {
+          error:
+            `Insert test failed: ${testErr.message}`,
+        },
+        { status: 500 }
+      )
     }
 
-    for (const unit of createdUnits || []) {
-      unitsByName[unit.name] = unit.id;
+    test = newTest
+  } else {
+    const {
+      data: updatedTest,
+      error: testUpdateErr,
+    } = await admin
+      .from('tests')
+      .update({
+        title:
+          testTitle,
+        test_type:
+          payload.test_type,
+        exam_id:
+          exam.id,
+        total_questions:
+          payload.total_questions,
+        duration_minutes:
+          payload.duration_minutes,
+        marks_per_question:
+          payload.marks_per_question ?? 2,
+        negative_marking:
+          !!payload.negative_marking,
+        is_premium:
+          isSampleFreeTrial
+            ? false
+            : test.is_premium,
+        status:
+          'published',
+      })
+      .eq('id', test.id)
+      .select()
+      .single()
+
+    if (testUpdateErr) {
+      return NextResponse.json(
+        {
+          error:
+            `Update test failed: ${testUpdateErr.message}`,
+        },
+        { status: 500 }
+      )
     }
+
+    test = updatedTest
   }
+
+  // --------------------------------------------------------------------------
+  // 7. UPSERT QUESTIONS
+  // --------------------------------------------------------------------------
+
+  const questionsInserted = []
+
+  let optionsCount = 0
+  let statementsCount = 0
+  let matchCount = 0
+  let droppedCount = 0
+  let updatedCount = 0
 
   for (const q of payload.questions) {
-    const { data: existingQuestion, error: questionLookupError } = await admin
-      .from("questions")
-      .select("*")
-      .eq("question_code", q.question_code)
-      .maybeSingle();
+    const {
+      data: existingQ,
+      error: existingQError,
+    } = await admin
+      .from('questions')
+      .select('id')
+      .eq(
+        'question_code',
+        q.question_code
+      )
+      .maybeSingle()
 
-    if (questionLookupError) {
+    if (existingQError) {
       return NextResponse.json(
         {
           error:
-            `Question lookup failed for ${q.question_code}: ` +
-            `${questionLookupError.message}`,
+            `Question lookup failed for ` +
+            `${q.question_code}: ` +
+            `${existingQError.message}`,
         },
-        { status: 500 },
-      );
+        { status: 500 }
+      )
     }
 
-    const questionPayload = {
-      exam_id: exam.id,
-      unit_id: q.unit ? unitsByName[q.unit] || null : null,
-      sequence_number: q.sequence_number,
-      question_code: q.question_code,
-      question_text: q.question_text,
-      question_type: q.question_type || "mcq",
-      difficulty: q.difficulty || null,
-      passage_id: q.passage_id ? passageMap[q.passage_id] || null : null,
-      answer_status: q.answer_status || null,
-      correct_option_label:
-        q.answer_status === "dropped" ? null : q.correct_option_label || null,
-      explanation: q.explanation || null,
-      source_reference: q.source_reference || null,
-      updated_at: new Date().toISOString(),
-    };
+    let questionId = existingQ?.id
 
-    let question = existingQuestion;
+    // --------------------------------------------------------
+    // Taxonomy
+    // --------------------------------------------------------
 
-    if (question) {
-      const { data: updatedQuestion, error: questionUpdateError } = await admin
-        .from("questions")
-        .update(questionPayload)
-        .eq("id", question.id)
-        .select()
-        .single();
+    let unitRow =
+      unitsByName[q.unit]
 
-      if (questionUpdateError) {
-        return NextResponse.json(
-          {
-            error:
-              `Update question failed for ${q.question_code}: ` +
-              `${questionUpdateError.message}`,
-          },
-          { status: 500 },
-        );
-      }
+    if (!unitRow && q.unit) {
+      warnings.push(
+        `${q.question_code}: unit "${q.unit}" ` +
+        `not in master list; created ad-hoc.`
+      )
 
-      question = updatedQuestion;
-    } else {
-      const { data: insertedQuestion, error: questionInsertError } = await admin
-        .from("questions")
+      const {
+        data: newU,
+        error: unitError,
+      } = await admin
+        .from('units')
         .insert({
-          ...questionPayload,
-          created_at: new Date().toISOString(),
+          name: q.unit,
         })
         .select()
-        .single();
+        .single()
 
-      if (questionInsertError) {
+      if (unitError) {
         return NextResponse.json(
           {
             error:
-              `Insert question failed for ${q.question_code}: ` +
-              `${questionInsertError.message}`,
+              `Create unit "${q.unit}" failed: ` +
+              `${unitError.message}`,
           },
-          { status: 500 },
-        );
+          { status: 500 }
+        )
       }
 
-      question = insertedQuestion;
+      if (newU) {
+        unitsByName[q.unit] = newU
+        unitRow = newU
+      }
     }
 
-    await admin
-      .from("question_options")
-      .delete()
-      .eq("question_id", question.id);
+    const unitId =
+      unitsByName[q.unit]?.id || null
 
-    const optionRows = q.options.map((o) => ({
-      question_id: question.id,
-      option_id: String(o.option_id),
-      option_text: o.option_text,
-    }));
+    const topicId =
+      await getOrCreateTopic(
+        unitId,
+        q.topic
+      )
 
-    const { error: optionInsertError } = await admin
-      .from("question_options")
-      .insert(optionRows);
+    const subtopicId =
+      await getOrCreateSubtopic(
+        topicId,
+        q.subtopic
+      )
 
-    if (optionInsertError) {
+    // Extract question number from:
+    // UGC_NET_FS_2025_JAN_Q026
+    // UGC_NET_FS_2025_06_Q001
+    const qNum =
+      parseInt(
+        (
+          q.question_code.match(
+            /(\d+)$/
+          ) || []
+        )[1]
+      ) || null
+
+    // --------------------------------------------------------
+    // Question row
+    // --------------------------------------------------------
+
+    const questionPatch = {
+      question_code:
+        q.question_code,
+
+      exam_id:
+        exam.id,
+
+      question_number:
+        qNum,
+
+      unit_id:
+        unitId,
+
+      topic_id:
+        topicId,
+
+      subtopic_id:
+        subtopicId,
+
+      content_format:
+        q.content_format || 'plain',
+
+      question_text:
+        q.question_text.trim(),
+
+      passage_id:
+        q.passage_id
+          ? passageMap[q.passage_id]
+          : null,
+
+      is_negative_framing:
+        !!q.is_negative_framing,
+
+      status:
+        'published',
+
+      answer_status:
+        q.answer_status || 'valid',
+
+      explanation:
+        q.explanation || null,
+
+      updated_at:
+        new Date().toISOString(),
+    }
+
+    if (questionId) {
+      const {
+        error: qErr,
+      } = await admin
+        .from('questions')
+        .update(questionPatch)
+        .eq('id', questionId)
+
+      if (qErr) {
+        return NextResponse.json(
+          {
+            error:
+              `Update question ` +
+              `${q.question_code} failed: ` +
+              `${qErr.message}`,
+          },
+          { status: 500 }
+        )
+      }
+
+      updatedCount++
+
+      // ------------------------------------------------------
+      // IMPORTANT:
+      // Delete old child rows before inserting the correct
+      // source data. This repairs the existing January rows.
+      // ------------------------------------------------------
+
+      for (const table of [
+        'question_options',
+        'question_statements',
+        'question_match_items',
+      ]) {
+        const {
+          error: deleteErr,
+        } = await admin
+          .from(table)
+          .delete()
+          .eq(
+            'question_id',
+            questionId
+          )
+
+        if (deleteErr) {
+          return NextResponse.json(
+            {
+              error:
+                `Clear ${table} for ` +
+                `${q.question_code} failed: ` +
+                `${deleteErr.message}`,
+            },
+            { status: 500 }
+          )
+        }
+      }
+
+      const {
+        error: deleteAnswerErr,
+      } = await admin
+        .from('answers')
+        .delete()
+        .eq(
+          'question_id',
+          questionId
+        )
+
+      if (deleteAnswerErr) {
+        return NextResponse.json(
+          {
+            error:
+              `Clear answer for ` +
+              `${q.question_code} failed: ` +
+              `${deleteAnswerErr.message}`,
+          },
+          { status: 500 }
+        )
+      }
+    } else {
+      const {
+        data: newQ,
+        error: qErr,
+      } = await admin
+        .from('questions')
+        .insert(questionPatch)
+        .select()
+        .single()
+
+      if (qErr) {
+        return NextResponse.json(
+          {
+            error:
+              `Insert question ` +
+              `${q.question_code} failed: ` +
+              `${qErr.message}`,
+          },
+          { status: 500 }
+        )
+      }
+
+      questionId = newQ.id
+    }
+
+    // --------------------------------------------------------
+    // OPTIONS
+    // --------------------------------------------------------
+
+    const optRows = q.options.map(
+      (o) => ({
+        question_id:
+          questionId,
+
+        option_id:
+          String(o.option_id),
+
+        option_text:
+          o.option_text.trim(),
+
+        sort_order:
+          parseInt(o.option_id) || 0,
+      })
+    )
+
+    const {
+      error: oErr,
+    } = await admin
+      .from('question_options')
+      .insert(optRows)
+
+    if (oErr) {
       return NextResponse.json(
         {
           error:
-            `Insert options failed for ${q.question_code}: ` +
-            `${optionInsertError.message}`,
+            `Insert options for ` +
+            `${q.question_code} failed: ` +
+            `${oErr.message}`,
         },
-        { status: 500 },
-      );
+        { status: 500 }
+      )
     }
 
-    await admin
-      .from("question_statements")
-      .delete()
-      .eq("question_id", question.id);
+    optionsCount +=
+      optRows.length
 
-    if (Array.isArray(q.statements) && q.statements.length) {
-      const statementRows = q.statements.map((statement, index) => ({
-        question_id: question.id,
-        statement_number: index + 1,
-        statement_text:
-          typeof statement === "string"
-            ? statement
-            : statement?.statement_text || "",
-      }));
+    // --------------------------------------------------------
+    // STATEMENTS
+    // --------------------------------------------------------
 
-      const { error: statementError } = await admin
-        .from("question_statements")
-        .insert(statementRows);
+    if (
+      Array.isArray(q.statements) &&
+      q.statements.length
+    ) {
+      const rows =
+        q.statements.map(
+          (s, i) => ({
+            question_id:
+              questionId,
 
-      if (statementError) {
+            label:
+              s.label,
+
+            text:
+              s.text,
+
+            sort_order:
+              i,
+          })
+        )
+
+      const {
+        error,
+      } = await admin
+        .from('question_statements')
+        .insert(rows)
+
+      if (error) {
         return NextResponse.json(
           {
             error:
-              `Insert statements failed for ${q.question_code}: ` +
-              `${statementError.message}`,
+              `Insert statements for ` +
+              `${q.question_code} failed: ` +
+              `${error.message}`,
           },
-          { status: 500 },
-        );
+          { status: 500 }
+        )
       }
+
+      statementsCount +=
+        rows.length
     }
 
-    await admin.from("match_items").delete().eq("question_id", question.id);
+    // --------------------------------------------------------
+    // MATCHING ITEMS
+    // --------------------------------------------------------
 
-    if (Array.isArray(q.match_items) && q.match_items.length) {
-      const matchRows = q.match_items.map((item) => ({
-        question_id: question.id,
-        left_label: item.left_label || null,
-        left_text: item.left_text || null,
-        right_label: item.right_label || null,
-        right_text: item.right_text || null,
-      }));
+    if (
+      q.match_left?.length ||
+      q.match_right?.length
+    ) {
+      const rows = [
+        ...(q.match_left || []).map(
+          (m, i) => ({
+            question_id:
+              questionId,
 
-      const { error: matchError } = await admin
-        .from("match_items")
-        .insert(matchRows);
+            side:
+              'left',
 
-      if (matchError) {
+            label:
+              m.label,
+
+            text:
+              m.text,
+
+            sort_order:
+              i,
+          })
+        ),
+
+        ...(q.match_right || []).map(
+          (m, i) => ({
+            question_id:
+              questionId,
+
+            side:
+              'right',
+
+            label:
+              m.label,
+
+            text:
+              m.text,
+
+            sort_order:
+              i,
+          })
+        ),
+      ]
+
+      const {
+        error,
+      } = await admin
+        .from('question_match_items')
+        .insert(rows)
+
+      if (error) {
         return NextResponse.json(
           {
             error:
-              `Insert match items failed for ${q.question_code}: ` +
-              `${matchError.message}`,
+              `Insert match items for ` +
+              `${q.question_code} failed: ` +
+              `${error.message}`,
           },
-          { status: 500 },
-        );
+          { status: 500 }
+        )
       }
+
+      matchCount +=
+        rows.length
     }
+
+    // --------------------------------------------------------
+    // ANSWER
+    // --------------------------------------------------------
+
+    const ansRow = {
+      question_id:
+        questionId,
+
+      correct_option_id:
+        q.answer_status === 'dropped'
+          ? null
+          : String(
+              q.correct_option_label
+            ),
+
+      scoring_type:
+        'single_correct',
+    }
+
+    const {
+      error: aErr,
+    } = await admin
+      .from('answers')
+      .insert(ansRow)
+
+    if (aErr) {
+      return NextResponse.json(
+        {
+          error:
+            `Insert answer for ` +
+            `${q.question_code} failed: ` +
+            `${aErr.message}`,
+        },
+        { status: 500 }
+      )
+    }
+
+    if (
+      q.answer_status ===
+      'dropped'
+    ) {
+      droppedCount++
+    }
+
+    questionsInserted.push({
+      id:
+        questionId,
+
+      code:
+        q.question_code,
+    })
   }
+
+  // --------------------------------------------------------------------------
+  // 8. LINK QUESTIONS TO TEST
+  // --------------------------------------------------------------------------
+
+  const tqRows =
+    questionsInserted.map(
+      (q, idx) => ({
+        test_id:
+          test.id,
+
+        question_id:
+          q.id,
+
+        sequence_number:
+          idx + 1,
+      })
+    )
+
+  const {
+    error: tqErr,
+  } = await admin
+    .from('test_questions')
+    .upsert(
+      tqRows,
+      {
+        onConflict:
+          'test_id,question_id',
+      }
+    )
+
+  if (tqErr) {
+    return NextResponse.json(
+      {
+        error:
+          `Link test_questions failed: ` +
+          `${tqErr.message}`,
+      },
+      { status: 500 }
+    )
+  }
+
+  // --------------------------------------------------------------------------
+  // 9. SUCCESS RESPONSE
+  // --------------------------------------------------------------------------
 
   return NextResponse.json({
     ok: true,
-    test_id: payload.test_id,
-    exam_id: exam.id,
-    imported_questions: payload.questions.length,
+
+    test: {
+      id:
+        test.id,
+
+      test_id:
+        test.test_id,
+
+      title:
+        test.title,
+    },
+
+    counts: {
+      questions:
+        questionsInserted.length,
+
+      updated:
+        updatedCount,
+
+      passages:
+        (payload.passages || []).length,
+
+      options:
+        optionsCount,
+
+      statements:
+        statementsCount,
+
+      match_items:
+        matchCount,
+
+      dropped:
+        droppedCount,
+    },
+
     warnings,
-  });
+  })
 }
 
 // ----------------------------------------------------------------------------
@@ -587,418 +1267,443 @@ async function handleImport(request) {
 // ----------------------------------------------------------------------------
 
 async function handleCreateAttempt(request) {
-  const user = await getUserFromRequest(request);
+  const user =
+    await getUserFromRequest(request)
 
   if (!user) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  }
-
-  const admin = getSupabaseAdmin();
-
-  let body;
-
-  try {
-    body = await request.json();
-  } catch {
     return NextResponse.json(
-      { error: "Invalid request body" },
-      { status: 400 },
-    );
+      { error: 'Not authenticated' },
+      { status: 401 }
+    )
   }
 
-  const { test_id } = body || {};
+  const admin =
+    getSupabaseAdmin()
+
+  const {
+    test_id,
+  } = await request.json()
 
   if (!test_id) {
-    return NextResponse.json({ error: "Missing test_id" }, { status: 400 });
-  }
-
-  // --------------------------------------------------------------------------
-  // 1. Look up the actual test from the `tests` table.
-  // --------------------------------------------------------------------------
-
-  const { data: test, error: testError } = await admin
-    .from("tests")
-    .select("*")
-    .eq("id", test_id)
-    .maybeSingle();
-
-  if (testError) {
     return NextResponse.json(
-      { error: `Test lookup failed: ${testError.message}` },
-      { status: 500 },
-    );
+      { error: 'Missing test_id' },
+      { status: 400 }
+    )
   }
 
-  if (!test) {
-    return NextResponse.json({ error: "Test not found." }, { status: 404 });
-  }
-  if (test.is_user_generated && test.created_by !== user.id) {
+  // The client can submit any test UUID to this endpoint, so authorization
+  // must happen here before an attempt is created.
+  const entitlement = await getTestEntitlement(user.id)
+  const { data: requestedTest, error: testLookupError } = await admin
+    .from('tests')
+    .select('id, is_premium, status')
+    .eq('id', test_id)
+    .maybeSingle()
+
+  if (testLookupError) {
     return NextResponse.json(
-      { error: "You do not have access to this custom test." },
-      { status: 403 },
-    );
+      { error: testLookupError.message },
+      { status: 500 }
+    )
   }
 
-  // --------------------------------------------------------------------------
-  // 2. Check whether this user is allowed to access this particular test.
-  //    Free tests are handled by getTestEntitlement().
-  // --------------------------------------------------------------------------
-
-  const entitlement = await getTestEntitlement(user.id, test_id);
-
-  if (!entitlement?.allowed) {
+  if (!requestedTest || requestedTest.status !== 'published') {
     return NextResponse.json(
-      {
-        error: entitlement?.reason || "You do not have access to this test.",
-      },
-      { status: 403 },
-    );
+      { error: 'Test not found' },
+      { status: 404 }
+    )
   }
 
-  // --------------------------------------------------------------------------
-  // 3. Check whether the user already has an in-progress attempt.
-  //    If so, resume it instead of creating another one.
-  // --------------------------------------------------------------------------
-
-  const { data: existingAttempt, error: attemptLookupError } = await admin
-    .from("test_attempts")
-    .select("*")
-    .eq("user_id", user.id)
-    .eq("test_id", test_id)
-    .eq("status", "in_progress")
-    .maybeSingle();
-
-  if (attemptLookupError) {
+  if (requestedTest.is_premium && !entitlement.entitled) {
     return NextResponse.json(
-      {
-        error: `Attempt lookup failed: ${attemptLookupError.message}`,
-      },
-      { status: 500 },
-    );
+      { error: 'An active Test Series subscription is required for this test.' },
+      { status: 403 }
+    )
   }
 
-  if (existingAttempt) {
-    // Make sure all response rows exist. This is required because the
-    // browser only UPDATEs attempt_responses; it does not INSERT them.
-    const { data: testQuestions, error: testQuestionsError } = await admin
-      .from("test_questions")
-      .select("question_id")
-      .eq("test_id", test_id);
+  // Reuse in-progress attempt.
+  const {
+    data: existing,
+  } = await admin
+    .from('test_attempts')
+    .select('*')
+    .eq(
+      'user_id',
+      user.id
+    )
+    .eq(
+      'test_id',
+      test_id
+    )
+    .eq(
+      'status',
+      'in_progress'
+    )
+    .maybeSingle()
 
-    if (testQuestionsError) {
-      return NextResponse.json(
-        {
-          error: `Unable to load test questions: ${testQuestionsError.message}`,
-        },
-        { status: 500 },
-      );
-    }
-
-    if (testQuestions?.length) {
-      const responseRows = testQuestions.map((row) => ({
-        attempt_id: existingAttempt.id,
-        question_id: row.question_id,
-      }));
-
-      const { error: responseInsertError } = await admin
-        .from("attempt_responses")
-        .upsert(responseRows, {
-          onConflict: "attempt_id,question_id",
-          ignoreDuplicates: true,
-        });
-
-      if (responseInsertError) {
-        return NextResponse.json(
-          {
-            error: `Unable to initialize responses: ${responseInsertError.message}`,
-          },
-          { status: 500 },
-        );
-      }
-    }
-
+  if (existing) {
     return NextResponse.json({
-      ok: true,
-      attempt_id: existingAttempt.id,
-      attempt: existingAttempt,
-      resumed: true,
-    });
+      attempt_id:
+        existing.id,
+
+      resumed:
+        true,
+    })
   }
 
-  // --------------------------------------------------------------------------
-  // 4. Create a new attempt in the current `test_attempts` table.
-  // --------------------------------------------------------------------------
-
-  const { data: attempt, error: attemptInsertError } = await admin
-    .from("test_attempts")
+  const {
+    data: attempt,
+    error,
+  } = await admin
+    .from('test_attempts')
     .insert({
-      user_id: user.id,
-      test_id,
-      status: "in_progress",
-      started_at: new Date().toISOString(),
+      user_id:
+        user.id,
+
+      test_id:
+        test_id,
+
+      status:
+        'in_progress',
     })
     .select()
-    .single();
+    .single()
 
-  if (attemptInsertError) {
+  if (error) {
     return NextResponse.json(
-      {
-        error: `Unable to create attempt: ${attemptInsertError.message}`,
-      },
-      { status: 500 },
-    );
+      { error: error.message },
+      { status: 500 }
+    )
   }
 
-  // --------------------------------------------------------------------------
-  // 5. Pre-create one attempt_responses row for every question.
-  //
-  //    The attempt page intentionally only UPDATEs these rows because of
-  //    the current RLS policy.
-  // --------------------------------------------------------------------------
+  // Initialize responses.
+  const {
+    data: tqs,
+  } = await admin
+    .from('test_questions')
+    .select('question_id')
+    .eq(
+      'test_id',
+      test_id
+    )
 
-  const { data: testQuestions, error: testQuestionsError } = await admin
-    .from("test_questions")
-    .select("question_id")
-    .eq("test_id", test_id);
+  if (tqs?.length) {
+    const rows =
+      tqs.map(
+        (r) => ({
+          attempt_id:
+            attempt.id,
 
-  if (testQuestionsError) {
-    // Remove the newly-created attempt if its response initialization failed.
+          question_id:
+            r.question_id,
+
+          status:
+            'not_visited',
+        })
+      )
+
     await admin
-      .from("test_attempts")
-      .delete()
-      .eq("id", attempt.id)
-      .eq("user_id", user.id);
-
-    return NextResponse.json(
-      {
-        error: `Unable to load test questions: ${testQuestionsError.message}`,
-      },
-      { status: 500 },
-    );
-  }
-
-  if (!testQuestions?.length) {
-    await admin
-      .from("test_attempts")
-      .delete()
-      .eq("id", attempt.id)
-      .eq("user_id", user.id);
-
-    return NextResponse.json(
-      { error: "This test has no questions." },
-      { status: 400 },
-    );
-  }
-
-  const responseRows = testQuestions.map((row) => ({
-    attempt_id: attempt.id,
-    question_id: row.question_id,
-  }));
-
-  const { error: responseInsertError } = await admin
-    .from("attempt_responses")
-    .insert(responseRows);
-
-  if (responseInsertError) {
-    // Do not leave an unusable attempt behind.
-    await admin
-      .from("test_attempts")
-      .delete()
-      .eq("id", attempt.id)
-      .eq("user_id", user.id);
-
-    return NextResponse.json(
-      {
-        error: `Unable to initialize responses: ${responseInsertError.message}`,
-      },
-      { status: 500 },
-    );
+      .from('attempt_responses')
+      .upsert(
+        rows,
+        {
+          onConflict:
+            'attempt_id,question_id',
+        }
+      )
   }
 
   return NextResponse.json({
-    ok: true,
-    attempt_id: attempt.id,
-    attempt,
-    resumed: false,
-  });
+    attempt_id:
+      attempt.id,
+
+    resumed:
+      false,
+  })
 }
+
 // ----------------------------------------------------------------------------
 // POST /api/attempt/submit
 // ----------------------------------------------------------------------------
 
 async function handleSubmitAttempt(request) {
-  const user = await getUserFromRequest(request);
+  const user =
+    await getUserFromRequest(request)
 
   if (!user) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  }
-
-  const admin = getSupabaseAdmin();
-
-  let body;
-
-  try {
-    body = await request.json();
-  } catch {
     return NextResponse.json(
-      { error: "Invalid request body" },
-      { status: 400 },
-    );
+      { error: 'Not authenticated' },
+      { status: 401 }
+    )
   }
 
-  const { attempt_id, answers } = body || {};
+  const admin =
+    getSupabaseAdmin()
 
-  if (!attempt_id || !Array.isArray(answers)) {
+  const {
+    attempt_id,
+    auto_submitted,
+  } = await request.json()
+
+  if (!attempt_id) {
     return NextResponse.json(
-      { error: "attempt_id and answers are required." },
-      { status: 400 },
-    );
+      { error: 'Missing attempt_id' },
+      { status: 400 }
+    )
   }
 
-  const { data: attempt, error: attemptError } = await admin
-    .from("attempts")
-    .select("*")
-    .eq("id", attempt_id)
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  if (attemptError) {
-    return NextResponse.json(
-      { error: `Attempt lookup failed: ${attemptError.message}` },
-      { status: 500 },
-    );
-  }
+  const {
+    data: attempt,
+  } = await admin
+    .from('test_attempts')
+    .select(
+      '*, tests(marks_per_question, negative_marking, total_questions)'
+    )
+    .eq(
+      'id',
+      attempt_id
+    )
+    .single()
 
   if (!attempt) {
-    return NextResponse.json({ error: "Attempt not found." }, { status: 404 });
-  }
-
-  if (attempt.status !== "in_progress") {
     return NextResponse.json(
-      { error: "This attempt has already been submitted." },
-      { status: 409 },
-    );
-  }
-
-  const { data: questions, error: questionsError } = await admin
-    .from("questions")
-    .select(
-      `
-      id,
-      correct_option_label,
-      answer_status,
-      question_options (
-        option_id,
-        option_text
-      )
-    `,
+      { error: 'Attempt not found' },
+      { status: 404 }
     )
-    .eq("exam_id", attempt.test_id)
-    .order("sequence_number");
+  }
 
-  if (questionsError) {
+  if (
+    attempt.user_id !==
+    user.id
+  ) {
     return NextResponse.json(
-      {
-        error: `Unable to load questions: ${questionsError.message}`,
-      },
-      { status: 500 },
-    );
+      { error: 'Not your attempt' },
+      { status: 403 }
+    )
   }
 
-  const answerMap = new Map();
-
-  for (const answer of answers) {
-    if (!answer?.question_id) continue;
-
-    answerMap.set(String(answer.question_id), {
-      selected_option: answer.selected_option
-        ? String(answer.selected_option)
-        : null,
-    });
+  if (
+    attempt.status !==
+    'in_progress'
+  ) {
+    return NextResponse.json(
+      { error: 'Already submitted' },
+      { status: 400 }
+    )
   }
 
-  let score = 0;
-  let attempted = 0;
+  const {
+    data: responses,
+  } = await admin
+    .from('attempt_responses')
+    .select('*')
+    .eq(
+      'attempt_id',
+      attempt_id
+    )
 
-  const answerRows = [];
+  const qIds =
+    (responses || []).map(
+      (r) => r.question_id
+    )
 
-  for (const question of questions || []) {
-    const answer = answerMap.get(String(question.id));
-    const selectedOption = answer?.selected_option || null;
+  const {
+    data: answers,
+  } = qIds.length
+    ? await admin
+        .from('answers')
+        .select('*')
+        .in(
+          'question_id',
+          qIds
+        )
+    : { data: [] }
 
-    if (selectedOption) {
-      attempted += 1;
-    }
+  const {
+    data: qs,
+  } = qIds.length
+    ? await admin
+        .from('questions')
+        .select(
+          'id, answer_status'
+        )
+        .in(
+          'id',
+          qIds
+        )
+    : { data: [] }
 
-    let isCorrect = null;
+  const ansByQ =
+    Object.fromEntries(
+      (answers || []).map(
+        (a) => [
+          a.question_id,
+          a,
+        ]
+      )
+    )
 
-    if (question.answer_status === "valid") {
-      isCorrect =
-        selectedOption &&
-        String(selectedOption) === String(question.correct_option_label);
+  const qByQ =
+    Object.fromEntries(
+      (qs || []).map(
+        (q) => [
+          q.id,
+          q,
+        ]
+      )
+    )
 
-      if (isCorrect) {
-        score += 1;
+  let correct = 0
+  let incorrect = 0
+  let unattempted = 0
+
+  const marks =
+    Number(
+      attempt.tests
+        ?.marks_per_question ?? 2
+    )
+
+  const negMark =
+    attempt.tests
+      ?.negative_marking
+      ? marks / 2
+      : 0
+
+  const updates =
+    (responses || []).map(
+      (r) => {
+        const q =
+          qByQ[r.question_id]
+
+        const ans =
+          ansByQ[r.question_id]
+
+        let isCorrect = null
+
+        // Dropped questions are treated as correct.
+        if (
+          q?.answer_status ===
+          'dropped'
+        ) {
+          isCorrect = true
+          correct++
+        } else if (
+          !r.selected_option_id
+        ) {
+          isCorrect = null
+          unattempted++
+        } else if (
+          ans &&
+          ans.correct_option_id ===
+            r.selected_option_id
+        ) {
+          isCorrect = true
+          correct++
+        } else {
+          isCorrect = false
+          incorrect++
+        }
+
+        return {
+          attempt_id:
+            attempt_id,
+
+          question_id:
+            r.question_id,
+
+          selected_option_id:
+            r.selected_option_id,
+
+          status:
+            r.status,
+
+          is_correct:
+            isCorrect,
+
+          time_spent_seconds:
+            r.time_spent_seconds ||
+            0,
+
+          answered_at:
+            r.answered_at,
+        }
       }
-    }
+    )
 
-    answerRows.push({
-      attempt_id: attempt.id,
-      question_id: question.id,
-      selected_option: selectedOption,
-      is_correct: isCorrect,
-    });
-  }
-
-  await admin.from("attempt_answers").delete().eq("attempt_id", attempt.id);
-
-  if (answerRows.length) {
-    const { error: answerInsertError } = await admin
-      .from("attempt_answers")
-      .insert(answerRows);
-
-    if (answerInsertError) {
-      return NextResponse.json(
+  if (updates.length) {
+    await admin
+      .from('attempt_responses')
+      .upsert(
+        updates,
         {
-          error: `Unable to save answers: ${answerInsertError.message}`,
-        },
-        { status: 500 },
-      );
-    }
+          onConflict:
+            'attempt_id,question_id',
+        }
+      )
   }
 
-  const completedAt = new Date().toISOString();
+  const score =
+    correct * marks -
+    incorrect * negMark
 
-  const { data: updatedAttempt, error: updateAttemptError } = await admin
-    .from("attempts")
+  const startedAt =
+    new Date(
+      attempt.started_at
+    ).getTime()
+
+  const timeTaken =
+    Math.floor(
+      (Date.now() -
+        startedAt) /
+        1000
+    )
+
+  const {
+    error: uErr,
+  } = await admin
+    .from('test_attempts')
     .update({
-      status: "completed",
-      score,
-      attempted,
-      total_questions: questions?.length || 0,
-      completed_at: completedAt,
-    })
-    .eq("id", attempt.id)
-    .eq("user_id", user.id)
-    .select()
-    .single();
+      status:
+        auto_submitted
+          ? 'auto_submitted'
+          : 'submitted',
 
-  if (updateAttemptError) {
+      submitted_at:
+        new Date().toISOString(),
+
+      time_taken_seconds:
+        timeTaken,
+
+      score,
+
+      correct_count:
+        correct,
+
+      incorrect_count:
+        incorrect,
+
+      unattempted_count:
+        unattempted,
+    })
+    .eq(
+      'id',
+      attempt_id
+    )
+
+  if (uErr) {
     return NextResponse.json(
-      {
-        error: `Unable to complete attempt: ${updateAttemptError.message}`,
-      },
-      { status: 500 },
-    );
+      { error: uErr.message },
+      { status: 500 }
+    )
   }
 
   return NextResponse.json({
     ok: true,
-    attempt: updatedAttempt,
     score,
-    attempted,
-    total_questions: questions?.length || 0,
-  });
+    correct,
+    incorrect,
+    unattempted,
+  })
 }
 
 // ----------------------------------------------------------------------------
@@ -1006,478 +1711,644 @@ async function handleSubmitAttempt(request) {
 // ----------------------------------------------------------------------------
 
 async function handleCustomTestCreate(request) {
-  const user = await getUserFromRequest(request);
+  const user =
+    await getUserFromRequest(request)
 
   if (!user) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  }
-
-  const admin = getSupabaseAdmin();
-
-  let body;
-
-  try {
-    body = await request.json();
-  } catch {
     return NextResponse.json(
-      { error: "Invalid request body" },
-      { status: 400 },
-    );
+      { error: 'Not authenticated' },
+      { status: 401 }
+    )
   }
+
+  // Custom tests are a premium Test Series feature. This check is server-side
+  // and cannot be bypassed by changing the client request body.
+  const entitlement = await getTestEntitlement(user.id)
+  if (!entitlement.entitled) {
+    return NextResponse.json(
+      { error: 'Custom tests require an active Test Series subscription.' },
+      { status: 403 }
+    )
+  }
+
+  const admin =
+    getSupabaseAdmin()
 
   const {
     unit_ids = [],
     topic_ids = [],
     difficulties = [],
     count = 20,
-  } = body || {};
+  } = await request.json()
 
-  if (!Array.isArray(unit_ids)) {
+  if (count < 1) {
     return NextResponse.json(
-      { error: "unit_ids must be an array." },
-      { status: 400 },
-    );
+      { error: 'count must be >= 1' },
+      { status: 400 }
+    )
   }
 
-  if (!Array.isArray(topic_ids)) {
-    return NextResponse.json(
-      { error: "topic_ids must be an array." },
-      { status: 400 },
-    );
-  }
-
-  if (!Array.isArray(difficulties)) {
-    return NextResponse.json(
-      { error: "difficulties must be an array." },
-      { status: 400 },
-    );
-  }
-
-  const requestedCount = Number(count);
-
-  if (!Number.isFinite(requestedCount) || requestedCount < 1) {
-    return NextResponse.json(
-      { error: "count must be at least 1." },
-      { status: 400 },
-    );
-  }
-
-  const requestedQuestionCount = Math.min(Math.floor(requestedCount), 100);
-
-  // --------------------------------------------------------------------------
-  // Custom tests require Test Series entitlement.
-  // "custom" is intentionally handled as a special entitlement check.
-  // --------------------------------------------------------------------------
-
-  const entitlement = await getTestEntitlement(user.id, "custom");
-
-  if (!entitlement?.allowed) {
-    return NextResponse.json(
-      {
-        error:
-          entitlement?.reason ||
-          "An active Test Series subscription is required for custom tests.",
-      },
-      { status: 403 },
-    );
-  }
-
-  // --------------------------------------------------------------------------
-  // Build the matching question pool.
-  // --------------------------------------------------------------------------
-
-  let query = admin.from("questions").select("id").eq("status", "published");
+  let q =
+    admin
+      .from('questions')
+      .select('id')
+      .eq(
+        'status',
+        'published'
+      )
 
   if (unit_ids.length) {
-    query = query.in("unit_id", unit_ids);
+    q = q.in(
+      'unit_id',
+      unit_ids
+    )
   }
 
   if (topic_ids.length) {
-    query = query.in("topic_id", topic_ids);
+    q = q.in(
+      'topic_id',
+      topic_ids
+    )
   }
 
-  if (difficulties.length && difficulties.length < 3) {
-    query = query.in("difficulty", difficulties);
+  if (
+    difficulties.length &&
+    difficulties.length < 3
+  ) {
+    q = q.in(
+      'difficulty',
+      difficulties
+    )
   }
 
-  const { data: pool, error: poolError } = await query.limit(2000);
+  const {
+    data: pool,
+    error,
+  } = await q.limit(2000)
 
-  if (poolError) {
+  if (error) {
+    return NextResponse.json(
+      { error: error.message },
+      { status: 500 }
+    )
+  }
+
+  if (
+    !pool ||
+    pool.length === 0
+  ) {
     return NextResponse.json(
       {
-        error: `Unable to load matching questions: ${poolError.message}`,
+        error:
+          'No matching questions',
       },
-      { status: 500 },
-    );
+      { status: 400 }
+    )
   }
 
-  if (!pool || pool.length === 0) {
-    return NextResponse.json(
-      {
-        error: "No questions match the selected criteria.",
-      },
-      { status: 400 },
-    );
+  const ids =
+    pool.map(
+      (r) => r.id
+    )
+
+  // Fisher-Yates shuffle.
+  for (
+    let i = ids.length - 1;
+    i > 0;
+    i--
+  ) {
+    const j =
+      Math.floor(
+        Math.random() *
+          (i + 1)
+      )
+
+    ;[
+      ids[i],
+      ids[j],
+    ] = [
+      ids[j],
+      ids[i],
+    ]
   }
 
-  // --------------------------------------------------------------------------
-  // Randomize the question pool using Fisher-Yates.
-  // --------------------------------------------------------------------------
+  const chosen =
+    ids.slice(
+      0,
+      Math.min(
+        count,
+        ids.length
+      )
+    )
 
-  const ids = pool.map((row) => row.id);
+  const testKey =
+    `CUSTOM_${user.id.slice(0, 8)}_${Date.now()}`
 
-  for (let i = ids.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-
-    [ids[i], ids[j]] = [ids[j], ids[i]];
-  }
-
-  const chosen = ids.slice(0, Math.min(requestedQuestionCount, ids.length));
-
-  // --------------------------------------------------------------------------
-  // Create the actual test.
-  //
-  // Custom tests are premium objects because only Test Series users/admins
-  // are allowed to create them.
-  // --------------------------------------------------------------------------
-
-  const testKey = `CUSTOM_${user.id.slice(0, 8)}_${Date.now()}`;
-
-  const { data: test, error: testError } = await admin
-    .from("tests")
+  const {
+    data: t,
+    error: tErr,
+  } = await admin
+    .from('tests')
     .insert({
-      test_id: testKey,
-      title: `Custom test · ${chosen.length} Q`,
-      test_type: "custom",
-      total_questions: chosen.length,
-      duration_minutes: Math.max(10, chosen.length),
-      marks_per_question: 2,
-      negative_marking: false,
-      is_premium: true,
-      is_user_generated: true,
-      created_by: user.id,
-      status: "published",
+      test_id:
+        testKey,
+
+      title:
+        `Custom test · ${chosen.length} Q`,
+
+      test_type:
+        'custom',
+
+      total_questions:
+        chosen.length,
+
+      duration_minutes:
+        Math.max(
+          10,
+          chosen.length * 1
+        ),
+
+      marks_per_question:
+        2,
+
+      negative_marking:
+        false,
+
+      is_premium:
+        true,
+
+      is_user_generated:
+        true,
+
+      created_by:
+        user.id,
+
+      status:
+        'published',
     })
     .select()
-    .single();
+    .single()
 
-  if (testError) {
+  if (tErr) {
     return NextResponse.json(
-      {
-        error: `Unable to create custom test: ${testError.message}`,
-      },
-      { status: 500 },
-    );
+      { error: tErr.message },
+      { status: 500 }
+    )
   }
 
-  // --------------------------------------------------------------------------
-  // Attach the selected questions to the newly-created test.
-  // --------------------------------------------------------------------------
+  const tqRows =
+    chosen.map(
+      (qid, i) => ({
+        test_id:
+          t.id,
 
-  const testQuestionRows = chosen.map((questionId, index) => ({
-    test_id: test.id,
-    question_id: questionId,
-    sequence_number: index + 1,
-  }));
+        question_id:
+          qid,
 
-  const { error: testQuestionsError } = await admin
-    .from("test_questions")
-    .insert(testQuestionRows);
+        sequence_number:
+          i + 1,
+      })
+    )
 
-  if (testQuestionsError) {
-    // Do not leave an orphaned custom test if question assignment fails.
-    await admin.from("tests").delete().eq("id", test.id);
+  const {
+    error: tqErr,
+  } = await admin
+    .from('test_questions')
+    .insert(tqRows)
 
+  if (tqErr) {
     return NextResponse.json(
-      {
-        error: `Unable to attach questions to custom test: ${testQuestionsError.message}`,
-      },
-      { status: 500 },
-    );
+      { error: tqErr.message },
+      { status: 500 }
+    )
   }
-
-  // --------------------------------------------------------------------------
-  // The custom-test page expects test_uuid and immediately sends it to
-  // /api/attempt/create.
-  // --------------------------------------------------------------------------
 
   return NextResponse.json({
     ok: true,
-    test_uuid: test.id,
-    total: chosen.length,
-  });
+    test_uuid:
+      t.id,
+    total:
+      chosen.length,
+  })
 }
 
 // ----------------------------------------------------------------------------
 // POST /api/billing/create-subscription
 // ----------------------------------------------------------------------------
 
+// ----------------------------------------------------------------------------
+// POST /api/billing/create-subscription
+// ----------------------------------------------------------------------------
+
 async function handleCreateSubscription(request) {
-  const user = await getUserFromRequest(request);
+  const user = await getUserFromRequest(request)
 
   if (!user) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    return NextResponse.json(
+      { error: 'Not authenticated' },
+      { status: 401 }
+    )
   }
 
-  const admin = getSupabaseAdmin();
+  const admin = getSupabaseAdmin()
 
-  let body;
+  let body
 
   try {
-    body = await request.json();
+    body = await request.json()
   } catch {
     return NextResponse.json(
-      { error: "Invalid request body" },
-      { status: 400 },
-    );
+      { error: 'Invalid request body' },
+      { status: 400 }
+    )
   }
 
-  const { plan_id } = body || {};
+  const { plan_id } = body || {}
 
   if (!plan_id) {
-    return NextResponse.json({ error: "Missing plan_id." }, { status: 400 });
+    return NextResponse.json(
+      { error: 'Missing plan_id' },
+      { status: 400 }
+    )
   }
 
-  const { data: plan, error: planError } = await admin
-    .from("plans")
-    .select("*")
-    .eq("id", plan_id)
-    .eq("is_active", true)
-    .maybeSingle();
+  // --------------------------------------------------------------------------
+  // Load the plan from our database.
+  // --------------------------------------------------------------------------
+
+  const {
+    data: plan,
+    error: planError,
+  } = await admin
+    .from('plans')
+    .select('*')
+    .eq('id', plan_id)
+    .maybeSingle()
 
   if (planError) {
     return NextResponse.json(
-      { error: `Plan lookup failed: ${planError.message}` },
-      { status: 500 },
-    );
+      {
+        error:
+          `Failed to load plan: ${planError.message}`,
+      },
+      { status: 500 }
+    )
   }
 
   if (!plan) {
     return NextResponse.json(
-      { error: "Selected plan is not available." },
-      { status: 404 },
-    );
+      { error: 'Plan not found' },
+      { status: 404 }
+    )
+  }
+
+  if (!plan.is_active) {
+    return NextResponse.json(
+      { error: 'This plan is not active.' },
+      { status: 400 }
+    )
   }
 
   if (!plan.is_purchasable) {
     return NextResponse.json(
-      { error: "This plan is not currently available for purchase." },
-      { status: 400 },
-    );
-  }
-
-  const { data: existingSubscriptions, error: existingError } = await admin
-    .from("subscriptions")
-    .select("*")
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: false });
-
-  if (existingError) {
-    return NextResponse.json(
       {
-        error: `Unable to check existing subscriptions: ${existingError.message}`,
+        error:
+          'This plan is not purchasable yet.',
       },
-      { status: 500 },
-    );
+      { status: 400 }
+    )
   }
 
-  const activeSubscription =
-    (existingSubscriptions || []).find(
-      (sub) =>
-        sub.status === "active" &&
-        (!sub.expires_at || new Date(sub.expires_at) > new Date()),
-    ) || null;
-
-  if (activeSubscription) {
-    return NextResponse.json(
-      {
-        error: "You already have an active subscription.",
-        subscription_id: activeSubscription.razorpay_subscription_id,
-      },
-      { status: 409 },
-    );
-  }
-
-  const pastDueSubscription =
-    (existingSubscriptions || []).find((sub) => sub.status === "past_due") ||
-    null;
-
-  if (pastDueSubscription) {
+  if (!plan.razorpay_plan_id) {
     return NextResponse.json(
       {
         error:
-          "You already have a subscription with an unresolved payment status.",
-        subscription_id: pastDueSubscription.razorpay_subscription_id,
+          'This plan is not linked to a Razorpay plan yet.',
       },
-      { status: 409 },
-    );
+      { status: 500 }
+    )
   }
 
-  const createdSubscription =
-    (existingSubscriptions || []).find((sub) => sub.status === "created") ||
-    null;
+  // --------------------------------------------------------------------------
+  // Initialise Razorpay.
+  // --------------------------------------------------------------------------
 
-  if (createdSubscription) {
-    let providerSubscription;
-
-    try {
-      const rzp = getRazorpay();
-
-      providerSubscription = await rzp.subscriptions.fetch(
-        createdSubscription.razorpay_subscription_id,
-      );
-    } catch (e) {
-      return NextResponse.json(
-        {
-          error:
-            `Unable to check existing Razorpay subscription: ` +
-            `${e?.error?.description || e?.message || "Unknown Razorpay error."}`,
-        },
-        { status: 500 },
-      );
-    }
-
-    if (
-      providerSubscription.status === "cancelled" ||
-      providerSubscription.status === "expired"
-    ) {
-      await admin
-        .from("subscriptions")
-        .update({
-          status:
-            providerSubscription.status === "cancelled"
-              ? "cancelled"
-              : "expired",
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", createdSubscription.id)
-        .eq("user_id", user.id);
-    } else if (providerSubscription.status === "active") {
-      return NextResponse.json(
-        {
-          error: "You already have an active subscription.",
-          subscription_id: providerSubscription.id,
-        },
-        { status: 409 },
-      );
-    } else if (providerSubscription.customer_id) {
-      return NextResponse.json(
-        {
-          error:
-            "Your payment authorization is already in progress. Please finish the current payment before starting another subscription.",
-          subscription_id: providerSubscription.razorpay_subscription_id,
-        },
-        { status: 409 },
-      );
-    } else {
-      return NextResponse.json(
-        {
-          error:
-            "You already have a subscription that is still being processed. Please finish or close the current payment window before starting another subscription.",
-          subscription_id: createdSubscription.razorpay_subscription_id,
-        },
-        { status: 409 },
-      );
-    }
-  }
-
-  const rzp = getRazorpay();
-
-  const expireBy = Math.floor(Date.now() / 1000) + 30 * 60;
-
-  let razorpaySubscription;
+  let rzp
 
   try {
-    razorpaySubscription = await rzp.subscriptions.create({
-      plan_id: plan.razorpay_plan_id,
-      total_count: 12,
-      customer_notify: 1,
-      expire_by: expireBy,
-    });
+    rzp = getRazorpay()
   } catch (e) {
     return NextResponse.json(
       {
         error:
-          `Unable to create Razorpay subscription: ` +
-          `${e?.error?.description || e?.message || "Unknown Razorpay error."}`,
+          e?.message ||
+          'Razorpay is not configured on the server.',
       },
-      { status: 500 },
-    );
+      { status: 500 }
+    )
   }
 
-  const authorizationExpiry = new Date(
-    (razorpaySubscription.expire_by || expireBy) * 1000,
-  );
+  // --------------------------------------------------------------------------
+  // Do not create a second active subscription for the same user/plan.
+  //
+  // --------------------------------------------------------------------------
+// Check the user's existing subscriptions before creating another one.
+// --------------------------------------------------------------------------
 
-  const { data: insertedSubscription, error: insertError } = await admin
-    .from("subscriptions")
+const {
+  data: existingSubscriptions,
+  error: existingSubscriptionError,
+} = await admin
+  .from('subscriptions')
+  .select(
+    'id, plan_id, razorpay_subscription_id, status, expires_at, cancel_at_period_end'
+  )
+  .eq('user_id', user.id)
+  .order('created_at', {
+    ascending: false,
+  })
+
+if (existingSubscriptionError) {
+  return NextResponse.json(
+    {
+      error:
+        `Unable to check existing subscriptions: ${existingSubscriptionError.message}`,
+    },
+    { status: 500 }
+  )
+}
+
+const currentTime = new Date()
+
+const activeSubscription =
+  (existingSubscriptions || []).find((sub) => {
+    return (
+      sub.status === 'active' &&
+      sub.expires_at &&
+      new Date(sub.expires_at) > currentTime
+    )
+  }) || null
+
+const unfinishedSubscription =
+  (existingSubscriptions || []).find((sub) => {
+    return ['created', 'past_due'].includes(sub.status)
+  }) || null
+
+// --------------------------------------------------------------------------
+// An active Combined subscription means the user already has the highest
+// available plan.
+// --------------------------------------------------------------------------
+
+if (
+  activeSubscription &&
+  activeSubscription.plan_id === plan.id
+) {
+  return NextResponse.json(
+    {
+      error:
+        'You already have an active subscription for this plan.',
+      subscription_id:
+        activeSubscription.razorpay_subscription_id,
+    },
+    { status: 409 }
+  )
+}
+
+// --------------------------------------------------------------------------
+// If the user is already on Combined, do not allow another subscription.
+// --------------------------------------------------------------------------
+
+if (
+  activeSubscription &&
+  activeSubscription.plan_id !== plan.id
+) {
+  const {
+    data: activePlan,
+  } = await admin
+    .from('plans')
+    .select('id, name')
+    .eq('id', activeSubscription.plan_id)
+    .maybeSingle()
+
+  if (activePlan?.name === 'Combined') {
+    return NextResponse.json(
+      {
+        error:
+          'You already have an active Combined subscription.',
+        subscription_id:
+          activeSubscription.razorpay_subscription_id,
+      },
+      { status: 409 }
+    )
+  }
+
+  // Allow an upgrade from another active plan to Combined.
+  if (plan.name !== 'Combined') {
+    return NextResponse.json(
+      {
+        error:
+          'You already have an active subscription.',
+        subscription_id:
+          activeSubscription.razorpay_subscription_id,
+      },
+      { status: 409 }
+    )
+  }
+}
+
+// --------------------------------------------------------------------------
+// Do not create another subscription while an earlier one is still
+// being created or has an unresolved payment state.
+// --------------------------------------------------------------------------
+
+if (unfinishedSubscription) {
+  return NextResponse.json(
+    {
+      error:
+        'You already have a subscription that is still being processed. Please wait before starting another subscription.',
+      subscription_id:
+        unfinishedSubscription.razorpay_subscription_id,
+    },
+    { status: 409 }
+  )
+}
+  // --------------------------------------------------------------------------
+  // Create the Razorpay subscription.
+  //
+  // IMPORTANT:
+  // Do NOT create a Razorpay customer here.
+  //
+  // Razorpay creates/associates the customer during the subscription
+  // authorization Checkout flow.
+  // --------------------------------------------------------------------------
+
+  let subscription
+
+  try {
+    subscription =
+      await rzp.subscriptions.create({
+        plan_id:
+          plan.razorpay_plan_id,
+
+        total_count:
+          12,
+
+        quantity:
+          1,
+
+        customer_notify:
+          1,
+
+        notes: {
+          forensique_user_id:
+            user.id,
+
+          forensique_plan_id:
+            plan.id,
+        },
+      })
+  } catch (e) {
+    const description =
+      e?.error?.description ||
+      e?.description ||
+      e?.message ||
+      'Unknown Razorpay error.'
+
+    return NextResponse.json(
+      {
+        error:
+          `Razorpay subscription error: ${description}`,
+      },
+      { status: 500 }
+    )
+  }
+
+  // --------------------------------------------------------------------------
+  // Save the newly-created subscription in Supabase.
+  //
+  // The Razorpay subscription is initially "created".
+  // Webhooks will later update it to active/pending/etc.
+  // --------------------------------------------------------------------------
+
+  const now = new Date()
+
+  const placeholderExpiry = new Date(
+    now.getTime() +
+      30 *
+        86400 *
+        1000
+  )
+
+  const {
+    error: subscriptionRowError,
+  } = await admin
+    .from('subscriptions')
     .insert({
-      user_id: user.id,
-      plan_id: plan.id,
-      razorpay_subscription_id: razorpaySubscription.id,
-      razorpay_customer_id: razorpaySubscription.customer_id || null,
-      status: razorpaySubscription.status || "created",
-      cancel_at_period_end: false,
-      expires_at: authorizationExpiry.toISOString(),
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    })
-    .select()
-    .single();
+      user_id:
+        user.id,
 
-  if (insertError) {
+      plan_id:
+        plan.id,
+
+      // Razorpay associates the customer after
+      // the authorization transaction.
+      razorpay_customer_id:
+        subscription.customer_id ||
+        null,
+
+      razorpay_subscription_id:
+        subscription.id,
+
+      status:
+  'created',
+
+      started_at:
+        now.toISOString(),
+
+      expires_at:
+        placeholderExpiry.toISOString(),
+    })
+
+  if (subscriptionRowError) {
+    // We created the Razorpay subscription but failed
+    // to persist our local record. Try to cancel the
+    // orphaned Razorpay subscription immediately.
     try {
-      await rzp.subscriptions.cancel(razorpaySubscription.id, {
-        cancel_at_cycle_end: false,
-      });
-    } catch (cancelError) {
+      await rzp.subscriptions.cancel(
+        subscription.id,
+        {
+          cancel_at_cycle_end:
+            false,
+        }
+      )
+    } catch (cleanupError) {
       console.error(
-        "Failed to clean up orphaned Razorpay subscription:",
-        cancelError,
-      );
+        'Failed to clean up orphaned Razorpay subscription:',
+        cleanupError
+      )
     }
 
     return NextResponse.json(
       {
-        error: `Unable to save subscription: ${insertError.message}`,
+        error:
+          `Subscription record could not be saved: ${subscriptionRowError.message}`,
       },
-      { status: 500 },
-    );
+      { status: 500 }
+    )
   }
 
   return NextResponse.json({
-    ok: true,
-    subscription_id: insertedSubscription.razorpay_subscription_id,
-    razorpay_key_id: process.env.RAZORPAY_KEY_ID,
-  });
+    subscription_id:
+      subscription.id,
+
+    razorpay_key_id:
+      process.env.RAZORPAY_KEY_ID,
+  })
 }
+
 
 // ----------------------------------------------------------------------------
 // POST /api/billing/verify
+//
+// Body:
+// {
+//   razorpay_payment_id,
+//   razorpay_subscription_id,
+//   razorpay_signature
+// }
 // ----------------------------------------------------------------------------
 
 async function handleVerify(request) {
-  const user = await getUserFromRequest(request);
+  const user =
+    await getUserFromRequest(request)
 
   if (!user) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    return NextResponse.json(
+      { error: 'Not authenticated' },
+      { status: 401 }
+    )
   }
 
-  const admin = getSupabaseAdmin();
+  const admin =
+    getSupabaseAdmin()
 
-  let body;
+  let body
 
   try {
-    body = await request.json();
+    body =
+      await request.json()
   } catch {
     return NextResponse.json(
-      { error: "Invalid request body" },
-      { status: 400 },
-    );
+      { error: 'Invalid request body' },
+      { status: 400 }
+    )
   }
 
-  const { razorpay_payment_id, razorpay_subscription_id, razorpay_signature } =
-    body || {};
+  const {
+    razorpay_payment_id,
+    razorpay_subscription_id,
+    razorpay_signature,
+  } = body || {}
 
   if (
     !razorpay_payment_id ||
@@ -1486,366 +2357,407 @@ async function handleVerify(request) {
   ) {
     return NextResponse.json(
       {
-        error: "Incomplete Razorpay verification data.",
+        error:
+          'Missing Razorpay verification parameters.',
       },
-      { status: 400 },
-    );
+      { status: 400 }
+    )
   }
 
-  const { data: sub, error: subError } = await admin
-    .from("subscriptions")
-    .select("*")
-    .eq("razorpay_subscription_id", razorpay_subscription_id)
-    .maybeSingle();
+  // --------------------------------------------------------------------------
+  // First make sure this subscription belongs to the logged-in user.
+  // --------------------------------------------------------------------------
 
-  if (subError) {
+  const {
+    data: localSubscription,
+    error: subscriptionLookupError,
+  } = await admin
+    .from('subscriptions')
+    .select(
+      `
+        id,
+        user_id,
+        plan_id,
+        razorpay_subscription_id,
+        status,
+        expires_at
+      `
+    )
+    .eq(
+      'razorpay_subscription_id',
+      razorpay_subscription_id
+    )
+    .maybeSingle()
+
+  if (subscriptionLookupError) {
     return NextResponse.json(
-      { error: `Subscription lookup failed: ${subError.message}` },
-      { status: 500 },
-    );
+      {
+        error:
+          `Unable to find subscription: ${subscriptionLookupError.message}`,
+      },
+      { status: 500 }
+    )
   }
 
-  if (!sub || sub.user_id !== user.id) {
+  if (!localSubscription) {
     return NextResponse.json(
-      { error: "Not your subscription" },
-      { status: 403 },
-    );
+      {
+        error:
+          'Subscription was not found in our database.',
+      },
+      { status: 404 }
+    )
   }
 
-  const secret = process.env.RAZORPAY_KEY_SECRET;
+  if (
+    localSubscription.user_id !==
+    user.id
+  ) {
+    return NextResponse.json(
+      {
+        error:
+          'This subscription does not belong to the current user.',
+      },
+      { status: 403 }
+    )
+  }
+
+  // --------------------------------------------------------------------------
+  // Verify Razorpay signature.
+  //
+  // Razorpay subscription verification uses:
+  //
+  // payment_id + "|" + subscription_id
+  //
+  // signed using RAZORPAY_KEY_SECRET.
+  // --------------------------------------------------------------------------
+
+  const secret =
+    process.env.RAZORPAY_KEY_SECRET
 
   if (!secret) {
     return NextResponse.json(
-      { error: "Razorpay secret is not configured." },
-      { status: 500 },
-    );
+      {
+        error:
+          'Razorpay is not configured on the server.',
+      },
+      { status: 500 }
+    )
   }
 
-  const generatedSignature = crypto
-    .createHmac("sha256", secret)
-    .update(`${razorpay_payment_id}|${razorpay_subscription_id}`)
-    .digest("hex");
+  const expected =
+    crypto
+      .createHmac(
+        'sha256',
+        secret
+      )
+      .update(
+        `${razorpay_payment_id}|${razorpay_subscription_id}`
+      )
+      .digest('hex')
 
-  if (generatedSignature !== razorpay_signature) {
+  const expectedBuffer =
+    Buffer.from(expected)
+
+  const receivedBuffer =
+    Buffer.from(
+      razorpay_signature
+    )
+
+  if (
+    expectedBuffer.length !==
+      receivedBuffer.length ||
+    !crypto.timingSafeEqual(
+      expectedBuffer,
+      receivedBuffer
+    )
+  ) {
     return NextResponse.json(
-      { error: "Invalid Razorpay signature." },
-      { status: 400 },
-    );
+      {
+        ok: false,
+        error:
+          'Razorpay signature verification failed.',
+      },
+      { status: 400 }
+    )
   }
 
-  const rzp = getRazorpay();
+  // --------------------------------------------------------------------------
+  // Fetch the subscription directly from Razorpay.
+  //
+  // This prevents us from blindly trusting the status supplied by the
+  // browser callback.
+  // --------------------------------------------------------------------------
 
-  let providerSubscription;
+  let providerSubscription
 
   try {
-    providerSubscription = await rzp.subscriptions.fetch(
-      razorpay_subscription_id,
-    );
+    const rzp =
+      getRazorpay()
+
+    providerSubscription =
+      await rzp.subscriptions.fetch(
+        razorpay_subscription_id
+      )
   } catch (e) {
     return NextResponse.json(
       {
         error:
-          `Unable to verify Razorpay subscription: ` +
-          `${e?.error?.description || e?.message || "Unknown Razorpay error."}`,
+          `Unable to verify Razorpay subscription: ${
+            e?.error?.description ||
+            e?.message ||
+            'Unknown Razorpay error.'
+          }`,
       },
-      { status: 500 },
-    );
+      { status: 500 }
+    )
+  }
+
+  // --------------------------------------------------------------------------
+  // Make sure the provider subscription is actually for the plan we sold.
+  // --------------------------------------------------------------------------
+
+  const {
+    data: localPlan,
+    error: planLookupError,
+  } = await admin
+    .from('plans')
+    .select(
+      'id, name, razorpay_plan_id'
+    )
+    .eq(
+      'id',
+      localSubscription.plan_id
+    )
+    .maybeSingle()
+
+  if (planLookupError) {
+    return NextResponse.json(
+      {
+        error:
+          `Unable to verify plan: ${planLookupError.message}`,
+      },
+      { status: 500 }
+    )
+  }
+
+  if (
+    !localPlan ||
+    localPlan.razorpay_plan_id !==
+      providerSubscription.plan_id
+  ) {
+    return NextResponse.json(
+      {
+        error:
+          'Razorpay subscription does not match the selected plan.',
+      },
+      { status: 400 }
+    )
+  }
+
+  // --------------------------------------------------------------------------
+  // Map the actual Razorpay state to our application state.
+  //
+  // For the current immediate-start Test Series subscription, a successful
+  // authorization should result in "active".
+  //
+  // If Razorpay reports "authenticated" instead, keep the local subscription
+  // non-active and let the webhook move it to active when appropriate.
+  // --------------------------------------------------------------------------
+
+  let nextStatus = 'created'
+
+  if (
+    providerSubscription.status ===
+    'active'
+  ) {
+    nextStatus = 'active'
+  } else if (
+    providerSubscription.status ===
+    'pending'
+  ) {
+    nextStatus = 'past_due'
+  } else if (
+    providerSubscription.status ===
+    'halted'
+  ) {
+    nextStatus = 'past_due'
+  } else if (
+    providerSubscription.status ===
+    'cancelled'
+  ) {
+    nextStatus = 'cancelled'
+  } else if (
+    providerSubscription.status ===
+    'completed'
+  ) {
+    nextStatus = 'expired'
+  } else if (
+    providerSubscription.status ===
+    'expired'
+  ) {
+    nextStatus = 'expired'
   }
 
   const patch = {
     status:
-      providerSubscription.status === "active"
-        ? "active"
-        : providerSubscription.status || "active",
-    razorpay_customer_id:
-      providerSubscription.customer_id || sub.razorpay_customer_id || null,
-    updated_at: new Date().toISOString(),
-  };
+      nextStatus,
 
-  if (providerSubscription.current_start) {
-    patch.started_at = new Date(
-      providerSubscription.current_start * 1000,
-    ).toISOString();
+    updated_at:
+      new Date().toISOString(),
   }
 
-  if (providerSubscription.current_end) {
-    patch.expires_at = new Date(
-      providerSubscription.current_end * 1000,
-    ).toISOString();
+  if (
+    providerSubscription.customer_id
+  ) {
+    patch.razorpay_customer_id =
+      providerSubscription.customer_id
   }
 
-  const { error: updateError } = await admin
-    .from("subscriptions")
+  if (
+    providerSubscription.current_start
+  ) {
+    patch.started_at =
+      new Date(
+        providerSubscription.current_start *
+          1000
+      ).toISOString()
+  }
+
+  if (
+    providerSubscription.current_end
+  ) {
+    patch.expires_at =
+      new Date(
+        providerSubscription.current_end *
+          1000
+      ).toISOString()
+  }
+
+  const {
+    error: updateError,
+  } = await admin
+    .from('subscriptions')
     .update(patch)
-    .eq("id", sub.id)
-    .eq("user_id", user.id);
+    .eq(
+      'id',
+      localSubscription.id
+    )
+    .eq(
+      'user_id',
+      user.id
+    )
 
   if (updateError) {
     return NextResponse.json(
       {
-        error: `Unable to update subscription: ${updateError.message}`,
+        error:
+          `Payment was verified but the subscription could not be updated: ${updateError.message}`,
       },
-      { status: 500 },
-    );
+      { status: 500 }
+    )
   }
 
   return NextResponse.json({
     ok: true,
-    status: patch.status,
-  });
+    status: nextStatus,
+  })
 }
 
 // ----------------------------------------------------------------------------
 // POST /api/billing/cancel
-//
-// Normal user cancellation for an active subscription.
-// This remains a cycle-end cancellation.
 // ----------------------------------------------------------------------------
+
 async function handleCancel(request) {
-  const user = await getUserFromRequest(request);
+  const user =
+    await getUserFromRequest(request)
 
   if (!user) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  }
-
-  const admin = getSupabaseAdmin();
-
-  let body;
-
-  try {
-    body = await request.json();
-  } catch {
     return NextResponse.json(
-      { error: "Invalid request body" },
-      { status: 400 },
-    );
+      { error: 'Not authenticated' },
+      { status: 401 }
+    )
   }
 
-  const { razorpay_subscription_id } = body || {};
+  const admin =
+    getSupabaseAdmin()
 
-  if (!razorpay_subscription_id) {
+  const {
+    razorpay_subscription_id,
+  } = await request.json()
+
+  if (
+    !razorpay_subscription_id
+  ) {
     return NextResponse.json(
-      { error: "Missing Razorpay subscription ID." },
-      { status: 400 },
-    );
+      { error: 'Missing id' },
+      { status: 400 }
+    )
   }
 
-  const { data: sub, error: subError } = await admin
-    .from("subscriptions")
-    .select("*")
-    .eq("razorpay_subscription_id", razorpay_subscription_id)
-    .maybeSingle();
+  const {
+    data: sub,
+  } = await admin
+    .from('subscriptions')
+    .select('*')
+    .eq(
+      'razorpay_subscription_id',
+      razorpay_subscription_id
+    )
+    .maybeSingle()
 
-  if (subError) {
-    return NextResponse.json(
-      { error: `Subscription lookup failed: ${subError.message}` },
-      { status: 500 },
-    );
-  }
-
-  if (!sub || sub.user_id !== user.id) {
+  if (
+    !sub ||
+    sub.user_id !== user.id
+  ) {
     return NextResponse.json(
       {
-        error: "Not your subscription",
+        error:
+          'Not your subscription',
       },
-      { status: 403 },
-    );
+      { status: 403 }
+    )
   }
 
   try {
-    const rzp = getRazorpay();
+    const rzp =
+      getRazorpay()
 
-    await rzp.subscriptions.cancel(razorpay_subscription_id, {
-      cancel_at_cycle_end: 1,
-    });
+    await rzp.subscriptions.cancel(
+      razorpay_subscription_id,
+      {
+        cancel_at_cycle_end:
+          1,
+      }
+    )
   } catch (e) {
     return NextResponse.json(
       {
         error:
-          `Razorpay cancel failed: ` + `${e?.error?.description || e.message}`,
+          `Razorpay cancel failed: ` +
+          `${e?.error?.description || e.message}`,
       },
-      { status: 500 },
-    );
+      { status: 500 }
+    )
   }
 
   await admin
-    .from("subscriptions")
+    .from('subscriptions')
     .update({
-      cancel_at_period_end: true,
+      cancel_at_period_end:
+        true,
 
-      updated_at: new Date().toISOString(),
+      updated_at:
+        new Date().toISOString(),
     })
-    .eq("razorpay_subscription_id", razorpay_subscription_id);
-
-  return NextResponse.json({
-    ok: true,
-  });
-}
-
-// ----------------------------------------------------------------------------
-// POST /api/billing/cancel-pending
-//
-// Razorpay does not reliably allow an immediate Cancel API call while an
-// authorization-only subscription is still in the initial `created` state.
-// In that state there is no billing cycle to cancel. We therefore treat a
-// dismissed Checkout as locally abandoned, while Razorpay's `expire_by`
-// remains the provider-side safety net.
-// ----------------------------------------------------------------------------
-
-async function handleCancelPending(request) {
-  const user = await getUserFromRequest(request);
-
-  if (!user) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  }
-
-  const admin = getSupabaseAdmin();
-
-  let body;
-
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json(
-      { error: "Invalid request body" },
-      { status: 400 },
-    );
-  }
-
-  const { razorpay_subscription_id } = body || {};
-
-  if (!razorpay_subscription_id) {
-    return NextResponse.json(
-      { error: "Missing Razorpay subscription ID." },
-      { status: 400 },
-    );
-  }
-
-  const { data: sub, error: subLookupError } = await admin
-    .from("subscriptions")
-    .select(
-      "id, user_id, razorpay_subscription_id, status, cancel_at_period_end",
+    .eq(
+      'razorpay_subscription_id',
+      razorpay_subscription_id
     )
-    .eq("razorpay_subscription_id", razorpay_subscription_id)
-    .maybeSingle();
-
-  if (subLookupError) {
-    return NextResponse.json(
-      { error: `Unable to find subscription: ${subLookupError.message}` },
-      { status: 500 },
-    );
-  }
-
-  if (!sub) {
-    return NextResponse.json(
-      { error: "Subscription was not found." },
-      { status: 404 },
-    );
-  }
-
-  if (sub.user_id !== user.id) {
-    return NextResponse.json(
-      { error: "This subscription does not belong to the current user." },
-      { status: 403 },
-    );
-  }
-
-  // Never use this endpoint to alter an active or unresolved payment state.
-  if (sub.status !== "created") {
-    return NextResponse.json({
-      ok: true,
-      cancelled: false,
-      status: sub.status,
-    });
-  }
-
-  let providerSubscription;
-
-  try {
-    const rzp = getRazorpay();
-    providerSubscription = await rzp.subscriptions.fetch(
-      razorpay_subscription_id,
-    );
-  } catch (e) {
-    return NextResponse.json(
-      {
-        error:
-          "Unable to check Razorpay subscription: " +
-          `${e?.error?.description || e?.message || "Unknown Razorpay error."}`,
-      },
-      { status: 500 },
-    );
-  }
-
-  if (providerSubscription.status === "active") {
-    return NextResponse.json({
-      ok: true,
-      cancelled: false,
-      status: "active",
-    });
-  }
-
-  if (
-    providerSubscription.status === "cancelled" ||
-    providerSubscription.status === "expired"
-  ) {
-    await admin
-      .from("subscriptions")
-      .update({
-        status: providerSubscription.status,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", sub.id)
-      .eq("user_id", user.id);
-
-    return NextResponse.json({
-      ok: true,
-      cancelled: providerSubscription.status === "cancelled",
-      status: providerSubscription.status,
-    });
-  }
-
-  // If Razorpay has already associated a customer, authorization may have
-  // completed even though an immediate-start subscription can still report
-  // `created` until its first charge. Do not mark that subscription abandoned.
-  if (providerSubscription.customer_id) {
-    return NextResponse.json({
-      ok: true,
-      cancelled: false,
-      status: providerSubscription.status,
-    });
-  }
-
-  // The user closed Checkout before authorization. We cannot reliably cancel
-  // the provider subscription in this state, so release the local checkout
-  // lock. Razorpay will expire the authorization window automatically.
-  const { error: updateError } = await admin
-    .from("subscriptions")
-    .update({
-      status: "cancelled",
-      cancel_at_period_end: false,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", sub.id)
-    .eq("user_id", user.id)
-    .eq("status", "created");
-
-  if (updateError) {
-    return NextResponse.json(
-      {
-        error: `Unable to release pending subscription: ${updateError.message}`,
-      },
-      { status: 500 },
-    );
-  }
 
   return NextResponse.json({
     ok: true,
-    cancelled: true,
-    status: "cancelled",
-    provider_status: providerSubscription.status,
-    provider_action: "expire_by",
-  });
+  })
 }
 
 // ----------------------------------------------------------------------------
@@ -1853,208 +2765,358 @@ async function handleCancelPending(request) {
 // ----------------------------------------------------------------------------
 
 async function handleRazorpayWebhook(request) {
-  const rawBody = await request.text();
+  const rawBody =
+    await request.text()
 
-  const sig = request.headers.get("x-razorpay-signature") || "";
+  const sig =
+    request.headers.get(
+      'x-razorpay-signature'
+    ) || ''
 
-  const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
+  const secret =
+    process.env.RAZORPAY_WEBHOOK_SECRET
 
   if (!secret) {
     return NextResponse.json(
       {
-        error: "Webhook secret not configured",
+        error:
+          'Webhook secret not configured',
       },
-      { status: 500 },
-    );
+      { status: 500 }
+    )
   }
 
-  const expected = crypto
-    .createHmac("sha256", secret)
-    .update(rawBody)
-    .digest("hex");
+  const expected =
+    crypto
+      .createHmac(
+        'sha256',
+        secret
+      )
+      .update(rawBody)
+      .digest('hex')
 
-  const a = Buffer.from(expected);
+  const a =
+    Buffer.from(expected)
 
-  const b = Buffer.from(sig);
+  const b =
+    Buffer.from(sig)
 
-  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
+  if (
+    a.length !== b.length ||
+    !crypto.timingSafeEqual(
+      a,
+      b
+    )
+  ) {
     return NextResponse.json(
       {
         ok: false,
-        error: "Signature mismatch",
+        error:
+          'Signature mismatch',
       },
-      { status: 401 },
-    );
+      { status: 401 }
+    )
   }
 
-  let evt;
+  let evt
 
   try {
-    evt = JSON.parse(rawBody);
+    evt =
+      JSON.parse(rawBody)
   } catch {
-    return NextResponse.json({ error: "Bad JSON" }, { status: 400 });
+    return NextResponse.json(
+      { error: 'Bad JSON' },
+      { status: 400 }
+    )
   }
 
-  const admin = getSupabaseAdmin();
+  const admin =
+    getSupabaseAdmin()
 
-  const sub = evt?.payload?.subscription?.entity;
+  const sub =
+    evt?.payload
+      ?.subscription
+      ?.entity
 
-  const pay = evt?.payload?.payment?.entity;
+  const pay =
+    evt?.payload
+      ?.payment
+      ?.entity
 
-  const subjectId = sub?.id || pay?.id || "unknown";
+  const subjectId =
+    sub?.id ||
+    pay?.id ||
+    'unknown'
 
-  const providerEventId = `${evt.event}:${subjectId}:${evt.created_at}`;
+  const providerEventId =
+    `${evt.event}:${subjectId}:${evt.created_at}`
 
-  const { error: dupErr } = await admin.from("payment_events").insert({
-    provider: "razorpay",
+  const {
+    error: dupErr,
+  } = await admin
+    .from('payment_events')
+    .insert({
+      provider:
+        'razorpay',
 
-    provider_event_id: providerEventId,
+      provider_event_id:
+        providerEventId,
 
-    event_type: evt.event,
+      event_type:
+        evt.event,
 
-    payload: evt,
-  });
+      payload:
+        evt,
+    })
 
   if (dupErr) {
     // Already processed.
-    if (dupErr.code === "23505") {
+    if (
+      dupErr.code ===
+      '23505'
+    ) {
       return NextResponse.json({
         ok: true,
-        duplicate: true,
-      });
+        duplicate:
+          true,
+      })
     }
 
     return NextResponse.json(
       {
-        error: dupErr.message,
+        error:
+          dupErr.message,
       },
-      { status: 500 },
-    );
+      { status: 500 }
+    )
   }
 
   // Update subscription state.
-  if (sub?.id && evt.event.startsWith("subscription.")) {
+  if (
+    sub?.id &&
+    evt.event.startsWith(
+      'subscription.'
+    )
+  ) {
     const statusMap = {
-      "subscription.activated": "active",
+      'subscription.activated':
+        'active',
 
-      "subscription.charged": "active",
+      'subscription.charged':
+        'active',
 
-      "subscription.pending": "past_due",
+      'subscription.pending':
+        'past_due',
 
-      "subscription.halted": "past_due",
+      'subscription.halted':
+        'past_due',
 
-      "subscription.cancelled": "cancelled",
+      'subscription.cancelled':
+        'cancelled',
 
-      "subscription.completed": "expired",
+      'subscription.completed':
+        'expired',
+    }
 
-      "subscription.expired": "expired",
-    };
-
-    const nextStatus = statusMap[evt.event] || sub.status || "active";
+    const nextStatus =
+      statusMap[evt.event] ||
+      sub.status ||
+      'active'
 
     const patch = {
-      status: nextStatus,
+      status:
+        nextStatus,
 
-      razorpay_customer_id: sub.customer_id || undefined,
+      razorpay_customer_id:
+        sub.customer_id ||
+        undefined,
 
-      updated_at: new Date().toISOString(),
-    };
-
-    if (sub.current_start) {
-      patch.started_at = new Date(sub.current_start * 1000).toISOString();
+      updated_at:
+        new Date().toISOString(),
     }
 
-    if (sub.current_end) {
-      patch.expires_at = new Date(sub.current_end * 1000).toISOString();
+    if (
+      sub.current_start
+    ) {
+      patch.started_at =
+        new Date(
+          sub.current_start *
+            1000
+        ).toISOString()
     }
 
-    if (evt.event === "subscription.cancelled") {
-      patch.cancel_at_period_end = true;
+    if (
+      sub.current_end
+    ) {
+      patch.expires_at =
+        new Date(
+          sub.current_end *
+            1000
+        ).toISOString()
+    }
+
+    if (
+      evt.event ===
+      'subscription.cancelled'
+    ) {
+      patch.cancel_at_period_end =
+        true
     }
 
     await admin
-      .from("subscriptions")
+      .from('subscriptions')
       .update(patch)
-      .eq("razorpay_subscription_id", sub.id);
+      .eq(
+        'razorpay_subscription_id',
+        sub.id
+      )
   }
 
   return NextResponse.json({
     ok: true,
-  });
+  })
 }
 
 // ----------------------------------------------------------------------------
 // DISPATCHER
 // ----------------------------------------------------------------------------
 
-async function dispatch(request, method) {
-  const url = new URL(request.url);
+async function dispatch(
+  request,
+  method
+) {
+  const url =
+    new URL(request.url)
 
-  const path = url.pathname.replace(/^\/api/, "");
+  const path =
+    url.pathname.replace(
+      /^\/api/,
+      ''
+    )
 
-  if (method === "POST" && path === "/admin/import") {
-    return handleImport(request);
+  if (
+    method === 'POST' &&
+    path === '/admin/import'
+  ) {
+    return handleImport(
+      request
+    )
   }
 
-  if (method === "POST" && path === "/attempt/create") {
-    return handleCreateAttempt(request);
+  if (
+    method === 'POST' &&
+    path === '/attempt/create'
+  ) {
+    return handleCreateAttempt(
+      request
+    )
   }
 
-  if (method === "POST" && path === "/attempt/submit") {
-    return handleSubmitAttempt(request);
+  if (
+    method === 'POST' &&
+    path === '/attempt/submit'
+  ) {
+    return handleSubmitAttempt(
+      request
+    )
   }
 
-  if (method === "POST" && path === "/custom-test/create") {
-    return handleCustomTestCreate(request);
+  if (
+    method === 'POST' &&
+    path === '/custom-test/create'
+  ) {
+    return handleCustomTestCreate(
+      request
+    )
   }
 
-  if (method === "POST" && path === "/billing/create-subscription") {
-    return handleCreateSubscription(request);
+  if (
+    method === 'POST' &&
+    path === '/billing/create-subscription'
+  ) {
+    return handleCreateSubscription(
+      request
+    )
   }
 
-  if (method === "POST" && path === "/billing/verify") {
-    return handleVerify(request);
+  if (
+    method === 'POST' &&
+    path === '/billing/verify'
+  ) {
+    return handleVerify(
+      request
+    )
   }
 
-  if (method === "POST" && path === "/billing/cancel") {
-    return handleCancel(request);
+  if (
+    method === 'POST' &&
+    path === '/billing/cancel'
+  ) {
+    return handleCancel(
+      request
+    )
   }
 
-  if (method === "POST" && path === "/billing/cancel-pending") {
-    return handleCancelPending(request);
+  if (
+    method === 'POST' &&
+    path === '/webhooks/razorpay'
+  ) {
+    return handleRazorpayWebhook(
+      request
+    )
   }
 
-  if (method === "POST" && path === "/webhooks/razorpay") {
-    return handleRazorpayWebhook(request);
-  }
-
-  if (method === "GET" && path === "/health") {
+  if (
+    method === 'GET' &&
+    path === '/health'
+  ) {
     return NextResponse.json({
       ok: true,
       ts: Date.now(),
-    });
+    })
   }
 
   return NextResponse.json(
     {
-      error: `No route for ${method} ${path}`,
+      error:
+        `No route for ${method} ${path}`,
     },
-    { status: 404 },
-  );
+    { status: 404 }
+  )
 }
 
-export async function GET(request) {
-  return dispatch(request, "GET");
+export async function GET(
+  request
+) {
+  return dispatch(
+    request,
+    'GET'
+  )
 }
 
-export async function POST(request) {
-  return dispatch(request, "POST");
+export async function POST(
+  request
+) {
+  return dispatch(
+    request,
+    'POST'
+  )
 }
 
-export async function PUT(request) {
-  return dispatch(request, "PUT");
+export async function PUT(
+  request
+) {
+  return dispatch(
+    request,
+    'PUT'
+  )
 }
 
-export async function DELETE(request) {
-  return dispatch(request, "DELETE");
+export async function DELETE(
+  request
+) {
+  return dispatch(
+    request,
+    'DELETE'
+  )
 }
