@@ -71,10 +71,10 @@
       "correct_option_label": "4",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "Fingerprint identification involves three levels of detail. Level 1 provides the general ridge flow and pattern types such as loops, whorls, and arches. These are useful for classifying fingerprints but not sufficient for proving identity. For personal identification, forensic experts rely on Level 2 details, which include ridge endings, bifurcations, dots, and combinations of these minutiae. These finer characteristics are unique to every individual and serve as the basis for personal identification. Thus, Level 1 is only for classification, while Level 2 is the true source of uniqueness.",
-      "unit": "Fingerprints & Biometric Systems",
+      "explanation": "Fingerprint analysis is categorized into three levels of detail. Level 1 details encompass general ridge flow and overall pattern configurations (such as loops, whorls, and arches) as well as focal points like cores and deltas. These general characteristics are useful for classification and narrowing down potential candidates, but they lack sufficient uniqueness for positive individualization. Level 2 details comprise specific friction ridge minutiae—such as ridge endings, bifurcations, dots, islands, and continuous combinations. These minutiae possess unique spatial relationships and arrangements that serve as the definitive basis for individualization (establishing a single origin to a unique individual).\n\nRegarding the evaluated statements: Statement A is correct because Level 1 details describe general ridge flow and pattern type. Statement D is correct because Level 2 minutiae details are uniquely individualizing. Conversely, statement B is incorrect because Level 1 features are class characteristics and are never sufficient for individualization. Statement C is incorrect because while Level 2 details can be involved in comparisons, their defining forensic significance lies in establishing positive identity rather than serving merely as a tool for exclusion (which is typically achieved rapidly via Level 1 mismatches). Therefore, the combination of Statements A and D is correct.",
+      "unit": "Unit 8",
       "topic": "Fingerprints",
-      "subtopic": "Level 1 & 2 details"
+      "subtopic": "Characteristics"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q002",
@@ -122,10 +122,10 @@
       "correct_option_label": "1",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "In the submission of biological exhibits to an FSL, the process is methodical to ensure security and authenticity. The first step is checking whether the case falls under the jurisdiction of the concerned laboratory (A). Next, the submission letter or authorization from the investigating authority is verified (D). After authorization, the exhibits are examined for proper sealing and the presence of a sample seal to confirm integrity (B). Finally, after these formalities, the exhibits are photographed for record and documentation (C).",
-      "unit": "Fundamentals of Forensic Science",
+      "explanation": "The submission and intake of biological evidence at a Forensic Science Laboratory (FSL) follow a strict chain of custody and administrative protocol to ensure legal admissibility and evidence integrity.\n\nFirst, the laboratory staff must verify whether the case falls under the territorial and subject-matter jurisdiction of the concerned FSL (Statement A). Next, the legal authority and authorization letter (forwarding memo) from the investigating agency or court are verified (Statement D). Once legal jurisdiction and authority are established, the physical condition of the parcel is checked—specifically examining the integrity of the tamper-evident seals and comparing them against the provided impression of the specimen seal (Statement B). Finally, after formal administrative intake, the sealed exhibits are photographed for documentation prior to forensic opening and analysis (Statement C). Thus, the correct sequence is A, D, B, C.\n\nAlternative arrangements that place physical documentation like photography before jurisdictional or authorization checks violate standard laboratory evidence intake protocols.",
+      "unit": "Unit 1",
       "topic": "Physical Evidence",
-      "subtopic": "Collection and submission"
+      "subtopic": "Packing & Forwarding"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q003",
@@ -156,10 +156,10 @@
       "correct_option_label": "4",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "The greenish discoloration of the lower abdomen seen in the early stage of putrefaction is due to sulphmethaemoglobin. When decomposition begins, bacteria release hydrogen sulphide, which reacts with haemoglobin in the blood to form this greenish pigment. This color change is one of the earliest external signs of putrefaction and helps forensic experts estimate the post-mortem interval.",
-      "unit": "Forensic Medicine & Anthropology",
-      "topic": "Post-mortem examination",
-      "subtopic": "Putrefaction"
+      "explanation": "Putrefaction is the final stage of post-mortem decomposition, characterized by the breakdown of organic tissues by microorganisms and endogenous enzymes. The earliest external sign of putrefaction is a greenish discoloration of the skin over the right iliac fossa (where the cecum lies close to the abdominal wall), usually appearing 12 to 24 hours after death in temperate climates.\n\nThis green discoloration is caused by the formation of sulphmethaemoglobin (sulphaemoglobin). Intestinal bacteria produce hydrogen sulphide gas ($H_2S$), which diffuses into surrounding tissues and blood vessels, reacting with the heme group of hemoglobin in decomposing red blood cells to form sulphmethaemoglobin.\n\nEvaluating the alternative options:\n- Oxyhaemoglobin is the normal oxygen-bound derivative of hemoglobin responsible for the bright red color of arterial blood in living bodies.\n- Biliverdin is a green bile pigment produced during normal physiological breakdown of heme by heme oxygenase, predominantly in the liver, and is not responsible for post-mortem putrefactive abdominal staining.\n- Carbmethaemoglobin represents carbon dioxide bound to oxidized hemoglobin, which does not impart the characteristic putrefactive green pigment. Therefore, sulphmethaemoglobin is the correct compound.",
+      "unit": "Unit 10",
+      "topic": "Post-Mortem Examination",
+      "subtopic": "Post-Mortem Changes"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q004",
@@ -211,10 +211,10 @@
       "correct_option_label": "3",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "The Solanaceae family, or nightshade family, includes several poisonous plants. Atropa (deadly nightshade) contains atropine, Hyoscyamus (henbane) contains hyoscyamine and scopolamine, and Nicotina (tobacco) produces nicotine. These belong to Solanaceae and are medically significant due to their alkaloids. Digitalis, however, belongs to Scrophulariaceae, and Lamium belongs to Lamiaceae, so they are not included. Hence, Atropa, Hyoscyamus, and Nicotina are the correct members.",
-      "unit": "Forensic Toxicology",
-      "topic": "Plant poisons",
-      "subtopic": "Solanaceae family"
+      "explanation": "The family Solanaceae (nightshade family) includes numerous toxicologically significant plants that contain potent alkaloids.\n\n- Atropa (specifically Atropa belladonna or deadly nightshade) belongs to Solanaceae and yields anticholinergic tropane alkaloids such as atropine, hyoscyamine, and scopolamine.\n- Hyoscyamus (Hyoscyamus niger or henbane) belongs to Solanaceae and contains high concentrations of hyoscyamine and scopolamine.\n- Nicotiana (Nicotiana tabacum or tobacco) belongs to Solanaceae and contains the pyridine alkaloid nicotine.\n\nEvaluating the non-Solanaceae plants in the list:\n- Digitalis (Digitalis purpurea or foxglove) belongs to the family Plantaginaceae (formerly Scrophulariaceae) and contains cardiac glycosides (digoxin and digitoxin), not tropane/pyridine alkaloids.\n- Lamium (dead-nettle) belongs to the family Lamiaceae (mint family) and is non-toxic.\n\nHence, Atropa, Hyoscyamus, and Nicotiana (A, C, E) are the plants belonging to Solanaceae.",
+      "unit": "Unit 4",
+      "topic": "Plant Poisons",
+      "subtopic": "Plant Poisons"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q005",
@@ -266,10 +266,10 @@
       "correct_option_label": "1",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "Anabolic steroids are artificial substances derived from testosterone and used to promote muscle growth. Oxandrolene is a steroid used in weight gain treatments, Stanozolol is a synthetic anabolic steroid commonly misused by athletes, and Nandrolene is another anabolic steroid enhancing protein synthesis. On the other hand, Dilaudid is an opioid painkiller, while Freon is an industrial refrigerant, not related to steroids. Thus, the true anabolic steroids in the list are Oxandrolene, Stanozolol, and Nandrolene.",
-      "unit": "Forensic Toxicology",
-      "topic": "Metabolism and Chemical examination",
-      "subtopic": "Anabolic steroids"
+      "explanation": "Anabolic-androgenic steroids (AAS) are synthetic derivatives of the male sex hormone testosterone. They promote cell growth and tissue building (anabolism), particularly in muscle tissue, and are regulated as controlled substances due to frequent misuse in athletic doping.\n\n- Oxandrolone (Oxandrolene) is a synthetic 17-alpha-alkylated anabolic steroid.\n- Stanozolol is a synthetic anabolic steroid derived from dihydrotestosterone (DHT).\n- Nandrolone (Nandrolene) is a 19-nortestosterone anabolic steroid commonly identified in toxicology screens via its primary metabolite, 19-norandrosterone.\n\nEvaluating the non-steroid options:\n- Dilaudid is a trade brand name for hydromorphone, a hydrogenated ketone derivative of morphine that acts as a potent opioid analgesic.\n- Freon is a proprietary name for chlorofluorocarbon (CFC) halogenated hydrocarbons used industrially as refrigerants and propellants.\n\nTherefore, Oxandrolene, Stanozolol, and Nandrolene (A, C, E) represent the anabolic steroids.",
+      "unit": "Unit 4",
+      "topic": "Drugs of Abuse",
+      "subtopic": "Analysis"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q006",
@@ -321,10 +321,10 @@
       "correct_option_label": "2",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "Photon energy E is E = hc/\u03bb. Hence it is inversely proportional to wavelength (A). A shorter wavelength therefore means higher photon energy (C), while a longer wavelength means lower energy (E). Statements B and D contradict this fundamental relation.",
-      "unit": "Analytical Techniques",
+      "explanation": "The quantum mechanical description of light interaction with matter is governed by the Planck-Einstein relation: $E = h\\nu = \\frac{hc}{\\lambda}$, where $E$ represents photon energy, $h$ is Planck's constant, $\\nu$ is frequency, $c$ is the speed of light, and $\\lambda$ is wavelength.\n\nFrom this equation:\n- Photon energy ($E$) is inversely proportional to wavelength ($\\lambda$) (Statement A).\n- As wavelength decreases (shorter wavelength), photon energy increases (Statement C).\n- As wavelength increases (longer wavelength), photon energy decreases (Statement E).\n\nEvaluating the false statements:\n- Statement B incorrectly asserts direct proportionality between energy and wavelength.\n- Statement D incorrectly claims that shorter wavelengths possess lower energy.\n\nThus, statements A, C, and E are mathematically and physical correct.",
+      "unit": "Unit 2",
       "topic": "Spectrophotometry",
-      "subtopic": "Photon energy relation"
+      "subtopic": "Visible Spectrophotometry"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q007",
@@ -376,10 +376,10 @@
       "correct_option_label": "1",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "\"Separation\" methods physically resolve components of a mixture: simple distillation (B) separates by volatility; paper chromatography (C) separates by differential partition; capillary electrophoresis (E) separates by charge-to-size in an electric field. Visible spectrophotometer (A) and polarography (D) are detection/measurement techniques, not primary separation tools.",
-      "unit": "Analytical Techniques",
+      "explanation": "Analytical methods are broadly divided into physical separation techniques and detection/measurement techniques.\n\n- Simple distillation physically isolates chemical species based on differences in boiling points and vapor pressures.\n- Paper chromatography physically resolves mixture components via differential partitioning between a liquid stationary phase held on cellulose fibers and a migrating mobile solvent phase.\n- Capillary electrophoresis physically separates charged species inside a narrow-bore capillary under an applied high-voltage electrical field based on mass-to-charge ratios and electroosmotic flow.\n\nEvaluating non-separation methods:\n- Visible spectrophotometry is an optical absorption detection technique that measures light attenuation at specific wavelengths to quantify known analytes, but it does not separate components.\n- Polarography is a voltammetric electrochemical technique measuring current as a function of potential at a dropping mercury electrode, used for electro-analytical measurement rather than physical mixture separation.\n\nTherefore, Simple distillation, Paper chromatography, and Capillary electrophoresis (B, C, E) represent the separation techniques.",
+      "unit": "Unit 2",
       "topic": "Chromatographic Techniques",
-      "subtopic": "Separation methods"
+      "subtopic": "TLC"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q008",
@@ -427,10 +427,10 @@
       "correct_option_label": "4",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "Characteristic putrefaction gases from a cadaver include methane (A) and hydrogen sulphide (C)\u2014the latter gives the classic foul odour. Carbon dioxide can be present, but among the given pairings, methane plus hydrogen sulphide best represents gases specifically associated with decomposition odour profiles.",
-      "unit": "Forensic Medicine & Anthropology",
-      "topic": "Post-mortem examination",
-      "subtopic": "Putrefaction gases"
+      "explanation": "Putrefaction involves extensive anaerobic bacterial fermentation of carbohydrates, proteins, and lipids in cadaveric tissues, generating a cocktail of characteristic decomposition biogases.\n\n- Methane ($CH_4$) is generated abundantly by anaerobic methanogenic gut bacteria, accumulating in closed abdominal and thoracic cavities and causing post-mortem bloating and tissue emphysema.\n- Hydrogen sulphide ($H_2S$) is produced by bacterial breakdown of sulfur-containing amino acids (cysteine, methionine). It imparts the foul odor to decomposing remains and reacts with hemoglobin to form green sulphaemoglobin staining.\n\nWhile carbon dioxide ($CO_2$) is evolved during cellular breakdown, methane and hydrogen sulphide specifically represent the classic combustible and malodorous putrefactive biogas pair in forensic pathology. Nitrous oxide ($N_2O$) is an inhalational anesthetic gas and is not a major decomposition product. Thus, Methane and Hydrogen sulphide (A and C) form the correct answer pairing.",
+      "unit": "Unit 10",
+      "topic": "Post-Mortem Examination",
+      "subtopic": "Post-Mortem Changes"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q009",
@@ -478,10 +478,10 @@
       "correct_option_label": "3",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "Sequence of ignition phenomena: an external stimulus ignites the explosive material (C) -> temperature rise triggers pre-ignition reactions (A) -> these reactions drive phase/crystal transitions and thermal decomposition (D) -> the reaction front becomes self-sustaining, leading to combustion (B).",
-      "unit": "Fire, Explosives & Investigation",
+      "explanation": "The chemical and physical ignition phenomenon in explosive substances progresses through a defined thermodynamic sequence:\n\n1. External initiation: The explosive matrix receives energy from an external thermal, mechanical, or electrical stimulus, initiating heating (Statement C).\n2. Pre-ignition phase: The localized temperature increase accelerates thermal energy accumulation, triggering pre-ignition chemical reactions (Statement A).\n3. Physical and chemical transformation: These pre-ignition reactions induce crystalline phase changes, melting (liquid transition), and rapid thermal decomposition of energetic chemical bonds (Statement D).\n4. Self-sustaining combustion/detonation: The exothermic energy released overcomes thermal dissipation, leading to a self-sustaining combustion or detonation reaction wave (Statement B).\n\nTherefore, the correct chronological sequence is C, A, D, B.",
+      "unit": "Unit 6",
       "topic": "Explosives",
-      "subtopic": "Ignition and combustion"
+      "subtopic": "Definition of Explosives"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q010",
@@ -512,10 +512,10 @@
       "correct_option_label": "2",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "BPR&D's stated motto is the Rigvedic line \"\u0906 \u0928\u094b \u092d\u0926\u094d\u0930\u093e: \u0915\u094d\u0930\u0924\u0935\u094b \u092f\u0928\u094d\u0924\u094d\u0935 \u0935\u093f\u0936\u094d\u0935\u0924\u094b\" rendered in English as \"Let noble thoughts come to us from every side\", used across its institutions and events to express an open, collaborative research ethos (e.g., BPR&D/PIB communications).",
-      "unit": "Fundamentals of Forensic Science",
-      "topic": "Forensic Organizations",
-      "subtopic": "BPR&D"
+      "explanation": "The Bureau of Police Research and Development (BPR&D) was established in August 1970 under the Ministry of Home Affairs, Government of India, to promote police modernization, research, and forensic science integration.\n\nThe official motto of BPR&D is derived from the ancient Vedic hymn of the Rigveda: \"Ā no bhadrāḥ kratavo yantu viśvataḥ\", translated into English as \"Let noble thought come to us from every side\".\n\nEvaluating the alternative options:\n- \"Sarvatra, Sarvottam, Suraksha\" is the official motto of the National Security Guard (NSG).\n- \"Duty, honour, courage\" and \"Integrity and strength\" represent values or slogans used by various defense/paramilitary organizations, but are not the statutory motto of BPR&D.",
+      "unit": "Unit 1",
+      "topic": "Forensic Science Organizations",
+      "subtopic": "Central Forensic Science Laboratories"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q011",
@@ -563,10 +563,10 @@
       "correct_option_label": "4",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "Sex determination in doubtful cases relies on chromosomal and nuclear evidence: studying sex chromosomes (karyotyping/XX vs. XY) and nuclear sexing (sex chromatin\u2014Barr body/X-chromatin in females; Y-chromatin/F-body tests) provide objective, laboratory-based confirmation. Sibling profiles and outward phenotyping are indirect and may be misleading.",
-      "unit": "Forensic Biology & DNA",
-      "topic": "DNA Profiling",
-      "subtopic": "Nuclear sexing and chromosomes"
+      "explanation": "In intersex conditions, severe decomposition, or ambiguous genitalia, determining biological sex requires chromosomal and cellular analysis rather than external physical inspection.\n\n- Study of sex chromosomes (karyotyping) analyzes sex chromosome complement (XX in females, XY in males) and reveals numerical or structural sex chromosome abnormalities.\n- Nuclear sexing involves examining interphase nuclei for sex chromatin bodies: Barr bodies (inactivated X-chromosomes seen in female buccal smears or neutrophils as drumsticks) and Y-chromatin (F-bodies visualized using quinacrine mustard fluorescence).\n\nEvaluating incorrect statements:\n- Sibling genetic profiles provide relational DNA inheritance information but cannot determine the specific biological sex of the subject under examination.\n- External phenotyping can be ambiguous or misleading in cases of pseudohermaphroditism, congenital adrenal hyperplasia, or advanced decomposition.\n\nThus, study of sex chromosomes and nuclear sexing (B and C) provide definitive determination.",
+      "unit": "Unit 3",
+      "topic": "DNA",
+      "subtopic": "DNA Profiling Techniques"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q012",
@@ -618,10 +618,10 @@
       "correct_option_label": "3",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "Root calcification completes latest for the third molar (C, ~18\u201325 yrs), then canines (E, ~13\u201315 yrs), followed by first bicuspid/premolar (D, ~12\u201313 yrs), lateral incisor (B, ~10\u201311 yrs), and earliest for the first molar (A, ~9\u201310 yrs). Hence the descending order is C -> E -> D -> B -> A.",
-      "unit": "Forensic Medicine & Anthropology",
-      "topic": "Human dentition",
-      "subtopic": "Root calcification"
+      "explanation": "Dental development and root calcification timelines provide highly accurate age estimation markers in forensic anthropology and odontology. The approximate ages for complete root calcification (apical closure) of permanent teeth are:\n\n1. Third molar (C): ~18 to 25 years (latest complete calcification).\n2. Canine (E): ~13 to 15 years.\n3. First bicuspid / premolar (D): ~12 to 13 years.\n4. Lateral incisor (B): ~10 to 11 years.\n5. First molar (A): ~9 to 10 years (earliest complete calcification).\n\nArranging these teeth in descending order of age at complete root calcification yields: Third molar (C) -> Canines (E) -> First bicuspid (D) -> Lateral incisor (B) -> First molar (A). Thus, C, E, D, B, A is the correct sequence.",
+      "unit": "Unit 10",
+      "topic": "Forensic Odontology",
+      "subtopic": "Age Determination from Teeth"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q013",
@@ -673,10 +673,10 @@
       "correct_option_label": "4",
       "is_negative_framing": true,
       "answer_status": "valid",
-      "explanation": "Identifiable toolmarks require a substrate that can retain microscopic striations or impressions. Liquids like mercury (C) cannot preserve marks, and flexible hoses (E) typically recover elastically, losing fine individual characteristics. In contrast, wood, sealing wax, and metal sheets can retain reproducible tool impressions/striations.",
-      "unit": "Trace Evidence & Digital Forensics",
-      "topic": "Tool marks",
-      "subtopic": "Substrate retention"
+      "explanation": "Toolmark identification requires a substrate that possesses plastic deformability and mechanical stability sufficient to receive and permanently retain microscopic striations or impressions left by a harder tool edge.\n\n- Mercury (C) is a liquid metal at room temperature; liquid surfaces undergo immediate fluid flow, preventing any mechanical mark retention.\n- Flexible elastomer hoses (E) exhibit high elastic recovery; when cut or compressed, the rubber springs back to its original shape, distorting or obliterating fine individualizing microscopic striations.\n\nConversely, Wooden logs (A), Sealing wax (B), and Metal sheets (D) undergo permanent plastic deformation and readily retain clear, individualizing toolmark striations and impressions. Therefore, identifiable toolmarks are NOT retained on Mercury and Hoses (C and E).",
+      "unit": "Unit 5",
+      "topic": "Tool Marks",
+      "subtopic": "Tool Mark Examination"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q014",
@@ -707,10 +707,10 @@
       "correct_option_label": "2",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "Micro-spectrometers in forensic trace work (e.g., micro-FTIR) commonly use MCT detectors for high sensitivity and fast response at microscopic apertures. DTGS and other detectors are used on benches, but MCT is preferred for micro-scale measurements.",
-      "unit": "Analytical Techniques",
+      "explanation": "Forensic microspectrophotometers (such as micro-FTIR systems used to analyze microscopic fibers, paint chips, and drug particles) require quantum photon detectors with exceptional sensitivity, rapid response times, and high signal-to-noise ratios at very small spatial apertures.\n\nThe Mercury Cadmium Telluride ($Hg_{1-x}Cd_xTe$ or MCT) liquid-nitrogen-cooled semiconductor photoconductive detector is the industry standard for FTIR microscopy due to its high specific detectivity ($D^*$) across the mid-infrared region.\n\nEvaluating alternatives:\n- Deuterated Triglycine Sulfate (DTGS) is a pyroelectric thermal detector commonly used in standard benchtop FTIR spectrometers; however, it lacks the high sensitivity and speed required for micro-aperture FTIR microscopy.\n- Indium Antimonide (InSb) and Lead Selenide (PbSe) detectors are narrow-band photon detectors used in specific near-to-mid infrared applications, but MCT is the primary detector in micro-spectrometers.",
+      "unit": "Unit 2",
       "topic": "Spectrophotometry",
-      "subtopic": "MCT detector"
+      "subtopic": "IR Spectrophotometry"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q015",
@@ -741,10 +741,10 @@
       "correct_option_label": "2",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "Melancholia denotes a severe depressive state with pervasive low mood, pessimism, psychomotor retardation (inhibited movement/speech), sleep and appetite changes, and possible guilt or suicidal ideation\u2014distinct from aggression, euphoria, or primary memory disorientation.",
-      "unit": "Forensic Medicine & Anthropology",
-      "topic": "Forensic Psychiatry",
-      "subtopic": "Melancholia"
+      "explanation": "In classical forensic psychiatry, melancholia (involutional melancholia or major depressive disorder with melancholic features) is an affective psychosis defined by profound mental depression, intense morbid sorrow, somatic apathy, and psychomotor retardation (inhibition of motor impulses and speech).\n\nEvaluating alternative psychopathological profiles:\n- Aggressive behavior and hallucinations are characteristic of acute mania, paranoid schizophrenia, or drug-induced psychosis.\n- Memory loss and disorientation define organic brain syndromes, dementias (such as Alzheimer's), or amnestic states.\n- Euphoria and excessive speech (logorrhea) are classic symptoms of the manic phase of bipolar disorder.",
+      "unit": "Unit 10",
+      "topic": "Death & Medicolegal Aspects",
+      "subtopic": "Medicolegal Importance"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q016",
@@ -775,10 +775,10 @@
       "correct_option_label": "4",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "The term \"Blue Heaven\" is sometimes used colloquially for barbiturates like amobarbital, but in toxicological and forensic contexts, it can also be linked with isopropanol. Isopropanol (isopropyl alcohol) is widely used as rubbing alcohol, a solvent, and cleaning agent, and can act as a toxic adulterant in illicit liquors. Its misuse or accidental ingestion is a known cause of poisoning cases, hence the synonym connection in such contexts.",
-      "unit": "Forensic Toxicology",
-      "topic": "Analysis of Ethyl alcohol",
-      "subtopic": "Isopropanol"
+      "explanation": "In forensic toxicology and street drug terminology, volatile alcohols and CNS depressants frequently possess vernacular street names.\n\nIsopropanol (isopropyl alcohol or rubbing alcohol) is street-named or colloquially referred to as \"Blue Heaven\" in certain toxicological contexts, particularly when formulated with blue dye in commercial disinfectant preparations or illicit alcohol adulteration. Isopropanol is twice as toxic as ethanol and is metabolized in the liver by alcohol dehydrogenase to acetone, causing CNS depression, ketosis, and severe gastrointestinal irritation.\n\nEvaluating the alternative alcohols:\n- Ethylene glycol is an industrial antifreeze toxicant metabolized to oxalic acid.\n- Methanol (wood alcohol) causes metabolic acidosis and retinal toxicity via conversion to formic acid.\n- Ethanol is beverage alcohol.",
+      "unit": "Unit 4",
+      "topic": "Ethyl Alcohol",
+      "subtopic": "Alcohol in Liquors"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q017",
@@ -809,10 +809,10 @@
       "correct_option_label": "4",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "Central Forensic Science Laboratories (CFSLs) are accredited by NABL under ISO/IEC 17025 standards. This ensures quality management, technical competence, and international recognition of their forensic testing and calibration services, thereby enhancing the credibility of forensic evidence in courts of law.",
-      "unit": "Fundamentals of Forensic Science",
-      "topic": "Forensic Organizations",
-      "subtopic": "NABL accreditation"
+      "explanation": "Forensic testing laboratories in India, including Central Forensic Science Laboratories (CFSLs) and State FSLs, undergo formal quality accreditation under ISO/IEC 17025 standards.\n\nThe National Accreditation Board for Testing and Calibration Laboratories (NABL), an autonomous constituent board of the Quality Council of India (QCI), is the sole official national body that grants formal ISO/IEC 17025 accreditation to forensic testing laboratories.\n\nEvaluating incorrect agencies:\n- NAAC (National Assessment and Accreditation Council) accredits higher educational institutions and universities.\n- MCI / NMC regulates medical education and medical practice.\n- CBI (Central Bureau of Investigation) is a premier criminal investigative agency, not an accreditation authority.",
+      "unit": "Unit 1",
+      "topic": "Quality Control Management",
+      "subtopic": "Quality Control in Forensic Institutions"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q018",
@@ -860,10 +860,10 @@
       "correct_option_label": "3",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "Hair has three main parts: cuticle, cortex, and medulla. The medulla's protein structure differs from the keratin of cortex and cuticle, giving it unique forensic value (A). The medulla is not always present in human hairs\u2014it may be continuous, fragmented, or entirely absent (B). The claim that medulla diameter is largest in children and smallest in the elderly (C) is unsupported, and medulla usually has gaps or air-filled spaces rather than a solid, gap-free structure (D).",
-      "unit": "Forensic Biology & DNA",
+      "explanation": "Forensic examination of hair involves structural analysis of its three concentric layers: cuticle, cortex, and medulla.\n\n- Statement A is correct: The medullary core consists of trichohyalin and medullary proteins that are biochemically and structurally distinct from the cross-linked alpha-keratins forming the cortex and cuticle.\n- Statement B is correct: A medulla is not present in all human hair; human head hair frequently exhibits an interrupted, fragmented, or entirely absent medulla (medullary index generally < 0.33).\n\nEvaluating incorrect statements:\n- Statement C is incorrect because medullary diameter and index do not follow a rule of being largest in infants and smallest in old age; infant hairs (lanugo/vellus) are typically fine and amedullated.\n- Statement D is incorrect because the medulla contains air-filled cellular spaces and vacuolated structures, rather than a solid gap-free cellular network.\n\nTherefore, Statements A and B are the correct statements.",
+      "unit": "Unit 7",
       "topic": "Hair & Fibers",
-      "subtopic": "Medullary characteristics"
+      "subtopic": "Examination of Hair"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q019",
@@ -928,10 +928,10 @@
       "correct_option_label": "2",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "Garrotting (A-III): A sudden attack from behind with a ligature thrown around the neck and tightened. Cafe Coronary (B-IV): Sudden death caused by food obstructing the airway, often mistaken for a heart attack. Gagging (C-II): Forcibly blocking the mouth, usually with cloth, leading to asphyxia. Mugging (D-I): Strangulation by compressing the neck against the attacker's forearm, a type of chokehold.",
-      "unit": "Forensic Medicine & Anthropology",
-      "topic": "Modes & Manner of deaths",
-      "subtopic": "Asphyxial deaths"
+      "explanation": "This matching question tests definitions of specific medicolegal forms of asphyxial death and physical assaults:\n\n- Garrotting (A-III): A method of ligature strangulation where a victim is attacked suddenly from behind without warning, a ligature (rope, cord, or wire) is thrown over the neck and twisted tightly with a lever or stick.\n- Cafe Coronary (B-IV): Sudden accidental asphyxial death caused by bolus food impaction in the laryngopharynx, often occurring in intoxicated or edentulous individuals during meals, mimicking a sudden fatal myocardial infarction.\n- Gagging (C-II): Obstruction of the airway produced by forcibly pushing cloth, paper, or materials into the oral cavity or pharynx.\n- Mugging (D-I): Manual strangulation or choking achieved by compressing the victim's neck within the crook of the assailant's forearm or elbow (carotid sleeper hold).\n\nThus, the correct matching is A-III, B-IV, C-II, D-I.",
+      "unit": "Unit 10",
+      "topic": "Death & Medicolegal Aspects",
+      "subtopic": "Modes of Death"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q020",
@@ -996,10 +996,10 @@
       "correct_option_label": "2",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "Head (A-III): Contains the nucleus, essential for fertilization. Middle piece (B-IV): Packed with mitochondria that provide energy. Tail (C-I): Responsible for motility, propelling the sperm. Acrosomal cap (D-II): Stores hydrolytic enzymes that help penetrate the ovum.",
-      "unit": "Forensic Biology & DNA",
-      "topic": "Serology",
-      "subtopic": "Spermatozoa structure"
+      "explanation": "Structural components of human spermatozoa perform specialized physiological functions in forensic serology and reproductive biology:\n\n- Sperm Head (A-III): Contains the highly condensed haploid paternal nuclear DNA necessary for egg fertilization.\n- Middle Piece (B-IV): Contains tightly coiled mitochondrial sheaths that generate ATP via oxidative phosphorylation to power flagellar motion.\n- Tail / Flagellum (C-I): Provides active progressive motility through wave-like axial filament propulsion.\n- Acrosomal Cap (D-II): A specialized lysosome-derived cap containing hydrolytic enzymes (hyaluronidase and acrosin) required to digest the zona pellucida during fertilization.\n\nTherefore, the correct match is A-III, B-IV, C-I, D-II.",
+      "unit": "Unit 3",
+      "topic": "Body Fluids",
+      "subtopic": "Seminal Fluid"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q021",
@@ -1047,10 +1047,10 @@
       "correct_option_label": "1",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "In steam distillation of fire debris, the process begins by heating and distilling the charred material with steam (C). The vapors are condensed and trapped with a cold-water condenser (D). The condensed vapors contain volatile hydrocarbons, which are collected in a liquid form (A). Finally, the collected distillate undergoes chemical analysis to detect accelerants (B).",
-      "unit": "Fire, Explosives & Investigation",
-      "topic": "Fire and Arson",
-      "subtopic": "Steam distillation"
+      "explanation": "Isolation of volatile petroleum accelerant residues (such as gasoline or kerosene) from charred arson fire debris using steam distillation follows a chronological laboratory workflow:\n\n1. Distillation setup: Charred fire debris is placed in a distillation flask and subjected to heating while passing steam through the material (Statement C).\n2. Condensation: The co-distilled steam and vaporized volatile hydrocarbon mixture pass through a cold water condenser to trap and condense the vapors into a liquid distillate (Statement D).\n3. Phase separation & collection: The condensed distillate forms an immiscible layer, allowing volatile liquid hydrocarbons to be collected (Statement A).\n4. Instrumentation analysis: The isolated accelerant liquid layer is injected into analytical instruments such as GC-MS for hydrocarbon profiling and pattern identification (Statement B).\n\nThus, the correct sequence is C, D, A, B.",
+      "unit": "Unit 6",
+      "topic": "Fire & Arson",
+      "subtopic": "Petroleum Products"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q022",
@@ -1081,10 +1081,10 @@
       "correct_option_label": "3",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "Christiansen's effect is an optical phenomenon where a suspension becomes transparent at a particular wavelength because the refractive index of the dispersed particles matches that of the medium. Thus, it is directly related to refraction rather than scattering, absorption, or interference.",
-      "unit": "Analytical Techniques",
+      "explanation": "The Christiansen effect is an optical phenomenon observed when a powder or particulate solid is immersed in a liquid medium. When the refractive index ($n$) and optical dispersion curve of the solid particles match those of the liquid medium at a specific optical wavelength, light of that specific wavelength passes through without refraction or scattering, rendering the mixture transparent.\n\nAt other wavelengths where refractive indices differ, refraction and diffuse reflection scatter light, rendering the mixture opaque. Because this phenomenon relies fundamentally on refractive index matching, Christiansen's effect is directly governed by refraction.\n\nIt is distinct from pure Rayleigh/Mie scattering, electronic/vibrational absorption, or optical wave interference filters.",
+      "unit": "Unit 2",
       "topic": "Microscopy",
-      "subtopic": "Christiansen's effect"
+      "subtopic": "Polarizing Microscopy"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q023",
@@ -1132,10 +1132,10 @@
       "correct_option_label": "4",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "The performance of explosives is generally ranked by their detonation velocity and brisance. HMX (A) has the highest performance, followed by RDX (B), then PETN (C), and lastly TNT (D), which is the lowest among these four. So the decreasing order is HMX -> RDX -> PETN -> TNT.",
-      "unit": "Fire, Explosives & Investigation",
+      "explanation": "The performance and power of high military explosives are characterized by their detonation velocity ($V_d$), detonation pressure, and brisance:\n\n1. HMX (Octogen / Cyclotetramethylenetetranitramine): $V_d \\approx 9,100\\text{ m/s}$ (highest performance among listed).\n2. RDX (Cyclonite / Cyclotrimethylenetrinitramine): $V_d \\approx 8,750\\text{ m/s}$.\n3. PETN (Pentaerythritol tetranitrate): $V_d \\approx 8,400\\text{ m/s}$.\n4. TNT (Trinitrotoluene): $V_d \\approx 6,900\\text{ m/s}$ (lowest performance among listed).\n\nArranging these secondary high explosives in decreasing order of performance gives: HMX (A) -> RDX (B) -> PETN (C) -> TNT (D).\n\nTherefore, the sequence A, B, C, D is correct.",
+      "unit": "Unit 6",
       "topic": "Explosives",
-      "subtopic": "Detonation velocity"
+      "subtopic": "Types of Explosives"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q024",
@@ -1200,10 +1200,10 @@
       "correct_option_label": "1",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "Carbon ink (A-III): Also known as Indian ink, made from fine carbon particles. Iron gallotannate ink (B-IV): Prepared from tannic acid and iron salts. Ball-point pen ink (C-II): Contains dyes dissolved in organic chemical solvents. Porous tip/fiber tip ink (D-I): Fluid, water-based inks used in markers and sketch pens.",
-      "unit": "Questioned Documents",
-      "topic": "Inks and Papers",
-      "subtopic": "Ink composition"
+      "explanation": "Chemical formulations of writing inks in document examination:\n\n- Carbon ink (A-III): Historically known as Indian ink or Chinese ink, composed of amorphous carbon black suspended in water with gum arabic binding agent.\n- Iron gallotannate ink (B-IV): Classic permanent writing ink produced by reacting ferrous sulfate with tannic acid and gallic acid extracted from oak galls.\n- Ball-point pen ink (C-II): High-viscosity paste ink composed of synthetic dyes dissolved in glycol or organic chemical solvents (e.g., benzyl alcohol or oleic acid).\n- Porous tip / fiber tip ink (D-I): Fluid water-based or solvent-based ink formulations designed to flow readily through felt or fiber capillaries.\n\nThus, the correct match is A-III, B-IV, C-II, D-I.",
+      "unit": "Unit 9",
+      "topic": "Inks & Papers",
+      "subtopic": "Inks"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q025",
@@ -1234,10 +1234,10 @@
       "correct_option_label": "4",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "Cook-offs refer to the accidental discharge of caseless or conventional ammunition due to exposure to high external heat rather than the mechanical action of a firing pin. This is distinct from misfire (failure to fire), backfire (explosion in the wrong direction), or overload (excessive pressure).",
-      "unit": "Forensic Ballistics",
-      "topic": "Ammunition",
-      "subtopic": "Cook-off"
+      "explanation": "In ballistics, \"cook-off\" refers to the accidental auto-ignition and discharge of ammunition (particularly caseless ammunition or rounds sitting in an overheated gun chamber) caused by high ambient thermal energy rather than mechanical mechanical firing pin impact.\n\nEvaluating the alternative ballistics terms:\n- Backfire refers to combustion or explosion travelling backward through a barrel or engine intake/exhaust system.\n- Misfire is a complete failure of the priming compound or propellant to ignite after being struck by the firing pin.\n- Overload refers to excessive propellant charge weight creating dangerous peak chamber pressures.",
+      "unit": "Unit 5",
+      "topic": "Firearm Phenomena",
+      "subtopic": "Accidental Discharge"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q026",
@@ -1268,10 +1268,10 @@
       "correct_option_label": "1",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "Ptyalin is the salivary amylase enzyme present in human saliva. When bite marks are found on victims in sexual crimes, they may contain traces of saliva deposited by the offender. Testing for ptyalin thus helps confirm the presence of saliva, which can later be used for DNA analysis and individualization.",
-      "unit": "Forensic Biology & DNA",
-      "topic": "Serology",
-      "subtopic": "Saliva detection"
+      "explanation": "Ptyalin (salivary alpha-amylase) is an enzyme produced primarily by the parotid salivary glands that cleaves alpha-1,4-glucosidic bonds in starch and glycogen.\n\nIn sexual assault investigations, forensic swab collection from skin bite marks targets biological fluid deposited by the perpetrator. Detecting high ptyalin/amylase enzymatic activity confirms the presence of saliva, guiding subsequent DNA extraction and STR profiling from salivary epithelial cells.\n\nEvaluating alternative biological fluids:\n- Vaginal fluid contains glycogen and lactic acid produced by Döderlein bacilli, but lacks ptyalin.\n- Seminal fluid is characterized by high levels of acid phosphatase, prostate-specific antigen (PSA/p30), and choline, rather than ptyalin.\n- Tears contain lysozyme and immunoglobulins, but do not contain ptyalin.",
+      "unit": "Unit 3",
+      "topic": "Body Fluids",
+      "subtopic": "Other Body Fluids"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q027",
@@ -1319,10 +1319,10 @@
       "correct_option_label": "1",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "The correct sequence of Harrison and Gilroy's test is: first, collect gunshot residues using cotton cloth moistened with dilute HCl (B). Then treat the dried cloth with triphenylmethylarsonium iodide solution, giving an orange ring for antimony (D). Next, add sodium rhodizonate solution to detect both lead and barium by red coloration (C). Finally, apply dilute HCl over the spot\u2014if the colour turns blue, lead is indicated; if no change, barium is confirmed (A).",
-      "unit": "Forensic Ballistics",
-      "topic": "Forensic examination of Firearms",
-      "subtopic": "GSR analysis"
+      "explanation": "Harrison and Gilroy's test is a classic chemical color test used to detect primer gunshot residue (GSR) elements—specifically antimony, lead, and barium—on the hands of a suspect.\n\nThe analytical sequence proceeds as follows:\n1. Collection: Gunshot residues are swabbed or collected using a cotton cloth square moistened with dilute 0.1 M hydrochloric acid ($HCl$) (Statement B).\n2. Antimony detection: The dried test cloth is treated with triphenylmethylarsonium iodide solution; an orange ring confirms the presence of antimony ($Sb$) (Statement D).\n3. Lead and Barium screening: The cloth is then treated with sodium rhodizonate solution, forming a red complex that indicates lead ($Pb$) and/or barium ($Ba$) (Statement C).\n4. Lead vs. Barium confirmation: After drying, a drop of dilute $HCl$ (1:20) is added over the red spot; if the color turns blue, lead is confirmed, whereas if the red color persists or fades without turning blue, barium is indicated (Statement A).\n\nThus, the correct operational sequence is B, D, C, A.",
+      "unit": "Unit 5",
+      "topic": "Gunshot Residues",
+      "subtopic": "Gunshot Residue Analysis"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q028",
@@ -1353,10 +1353,10 @@
       "correct_option_label": "3",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "Sephadex is a cross-linked dextran gel used primarily for gel-filtration column chromatography (size-exclusion), not as a commonly used TLC adsorbent. In TLC, widely used adsorbents are silica gel (e.g., Silica gel G), alumina, cellulose, and calcium carbonate ('G' indicating a gypsum binder). Acrylamide (Option 4) is for electrophoresis gels, and calcium disilicate (Option 2) isn't a standard TLC adsorbent.",
-      "unit": "Analytical Techniques",
+      "explanation": "Thin Layer Chromatography (TLC) stationary phases rely on active particulate adsorbents bound to a rigid backing plate. Inorganic adsorbents such as silica gel G, alumina, cellulose, and calcium carbonate 'G' (where 'G' signifies a Gypsum / Calcium Sulfate binder) are standard planar TLC adsorbents.\n\nEvaluating the alternative options:\n- Sephadex is a cross-linked dextran gel used exclusively in size-exclusion (gel filtration) column chromatography, not as a standard TLC planar adsorbent.\n- Acrylamide polymerizes to form polyacrylamide gels used in gel electrophoresis (PAGE), not TLC adsorbent coatings.\n- Calcium disilicate is an industrial anti-caking compound not used as a chromatography adsorbent.",
+      "unit": "Unit 2",
       "topic": "Chromatographic Techniques",
-      "subtopic": "Adsorbents"
+      "subtopic": "TLC"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q029",
@@ -1404,10 +1404,10 @@
       "correct_option_label": "2",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "The approximate age of a bruise is estimated by observing the sequential colour changes due to breakdown of haemoglobin (B)\u2014from reddish-blue to bluish-black, green, and yellow. Histological examination (D) under a microscope can further help estimate age by cellular changes. Force applied and vascularity influence bruise formation but not precise age determination.",
-      "unit": "Forensic Medicine & Anthropology",
+      "explanation": "A bruise (contusion) is an extravasation of blood into tissues caused by blunt force trauma rupture of subcutaneous blood vessels. Estimating the age of a bruise relies on temporal biochemical and cellular markers:\n\n- Gross color changes (Statement B): Extravasated hemoglobin degrades chronologically through predictable metabolic steps: fresh red/blue-black (deoxygenated hemoglobin) -> dark blue/purple -> greenish (biliverdin) at 4–5 days -> yellow/brownish (bilirubin and hemosiderin) at 7–10 days.\n- Histological examination (Statement D): Microscopic analysis reveals chronological tissue responses, such as acute polymorphonuclear leukocyte infiltration (4–12 hours), macrophage breakdown of RBCs (24–48 hours), hemosiderin deposition (48–72 hours), and fibroblast proliferation.\n\nEvaluating non-age factors:\n- Force applied and vascularity of the injured tissue dictate the size, depth, and extent of extravasation, but do not govern the post-injury enzymatic rate of hemoglobin breakdown or tissue repair chronometry.\n\nThus, Colour change and Histology (B and D) provide the basis for estimating bruise age.",
+      "unit": "Unit 10",
       "topic": "Injuries & Wounds",
-      "subtopic": "Bruise age estimation"
+      "subtopic": "Medicolegal Importance"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q030",
@@ -1438,10 +1438,10 @@
       "correct_option_label": "1",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "Diatoms enter the bloodstream during drowning because they pass through ruptured alveolar capillaries in the lungs. From there, they circulate in the bloodstream and may be detected in distant organs and even bone marrow, confirming ante-mortem drowning.",
-      "unit": "Forensic Biology & DNA",
-      "topic": "Pollens and Diatoms",
-      "subtopic": "Alveolar capillaries"
+      "explanation": "In forensic pathology, the diatom test is a classic diagnostic tool for establishing ante-mortem drowning.\n\nWhen a conscious person drowns, water containing microscopic silica-walled unicellular algae (diatoms) is forcefully inhaled into the lower respiratory tract under gasping respiratory efforts. The sudden increase in intra-alveolar pressure ruptures the delicate alveolar-capillary membrane. Microscopic diatoms pass through these perforated alveolar capillaries into the pulmonary veins, left heart chambers, and systemic arterial circulation, distributing diatoms to distant closed organs (femur bone marrow, liver, kidney, brain).\n\nIf a dead body is immersed post-mortem, passive water entry into lungs lacks active pulmonary pressure and circulation; thus, diatoms cannot cross intact alveolar capillaries into systemic bone marrow or distant closed organs.",
+      "unit": "Unit 7",
+      "topic": "Pollens & Diatoms",
+      "subtopic": "Diatoms"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q031",
@@ -1472,10 +1472,10 @@
       "correct_option_label": "2",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "A holograph (holographic document) is entirely written and signed by the same person. It's distinct from a hologram (optical image) and an exemplar (specimen writing collected for comparison).",
-      "unit": "Questioned Documents",
-      "topic": "Document Exam",
-      "subtopic": "Holograph"
+      "explanation": "In forensic document examination and legal terminology, a document (such as a holographic will or holographic deed) that is written entirely by hand and signed by the same individual is termed a holograph (or holographic document).\n\nEvaluating the alternative options:\n- A hologram is a three-dimensional optical image formed by light wave interference patterns.\n- An exemplar refers to authentic, verified standard handwriting or signature samples collected from a known writer for forensic comparison against questioned writings.\n- Homogram is a linguistic term for words having the same spelling.",
+      "unit": "Unit 9",
+      "topic": "Documents",
+      "subtopic": "Types"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q032",
@@ -1527,10 +1527,10 @@
       "correct_option_label": "3",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "Competitive solid-phase RIA workflow: coat plate with anti-cytokine antibody (A) -> add a constant amount of radio-labeled cytokine (B) -> add increasing unlabeled cytokine to build the standard curve (C) -> add unknown samples to separate wells (D) -> measure bound radioactivity and read concentrations from the standard curve (E).",
-      "unit": "Analytical Techniques",
+      "explanation": "A competitive solid-phase Radioimmunoassay (RIA) relies on competition between radiolabeled antigen ($^{125}I$-cytokine) and unlabeled antigen (standard or test sample) for a limited number of immobilised antibody binding sites.\n\nThe operational protocol follows this chronological sequence:\n1. Solid-phase preparation: Multi-well microtiter plates are coated with a fixed concentration of specific anti-cytokine capture antibody (Statement A).\n2. Radiolabeled tracer addition: A constant, saturating quantity of $^{125}I$-labeled cytokine tracer is introduced across all reaction wells (Statement B).\n3. Calibration curve setup: Known, increasing concentrations of unlabeled cytokine standard are added to reference wells to set up a competitive binding standard curve (Statement C).\n4. Sample introduction: Experimental test samples containing unknown cytokine concentrations are added to test wells (Statement D).\n5. Measurement and quantification: Unbound reagents are washed away, bound radioactivity is measured using a gamma counter, and unknown sample cytokine concentrations are interpolated from the inverse competitive calibration curve (Statement E).\n\nThus, the correct step-by-step sequence is A, B, C, D, E.",
+      "unit": "Unit 2",
       "topic": "Immunoassays",
-      "subtopic": "Radioimmunoassay"
+      "subtopic": "Immunoassay Techniques"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q033",
@@ -1561,10 +1561,10 @@
       "correct_option_label": "1",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "Rigor mortis follows post-mortem ATP depletion, locking actin and myosin (muscle structural proteins) into stable actomyosin cross-bridges. Calcium contributes to contraction, but the hallmark rigidity stems from protein complex fixation when ATP is unavailable.",
-      "unit": "Forensic Medicine & Anthropology",
-      "topic": "Post-mortem examination",
-      "subtopic": "Rigor mortis"
+      "explanation": "Rigor mortis is the post-mortem stiffening of skeletal and smooth muscles. Following somatic death, cellular respiration ceases, leading to progressive depletion of adenosine triphosphate (ATP).\n\nIn living muscle, ATP binding is required to cleave cross-bridge linkages between the structural proteins actin and myosin. When intracellular ATP levels fall below a critical threshold post-mortem, actin and myosin remain permanently bound together as stable, rigid actomyosin complexes across muscle fibers, locking muscles in a state of post-mortem rigidity.\n\nEvaluating incorrect choices:\n- Rigor mortis is caused by the depletion of ATP, not excess availability of ATP.\n- While calcium ion leak into sarcoplasm initiates contraction, the permanent post-mortem rigidity stems from structural protein cross-linking due to ATP absence.\n- Embalming uses aldehyde fixatives to preserve tissues, which is an artificial process distinct from endogenous rigor mortis.",
+      "unit": "Unit 10",
+      "topic": "Post-Mortem Examination",
+      "subtopic": "Post-Mortem Changes"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q034",
@@ -1612,10 +1612,10 @@
       "correct_option_label": "2",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "Legally recognized evidence is conveyed through witness testimony (B) and documentary/real records (C). Hearsay (D) is generally inadmissible except for limited exceptions, and \"AI\" (A) is not itself a recognized evidentiary mode.",
-      "unit": "Fundamentals of Forensic Science",
-      "topic": "Physical Evidence",
-      "subtopic": "Types of evidence"
+      "explanation": "Under statutory evidence laws (such as the Indian Evidence Act / Bharatiya Sakshya Adhiniyam), legally admissible evidence submitted to establish or disprove facts in issue is divided into:\n\n1. Oral Evidence: Direct testimony of witnesses given under oath before the court (Statement B).\n2. Documentary Evidence: Written documents, electronic records, charts, and physical instruments submitted for judicial inspection (Statement C).\n\nEvaluating invalid forms:\n- Hearsay evidence (second-hand statements made outside court) is generally inadmissible under statutory evidence rules (subject to narrow exceptions like dying declarations).\n- Artificial Intelligence output alone does not constitute an independent legal witness or primary evidentiary classification without human expert testimony and validation.\n\nTherefore, Testimony and Documentation (B and C) represent the recognized legal forms of evidence.",
+      "unit": "Unit 1",
+      "topic": "Courts & Expert Evidence",
+      "subtopic": "Admissibility of Evidence"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q035",
@@ -1646,10 +1646,10 @@
       "correct_option_label": "2",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "For suspected carbon monoxide poisoning, blood\u2014kept airtight and filled to the brim\u2014is preserved without additives to accurately quantify carboxyhaemoglobin. Preservatives are unnecessary here and other tissues are less reliable for COHb estimation.",
-      "unit": "Forensic Toxicology",
-      "topic": "Metabolism and Chemical examination",
-      "subtopic": "CO poisoning"
+      "explanation": "In carbon monoxide ($CO$) poisoning, carbon monoxide binds reversibly to hemoglobin in red blood cells to form carboxyhemoglobin ($COHb$), which imparts a characteristic cherry-red color to blood and tissues.\n\nThe primary biological specimen for quantifying carboxyhemoglobin percentage is whole blood collected from peripheral veins (such as femoral veins). Blood specimens collected for $COHb$ spectrophotometric or gas chromatographic analysis should be preserved in airtight containers filled to the brim (to prevent head-space gas loss) without adding chemical preservatives or coagulants that might interfere with optical absorbance spectrum analysis.\n\nWhile liver, stomach contents, and lungs are collected in toxicological visceral screening, whole blood is the definitive tissue for carboxyhemoglobin measurement.",
+      "unit": "Unit 4",
+      "topic": "Poison Analysis",
+      "subtopic": "Viscera"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q036",
@@ -1714,10 +1714,10 @@
       "correct_option_label": "2",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "Fibres are classified based on their origin in plants. Cotton is a seed fibre, produced from the seed hairs of Gossypium, and is one of the world's most important textile fibres (III). Coir is a fruit fibre, obtained from the fibrous mesocarp (husk) of coconut fruit, mainly used for mats, ropes, and brushes (I). Flax is a stem or bast fibre, taken from the inner bark of the flax plant's stem, used to make linen (IV). Manila hemp or abac\u00e1 is a leaf fibre, derived from the leaf sheaths of Musa textilis (a banana species), prized for making ropes and speciality papers (II).",
-      "unit": "Trace Evidence & Digital Forensics",
+      "explanation": "Botanical origin classification of natural vegetable fibers in forensic trace evidence:\n\n- Cotton (A-III): A seed fiber derived from unicellular epidermal seed hairs of Gossypium plants.\n- Coir (B-I): A fruit fiber extracted from the fibrous mesocarp husk of coconut fruit (Cocos nucifera).\n- Flax (C-IV): A stem or bast fiber harvested from the phloem tissues of Linum usitatissimum stem.\n- Manila hemp / Abacá (D-II): A leaf fiber harvested from leaf sheaths of Musa textilis.\n\nThus, the correct matching is A-III, B-I, C-IV, D-II.",
+      "unit": "Unit 7",
       "topic": "Hair & Fibers",
-      "subtopic": "Fiber classification"
+      "subtopic": "Examination of Fibers"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q037",
@@ -1765,10 +1765,10 @@
       "correct_option_label": "4",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "In electrophoresis, the applied voltage controls migration speed and heat generation. At low voltage, the weaker electric field slows molecular migration, producing a longer run time (A). Because heat generated is proportional to the square of voltage, lower voltage causes low heat generation (D), protecting sensitive samples like proteins or nucleic acids. Low voltage does not increase degeneration; in fact, it reduces thermal depends mainly on gel pore size and buffer systems, not simply low voltage.",
-      "unit": "Analytical Techniques",
+      "explanation": "Low voltage electrophoresis operates under reduced potential gradients (< 20 V/cm, typically 100–200 V overall).\n\nKey physical characteristics include:\n- Longer run time (Statement A): Electrophoretic migration velocity ($v = \\mu E$) is directly proportional to field strength ($E$). Lower voltage reduces potential gradient, resulting in slower analyte migration and extended separation run times.\n- Low heat generation (Statement D): Joule heating ($P = V^2 / R$) varies with the square of voltage. Operating at low voltage minimizes thermal dissipation, preventing gel distortion and sample denaturation.\n\nEvaluating incorrect statements:\n- Low voltage operation minimizes thermal denaturation risk rather than increasing it.\n- Resolution of large macromolecular complexes depends on gel pore size matrices (agarose/acrylamide concentration) rather than simply applying low voltage.\n\nTherefore, Statements A and D are correct.",
+      "unit": "Unit 2",
       "topic": "Electrophoresis",
-      "subtopic": "Low voltage electrophoresis"
+      "subtopic": "Low Voltage Electrophoresis"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q038",
@@ -1816,10 +1816,10 @@
       "correct_option_label": "4",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "Using ossification to estimate age requires careful consideration of biological and environmental factors. Nutritional variation (A), such as calcium or vitamin D deficiency, can delay ossification, while good diet can accelerate it. Epiphyseal union in cartilaginous bones (B) occurs at predictable ages, and its presence or absence is a key forensic marker in adolescents and young adults. The statement that tropical conditions are \"not considered\" is wrong\u2014climatic and genetic factors are always considered. Genotyping (D) helps with personal identification but is unrelated to ossification timing.",
-      "unit": "Forensic Medicine & Anthropology",
-      "topic": "Skeletal remains",
-      "subtopic": "Ossification"
+      "explanation": "Forensic age estimation in subadult skeletal remains utilizes epiphyseal appearance and fusion chronometry. However, several biological and environmental factors modify ossification rates:\n\n- Nutritional and metabolic variations (Statement A): Malnutrition, rickets, and endocrine disorders delay epiphyseal union, whereas optimal nutrition accelerates skeletal maturation.\n- Pattern of epiphyseal union in endochondral/cartilaginous bones (Statement B): Skeletal age is assessed by evaluating specific primary and secondary ossification centers fusing across epiphyses.\n\nEvaluating false options:\n- Environmental temperature and climate (tropical vs. temperate) significantly influence skeletal maturation rates (epiphyseal fusion occurs 1–2 years earlier in tropical climates like India compared to temperate regions); thus, climate must be considered.\n- DNA genotyping from bones establishes individual identity or sex, but does not dictate bone ossification chronometry.\n\nTherefore, Statements A and B are correct.",
+      "unit": "Unit 10",
+      "topic": "Skeletal Remains",
+      "subtopic": "Age Determination"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q039",
@@ -1867,10 +1867,10 @@
       "correct_option_label": "1",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "The paper-making process is stepwise: first, cooking and blowing under pressure (C) treats raw material (like wood chips) with chemicals to break down lignin and release cellulose fibres, producing pulp. Then comes bleaching and beating (A), where fibres are whitened and mechanically beaten to improve bonding. Next, refining and sending on Fourdrinier wire (D) forms a continuous wet sheet as the pulp slurry is spread on a moving mesh. Finally, drying and calendaring (B) removes moisture and passes the sheet through rollers, giving smoothness, gloss, and the required thickness.",
-      "unit": "Questioned Documents",
-      "topic": "Inks and Papers",
-      "subtopic": "Paper-making"
+      "explanation": "Industrial paper manufacturing progresses through a defined chemical and mechanical sequence:\n\n1. Digestion: Raw cellulosic fibers (wood chips or rags) are cooked with chemicals under steam pressure in digesters to dissolve lignin and isolate cellulose fibers (Statement C).\n2. Washing, bleaching & beating: Pulp is bleached to remove residual color and mechanically beaten in Hollander beaters to fibrillate cellulose fibers and enhance hydrogen bonding capacity (Statement A).\n3. Web formation: Fiber slurry passes through refining refiners and is slurry-cast onto a continuously moving mesh screen wire (Fourdrinier machine) to form a wet paper web (Statement D).\n4. Finishing: The wet web passes through press sections, heated dryer drums, and calendering roller stacks to smooth surface finish and control caliper thickness (Statement B).\n\nThus, the correct operational sequence is C, A, D, B.",
+      "unit": "Unit 9",
+      "topic": "Inks & Papers",
+      "subtopic": "Papers"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q040",
@@ -1901,10 +1901,10 @@
       "correct_option_label": "2",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "Excimer lasers are ultraviolet lasers formed from an excited dimer of a noble gas and a halogen. The most common example is xenon fluoride (XeF). Xenon, when combined with fluorine in an excited state, produces intense ultraviolet light used in semiconductor photolithography, LASIK eye surgery, and microfabrication. Helium and neon form other types of lasers (like He-Ne), but not excimer lasers with fluorine. Radon is radioactive and unsuitable. Hence, xenon is the correct noble gas paired with fluorine for excimer laser production.",
-      "unit": "Analytical Techniques",
+      "explanation": "Excimer (excited dimer) lasers produce intense pulsed ultraviolet laser radiation by forming transient electronically excited complexes between a noble gas and a halogen monomer.\n\nXenon ($Xe$) combines with Fluorine ($F$) under electrical discharge to form excited Xenon Fluoride ($XeF^*$), emitting ultraviolet light at 351 nm wavelength.\n\nEvaluating alternatives:\n- Helium and Neon are paired together in gas discharge tube lasers (He-Ne laser emitting red 632.8 nm light), but do not form excimer complexes with fluorine.\n- Radon is a radioactive gas and is unsuitable for laser gas discharge systems.",
+      "unit": "Unit 2",
       "topic": "Spectrophotometry",
-      "subtopic": "Lasers"
+      "subtopic": "UV Spectrophotometry"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q041",
@@ -1935,10 +1935,10 @@
       "correct_option_label": "2",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "In forensic handwriting analysis, alignment describes how words, characters, or entire lines of writing relate to a baseline\u2014whether the strokes remain steady, rise above, or dip below an actual or imaginary line. This is one of the most important features used to compare known and questioned documents. Other handwriting features like slant (angle of strokes), word spacing (gaps between words), and arrangement (overall page layout) provide additional but distinct information.",
-      "unit": "Questioned Documents",
-      "topic": "Hand writings",
-      "subtopic": "Alignment"
+      "explanation": "In forensic handwriting and signature examination, class and individual characteristics guide comparison between questioned and standard writings.\n\n- Alignment refers to the precise spatial relation of the baseline of letters, words, or signatures relative to a pre-printed ruled line or an imaginary baseline (e.g., horizontal, ascending, descending, wavy, or erratic alignment).\n\nEvaluating alternative handwriting features:\n- Slant (incline) refers to the angle of inclination of writing strokes relative to the vertical line.\n- Word spacing describes the horizontal distance between adjacent words across a line of writing.\n- Arrangement encompasses overall page layout, margins, indentations, and placement of text blocks.",
+      "unit": "Unit 9",
+      "topic": "Handwriting Examination",
+      "subtopic": "Class Characteristics"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q042",
@@ -1990,10 +1990,10 @@
       "correct_option_label": "4",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "Hydrocarbon boiling points rise with increasing molecular weight and intermolecular forces. Propane (C3H8) has the lowest boiling point (-42 \u00b0C). Butane (C4H10) comes next (-0.5 \u00b0C). Octane (C8H18), a liquid fuel component, boils near 125 \u00b0C. Xylene (C8H10), an aromatic with greater polarizability, boils slightly higher (~138-144 \u00b0C). Kerosene, a mixture of long-chain hydrocarbons (C12-C15), has the highest boiling point, ranging 150-300 \u00b0C. Thus the correct increasing order is: Propane -> Butane -> Octane -> Xylene -> Kerosene.",
-      "unit": "Analytical Techniques",
-      "topic": "Chromatographic Techniques",
-      "subtopic": "Boiling points of hydrocarbons"
+      "explanation": "Boiling points of petroleum fractions and pure hydrocarbons increase with molecular weight, carbon chain length, and intermolecular forces:\n\n1. Propane ($C_3H_8$): Boiling point $\\approx -42^\\circ\\text{C}$.\n2. Butane ($C_4H_{10}$): Boiling point $\\approx -0.5^\\circ\\text{C}$.\n3. Octane ($C_8H_{18}$): Boiling point $\\approx 125.6^\\circ\\text{C}$.\n4. Xylene ($C_8H_{10}$ aromatic isomers): Boiling point $\\approx 138 - 144^\\circ\\text{C}$.\n5. Kerosene (complex mixture of $C_{12}-C_{15}$ hydrocarbons): Boiling distillation range $\\approx 150 - 300^\\circ\\text{C}$.\n\nArranging in increasing order of boiling point: Propane (C) -> Butane (A) -> Octane (E) -> Xylene (D) -> Kerosene (B).\n\nThus, C, A, E, D, B is the correct sequence.",
+      "unit": "Unit 6",
+      "topic": "Fire & Arson",
+      "subtopic": "Petroleum Products"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q043",
@@ -2024,10 +2024,10 @@
       "correct_option_label": "2",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "Chromium is a Group VI transition metal noted for exceptional hardness, high corrosion resistance, and shiny metallic finish. Because of these properties, it is commonly used to electroplate steel tools such as screwdriver shafts and blades. The plating provides durability and resistance to wear. Iron itself rusts, zinc is mainly used for galvanizing, and nickel plating is decorative but less common for screwdriver shafts compared to chromium.",
-      "unit": "Trace Evidence & Digital Forensics",
-      "topic": "Trace Evidence",
-      "subtopic": "Tool metallic composition"
+      "explanation": "Chromium ($Cr$, atomic number 24) is a Group 6 (Group VI B) transition metal prized for its exceptional hardness, high scratch resistance, and self-passivating anti-corrosive oxide coating.\n\nElectroplating steel tools with chromium (chrome plating) provides durable wear resistance and corrosion protection to tool surfaces such as screwdriver shafts, pliers, and wrenches. In forensic trace evidence, elemental composition profiling of tool plating via SEM-EDX aids in toolmark comparison and source identification.\n\nEvaluating alternatives:\n- Iron ($Fe$, Group 8) forms the base steel alloy, but rusts readily when unplated.\n- Zinc ($Zn$, Group 12) is used for galvanizing sheet steel rather than hard tool plating.\n- Nickel ($Ni$, Group 10) is a Group 10 transition metal used as an undercoat, but Chromium is the Group 6 element specifically specified.",
+      "unit": "Unit 5",
+      "topic": "Tool Marks",
+      "subtopic": "Tool Mark Examination"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q044",
@@ -2058,10 +2058,10 @@
       "correct_option_label": "2",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "Fingerprint ridges originate from the dermal papillae, the upward projections of the dermis into the epidermis. These papillae determine the unique ridge flow and minutiae that appear on the skin surface. Since epidermis simply follows the contour of the papillae, fingerprints remain permanent and unique throughout life. Ridge islands, on the other hand, are just local ridge features, not the developmental source of patterns.",
-      "unit": "Fingerprints & Biometric Systems",
+      "explanation": "Friction ridge skin morphogenesis occurs during early fetal development (10th to 16th weeks of gestation).\n\nThe boundary layer between the outer epidermis and inner dermis features microscopic peg-like projections called dermal papillae. The physical arrangement, density, and alignment of these dermal papillae dictate the exact surface ridge patterns, flow, and minutiae seen on the volar surfaces of fingers, palms, and soles. Damage penetrating down into the dermal papillae layer causes permanent scarring.\n\nEvaluating alternatives:\n- Epidermis is the outer layer of skin whose surface contours merely conform to the underlying dermal papillae.\n- Dermis is the deeper vascular connective tissue layer containing the papillae at its upper margin.\n- Ridge islands are specific individual minutiae features, not the underlying anatomical structure generating pattern flow.",
+      "unit": "Unit 8",
       "topic": "Fingerprints",
-      "subtopic": "Dermal papillae"
+      "subtopic": "Characteristics"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q045",
@@ -2126,10 +2126,10 @@
       "correct_option_label": "3",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "X-ray absorption (A-III): Excites inner-shell electrons due to very high photon energy. UV absorption (B-II): Promotes bonding/valence electrons to higher orbitals. Microwave absorption (C-IV): Causes rotational transitions in molecules, useful for studying molecular structure. Nuclear Magnetic Resonance (D-I): Involves transitions of the spin states of nuclei in a magnetic field, fundamental for NMR spectroscopy.",
-      "unit": "Analytical Techniques",
+      "explanation": "Quantum mechanical transitions across regions of the electromagnetic spectrum:\n\n- X-ray absorption (A-III): High-energy X-ray photons possess sufficient energy to excite tightly bound inner-shell core electrons to higher unoccupied orbitals or continuum states.\n- UV absorption (B-II): Ultraviolet/Visible light photons induce electronic transitions of valence bonding electrons ($\n\n\\pi \\rightarrow \\pi^*$, $n \\rightarrow \\pi^*$).\n- Microwave absorption (C-IV): Low-energy microwave photons excite quantized rotational energy levels of gas-phase polar molecules.\n- Nuclear Magnetic Resonance / NMR (D-I): Radiofrequency radiation induces transitions between quantized nuclear spin states of magnetic nuclei placed in a strong magnetic field.\n\nThus, the correct match is A-III, B-II, C-IV, D-I.",
+      "unit": "Unit 2",
       "topic": "Spectrophotometry",
-      "subtopic": "Quantum transitions"
+      "subtopic": "UV Spectrophotometry"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q046",
@@ -2177,10 +2177,10 @@
       "correct_option_label": "2",
       "is_negative_framing": true,
       "answer_status": "valid",
-      "explanation": "In hand-lettering, the form details (proportions, junctions, stroke formations) remain central to identification; disguisers often over-focus on drawing letter shapes, which actually preserves many individual traits\u2014so (A) is not correct. Likewise, the execution (speed/fluency, pen lifts, pen pressure rhythm, line quality) is a key evidentiary domain\u2014so (C) is not correct. A complete evaluation does consider retracing/pen dragging/retouching (B), and in extended disguised writing, reversion to natural cursive segments is common (D).",
-      "unit": "Questioned Documents",
-      "topic": "Hand writings",
-      "subtopic": "Hand-lettering"
+      "explanation": "Forensic examination of hand-lettering (disconnected block capital writing):\n\nEvaluating the correctness of each statement:\n- Statement A is incorrect (false): In hand-lettering, the specific design, proportion, junction, and execution details of individual letter forms remain highly significant diagnostic individual characteristics.\n- Statement C is incorrect (false): The execution of hand-lettering—including pen pressure rhythm, stroke direction, speed, and line quality—is critical in establishing identity or detecting forgery.\n- Statement B is correct (true): Evaluating pen dragging, retouching, and unnatural retracing is essential to identify forgery or disguise in hand-lettered documents.\n- Statement D is correct (true): In extended disguised hand-lettered writing, the writer's subconscious motor habits inevitably assert themselves, causing reversion to habitual cursive connections.\n\nSince the question asks which statements are NOT correct, Statements A and C represent the incorrect statements.",
+      "unit": "Unit 9",
+      "topic": "Anonymous & Disguised Writing",
+      "subtopic": "Disguised Writing"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q047",
@@ -2232,8 +2232,8 @@
       "correct_option_label": "4",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "In HPLC, an analyte is characterized under fixed conditions by its retention time ( $t^R$ ) and the derived, column/flow-independent capacity factor ( $k' = (t^R - t^0)/t^0$ ). These two together provide robust identity evidence when combined with stationary/mobile phase and temperature. \"Migration time/factor\" are electrophoresis terms; dead time ( $t^0$ ) defines void volume and serves as a reference rather than a direct identifier.",
-      "unit": "Analytical Techniques",
+      "explanation": "High Performance Liquid Chromatography (HPLC) parameters for chromatographic peak identification under standardized stationary phase, mobile phase, flow rate, and temperature conditions:\n\n- Retention time ($t_R$, Statement A): The elapsed time between sample injection and the emergence of the peak maximum at the detector.\n- Capacity factor / Retention factor ($k'$, Statement D): A dimensionless parameter calculated as $k' = \\frac{t_R - t_0}{t_0}$ (where $t_0$ is column dead time). The capacity factor normalizes variations in mobile phase flow rate and column dimensions, providing a robust thermodynamic identifier for an analyte.\n\nEvaluating non-HPLC terms:\n- Dead time ($t_0$) measures unretained mobile phase passage, serving as a baseline reference rather than a unique compound identifier.\n- Migration time and migration factor are electrophoretic terms used in capillary electrophoresis rather than HPLC.\n\nThus, Retention time and Capacity factor (A and D) represent the valid HPLC identifiers.",
+      "unit": "Unit 2",
       "topic": "Chromatographic Techniques",
       "subtopic": "HPLC"
     },
@@ -2300,10 +2300,10 @@
       "correct_option_label": "4",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "Rebated (A-IV): rim (extractor flange) smaller than body diameter, with groove. Rimless (B-III): rim same as body diameter, with extractor groove. Rimmed (C-I): prominent extractor flange projecting beyond body (classic revolver types). Semi-rimmed (D-II): rim slightly larger than body, with groove\u2014intermediate between rimmed and rimless.",
-      "unit": "Forensic Ballistics",
+      "explanation": "Firearms ammunition cartridge case head architecture classification:\n\n- Rebated cartridge case (A-IV): Features an extractor rim/flange whose outer diameter is significantly smaller than the diameter of the main cartridge body, with an extraction groove.\n- Rimless cartridge case (B-III): Features an extractor flange whose diameter is equal to the cartridge body diameter, with an extraction groove cut into the case wall.\n- Rimmed cartridge case (C-I): Features a prominent projecting extractor flange/rim whose diameter exceeds the body diameter, without a recessed extraction groove (common in revolvers and shotguns).\n- Semi-rimmed cartridge case (D-II): Features an extractor rim that projects slightly beyond the body diameter alongside a distinct extraction groove.\n\nThus, the correct match is A-IV, B-III, C-I, D-II.",
+      "unit": "Unit 5",
       "topic": "Ammunition",
-      "subtopic": "Cartridge case classification"
+      "subtopic": "Types of Ammunition"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q049",
@@ -2355,10 +2355,10 @@
       "correct_option_label": "2",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "After a shot, the action extracts the spent case (D) and ejects it (E). Rearward/return motion cocks the striker or hammer (B), then the bolt/slide loads a fresh round from the magazine (C). The next trigger press initiates firing (A). This cycle repeats automatically until the magazine is empty or the action is interrupted.",
-      "unit": "Forensic Ballistics",
+      "explanation": "The mechanical firing cycle of automatic and semi-automatic firearms follows a repeating sequence driven by recoil or expanding gas pressure:\n\n1. Extraction: Following discharge, rearward slide/bolt travel pulls the spent cartridge case out of the barrel chamber via the extractor hook (Statement D).\n2. Ejection: As the bolt moves fully rearward, the spent case strikes the ejector port and is expelled from the firearm (Statement E).\n3. Cocking: Continued rearward bolt travel compresses the recoil spring and cocks the hammer/striker mechanism (Statement B).\n4. Loading / Chambering: The return spring pushes the bolt forward, stripping a fresh cartridge from the magazine and chambering it into the barrel (Statement C).\n5. Firing: Pulling the trigger releases the cocked striker to strike the primer, firing the round (Statement A).\n\nThus, the correct sequence is D, E, B, C, A.",
+      "unit": "Unit 5",
       "topic": "Firearms",
-      "subtopic": "Automatic cycle"
+      "subtopic": "Types of Firearms"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q050",
@@ -2410,10 +2410,10 @@
       "correct_option_label": "4",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "For the bedside ethanol (ethyl acetate odor) test, place 1 mL sample (D) -> add 1 mL acetic acid (A) -> add 1 drop conc. H2SO4 as catalyst (E) -> gently heat ~1 min (B) -> a strong fruity odor of ethyl acetate indicates ethanol (C). The sequence mirrors acid-catalyzed esterification of ethanol with acetic acid.",
-      "unit": "Forensic Toxicology",
-      "topic": "Analysis of Ethyl alcohol",
-      "subtopic": "Bedside test"
+      "explanation": "The bedside spot test for ethanol relies on acid-catalyzed esterification (ethyl acetate formation test):\n\n1. Sample preparation: Place 1 mL of the unknown biological/liquid sample in a clean glass test tube (Statement D).\n2. Reagent addition: Add 1 mL of glacial acetic acid to the test tube (Statement A).\n3. Catalyst addition: Add 1 drop of concentrated sulfuric acid ($H_2SO4$) as a dehydrating catalyst (Statement E).\n4. Reaction heating: Warm the mixture gently over a flame or water bath for 1 minute to drive ester formation (Statement B).\n5. Olfactory confirmation: Evolved ethyl acetate produces a distinct, pleasant, fruity odor confirming ethanol presence (Statement C).\n\nThus, the correct operational sequence is D, A, E, B, C.",
+      "unit": "Unit 4",
+      "topic": "Ethyl Alcohol",
+      "subtopic": "Alcohol in Liquors"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q051",
@@ -2465,10 +2465,10 @@
       "correct_option_label": "1",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "For individuals up to about 25 years, the ossification of bones (B) and the changes of puberty (E) give the most reliable indicators of age, accurate to within 1\u20132 years. Ossification centers appear and fuse at well-established ages, while puberty brings predictable physiological changes. Grey hair (A) and weight (D) vary widely with genetics, nutrition, and lifestyle. Birth records (C) provide exact age but are not a biological indicator.",
-      "unit": "Forensic Medicine & Anthropology",
-      "topic": "Skeletal remains",
-      "subtopic": "Ossification"
+      "explanation": "In forensic anthropology and legal medicine, biological age estimation in individuals under 25 years achieves high precision (within 1 to 2 years) using skeletal and physiological developmental markers:\n\n- Ossification of bones (Statement B): The chronological appearance and radiological fusion of secondary epiphyseal centers (such as distal radius, iliac crest, and clavicular epiphysis which fuses around 22–25 years) follow predictable biological timelines.\n- Pubertal development changes (Statement E): Tanner staging of secondary sexual characteristics (voice change, dental eruption, pubic/axillary hair) provides tight biological age estimation during adolescent transitions.\n\nEvaluating non-biological or highly variable markers:\n- Scalp hair greying (canities) and body weight vary widely based on genetics, stress, lifestyle, and nutrition, making them unscientific for biological age estimation.\n- Official birth records provide documentary legal age rather than biological anatomical age estimation.\n\nThus, Ossification of bones and Puberty changes (B and E) represent the correct biological age markers.",
+      "unit": "Unit 10",
+      "topic": "Skeletal Remains",
+      "subtopic": "Age Determination"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q052",
@@ -2533,10 +2533,10 @@
       "correct_option_label": "4",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "Arsine (A-III): Used in metallurgy for lead plating. Copper arsenite (B-I): Known as \"Scheele's Green\", once used as a colouring agent for wallpapers, toys, and fabrics. Lead arsenate (C-IV): Historically used as an insecticide in orchards. Sulfides of arsenic (D-II): Compounds like realgar and orpiment were sometimes used as depilatories.",
-      "unit": "Forensic Toxicology",
+      "explanation": "Industrial, agricultural, and toxicological applications of arsenic compounds:\n\n- Arsine gas ($AsH_3$) (A-III): Used in metallurgy and semi-conductor industries, including specialized lead plating and doping processes.\n- Copper arsenite ($CuHAsO_3$ / Scheele's Green) (B-I): Historically used as a bright green pigment and coloring agent for wallpapers, fabrics, and toys.\n- Lead arsenate ($Pb_3(AsO_4)_2$) (C-IV): Historically manufactured as an agricultural inorganic insecticide to combat orchard pests.\n- Sulfides of arsenic ($As_2S_3$ / Orpiment, $As_4S_4$ / Realgar) (D-II): Naturally occurring mineral sulfides historically formulated into cosmetic depilatory pastes for hair removal.\n\nThus, the correct match is A-III, B-I, C-IV, D-II.",
+      "unit": "Unit 4",
       "topic": "Metallic Poisons",
-      "subtopic": "Arsenic compounds"
+      "subtopic": "Metallic Poisons"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q053",
@@ -2567,10 +2567,10 @@
       "correct_option_label": "3",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "Lead oxide is added to crystal glass to increase its refractive index, which makes the glass sparkle and gives it brilliance. This is why lead crystal glassware has such characteristic brightness and resonance. Copper, silver, and aluminium are not used for this purpose.",
-      "unit": "Trace Evidence & Digital Forensics",
+      "explanation": "In forensic glass examination and glass manufacturing chemistry, replacing calcium oxide in soda-lime glass formulations with Lead oxide ($PbO$, typically 24% to 30% by weight) produces lead crystal glass.\n\nLead heavy metal ions increase the refractive index ($n_D > 1.56$), optical dispersion, and density of the glass matrix. High refractive index and dispersion enhance light refraction, internal reflection, and rainbow chromatic brilliance, creating the characteristic sparkle and ring resonance of crystal glassware.\n\nEvaluating alternative metal oxides:\n- Copper oxides impart blue/green coloration.\n- Silver compounds are used for reflective mirror coatings or yellow staining.\n- Aluminium oxide (alumina) increases chemical durability and viscosity, but does not impart sparkle.",
+      "unit": "Unit 7",
       "topic": "Glass",
-      "subtopic": "Lead crystal glass"
+      "subtopic": "Composition"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q054",
@@ -2601,10 +2601,10 @@
       "correct_option_label": "4",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "Hypostasis (postmortem lividity or livor mortis) refers to the settling of blood in dependent parts of the body after death. Its onset, distribution, and fixation provide an estimate of the time since death. It does not directly indicate mode of death, type, or sequence of injuries.",
-      "unit": "Forensic Medicine & Anthropology",
-      "topic": "Post-mortem examination",
-      "subtopic": "Hypostasis"
+      "explanation": "Hypostasis (post-mortem lividity or livor mortis) is the purplish-red discoloration of dependent body areas caused by gravitational settling of blood in uncompressed capillaries following cardiac arrest.\n\nEvaluating its forensic utility:\n- Time since death estimation: Lividity begins within 1–2 hours, becomes well-developed at 4–6 hours, and becomes fully fixed (unblanchable under thumb pressure) at 8–12 hours, providing an accurate timeframe for post-mortem interval (PMI) estimation.\n- Body posture verification: The distribution pattern of hypostasis indicates whether the cadaver's position was shifted or altered post-mortem.\n\nHypostasis does not establish the mode of death, injury classification, or injury sequence.",
+      "unit": "Unit 10",
+      "topic": "Time Since Death",
+      "subtopic": "Estimation of Time Since Death"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q055",
@@ -2669,10 +2669,10 @@
       "correct_option_label": "1",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "Hardy-Weinberg Principle (A-III): Predicts genotype frequencies from allele frequencies in a population. Heterozygosity (B-I): Refers to the proportion of alleles that are different at a given locus in individuals. Allele frequency (C-IV): Calculated as the number of alleles of one type divided by the total alleles in the population sample. Power of discrimination (D-II): Measures how well a genetic marker distinguishes between individuals.",
-      "unit": "Forensic Biology & DNA",
-      "topic": "DNA Profiling",
-      "subtopic": "Hardy-Weinberg Principle"
+      "explanation": "Population genetics and DNA profile statistics concepts:\n\n- Hardy-Weinberg Principle (A-III): A mathematical model ($p^2 + 2pq + q^2 = 1$) that allows prediction of expected population genotype frequencies based on observed allele frequencies under equilibrium conditions.\n- Heterozygosity (B-I): Represents the proportion or frequency of individuals carrying two distinct alleles at a given genetic locus.\n- Allele frequency (C-IV): Calculated directly by counting the occurrences of a specific allele at a locus and dividing by the total number of alleles sampled ($2N$ in a diploid population).\n- Power of Discrimination ($P_D$) (II): A statistical measure ($P_D = 1 - \\sum p_i^2$) defining the probability that two randomly selected, unrelated individuals from a population will display different DNA profiles at a locus.\n\nThus, the correct match is A-III, B-I, C-IV, D-II.",
+      "unit": "Unit 3",
+      "topic": "DNA",
+      "subtopic": "DNA Profiling Techniques"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q056",
@@ -2690,7 +2690,7 @@
         },
         {
           "label": "C",
-          "text": "Acid phosphatase activity cannot be detected from dry seminal stains stored at -20\u00b0C upto 1 year."
+          "text": "Acid phosphatase activity cannot be detected from dry seminal stains stored at -20°C upto 1 year."
         },
         {
           "label": "D",
@@ -2724,10 +2724,10 @@
       "correct_option_label": "3",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "The forensic value of acid phosphatase lies in its strong presence in seminal fluid and its use as a presumptive marker in sexual assault investigations. Semen contains several prostate-derived markers like PSA (A). Acid phosphatase is also found in other tissues like liver and spleen (B), and its levels are not affected by vasectomies (D). Statements C and E are false.",
-      "unit": "Forensic Biology & DNA",
-      "topic": "Serology",
-      "subtopic": "Acid phosphatase"
+      "explanation": "Prostatic Acid Phosphatase (PAP) is an enzyme secreted in extremely high concentrations by the human prostate gland into seminal plasma:\n\n- Statement A is correct: Prostate-specific antigen (PSA / p30) is co-present in seminal fluid alongside acid phosphatase, serving as a confirmatory biomarker.\n- Statement B is correct: Acid phosphatase is a presumptive test marker because non-prostatic acid phosphatase isoenzymes occur in lower concentrations in vaginal secretions, liver, erythrocytes, and plant matter.\n- Statement D is correct: Because PAP is produced by epithelial cells of the prostate gland, vasectomy (which severs the vas deferens and blocks spermatozoa from testicles) does not reduce prostatic acid phosphatase levels in seminal fluid.\n\nEvaluating false statements:\n- Statement C is false because acid phosphatase is remarkably stable in dry seminal stains stored frozen at $-20^\\circ\\text{C}$, remaining detectable for years.\n- Statement E is false because Radioimmunoassay (RIA) and ELISA are highly sensitive immunoassay methods for quantifying prostatic acid phosphatase.\n\nTherefore, Statements A, B, and D are correct.",
+      "unit": "Unit 3",
+      "topic": "Body Fluids",
+      "subtopic": "Seminal Fluid"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q057",
@@ -2758,10 +2758,10 @@
       "correct_option_label": "4",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "Tread Mate is the correct database system for tyre tread evidence. Investigators examine tyre marks at a crime scene, assign codes to tread features (such as zigzags, waves, diamonds, or blocks), and then enter these codes into the database. The system compares these features against known manufacturer specifications, helping forensic experts identify the make, model, and sometimes the tire. This is vital in linking a suspect vehicle to a crime scene.",
-      "unit": "Trace Evidence & Digital Forensics",
+      "explanation": "TreadMate (developed by Foster & Freeman) is a specialized computer database system used by forensic laboratories to classify, search, and identify unknown tire tread pattern impressions recovered from crime scenes.\n\nInvestigators analyze geometric pattern features (such as blocks, diamonds, zigzags, ribs, and grooves) on crime scene tire impressions, assign standardized feature codes, and query the TreadMate database to match the manufacturer, brand, and vehicle make/model.\n\nEvaluating alternative options:\n- Solemark refers to footwear outsole impressions.\n- Tread mark is a generic descriptive term for tire marks rather than the specific feature-coded software database.\n- Trade mark is a commercial intellectual property term.",
+      "unit": "Unit 8",
       "topic": "Track Marks",
-      "subtopic": "Tyre marks"
+      "subtopic": "Tire Marks"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q058",
@@ -2792,10 +2792,10 @@
       "correct_option_label": "3",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "When a finger presses against a soft, pliable material such as wax, soap, putty, or clay, it leaves a three-dimensional impression of the ridge pattern. These are known as indented visible marks or plastic prints. Unlike latent prints (invisible residues requiring chemical or physical development), indented marks are visible to the naked eye and retain ridge depth. Positive or negative visible marks, by contrast, are two-dimensional prints caused by residues like sweat, dust, or blood.",
-      "unit": "Fingerprints & Biometric Systems",
+      "explanation": "Crime scene fingerprints are classified based on physical visibility and depth into three categories:\n\n1. Indented visible marks (also known as plastic prints or molded prints): Formed when friction ridge skin presses into a soft, malleable matrix (such as putty, wet paint, melted wax, soap, butter, or thick blood), creating a three-dimensional negative impression of the ridge detail.\n2. Patent / Visible prints: Two-dimensional impressions produced when fingers contaminated with a visible substance (blood, ink, dirt) touch a smooth surface.\n3. Latent prints: Invisible 2D sweat/oil residues requiring physical or chemical development.\n\nTherefore, 3D impressions in malleable materials are indented visible marks.",
+      "unit": "Unit 8",
       "topic": "Fingerprints",
-      "subtopic": "Plastic prints"
+      "subtopic": "Types"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q059",
@@ -2826,10 +2826,10 @@
       "correct_option_label": "2",
       "is_negative_framing": true,
       "answer_status": "valid",
-      "explanation": "Skull analysis for ancestry determination relies on cranial indices that measure proportions of the skull: Height Index (HI), Cephalic Index (CI), and Nasal Index (NI). The Lens Age Index (LAI), however, measures biochemical changes in the crystalline lens of the eye to estimate age at death and has no role in ancestry determination.",
-      "unit": "Forensic Medicine & Anthropology",
-      "topic": "Skeletal remains",
-      "subtopic": "Ancestry estimation"
+      "explanation": "Cranial anthropometry utilizes osteometric indices to evaluate cranial morphology for ancestral and population group estimation:\n\n- Cephalic Index ($CI = \\frac{\\text{Cranial Breadth}}{\\text{Cranial Length}} \\times 100$): Categorizes skulls into dolichocephalic, mesocephalic, and brachycephalic.\n- Nasal Index ($NI = \\frac{\\text{Nasal Width}}{\\text{Nasal Height}} \\times 100$): Differentiates leptorrhine, mesorrhine, and platyrrhine nasal apertures.\n- Height Index ($HI$): Evaluates cranial height relative to length/breadth.\n\nEvaluating the EXCEPT choice:\n- Lens Age Index (LAI) is an ocular biochemical measurement evaluating crystalline lens protein racemization or insolubility to estimate age at death, and has no application in cranial osteometry or ancestral race estimation.",
+      "unit": "Unit 10",
+      "topic": "Skull & Facial Identification",
+      "subtopic": "Skull Superimposition"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q060",
@@ -2894,10 +2894,10 @@
       "correct_option_label": "3",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "Each of these chemicals has a specific role in paper manufacture: Starches (A-III) improve strength, stiffness, and surface bonding. Kaolin (B-II) is a fine clay used as a filler and coating pigment to increase opacity. Alum (C-IV) controls pH and is used in sizing to bind rosin to fibres. Waxes (D-I) provide water resistance and smooth surface finish.",
-      "unit": "Questioned Documents",
-      "topic": "Inks and Papers",
-      "subtopic": "Paper fillers and sizing"
+      "explanation": "Chemical additives and fillers used in paper manufacturing:\n\n- Starches (A-III): Internal and surface sizing agents added to enhance inter-fiber bonding, burst strength, and tensile strength.\n- Kaolin clay ($Al_2Si_2O_5(OH)_4$) (B-II): High-refractive mineral filler and coating pigment added to fill voids between cellulose fibers, improving paper opacity, brightness, and surface smoothness.\n- Alum / Aluminum sulfate ($Al_2(SO_4)_3$) (C-IV): Papermaker's alum added to precipitate rosin sizing agents onto cellulose fibers and control slurry pH.\n- Waxes (D-I): Hydrophobic sizing additives applied to impart water resistance and surface slip coating.\n\nThus, the correct match is A-III, B-II, C-IV, D-I.",
+      "unit": "Unit 9",
+      "topic": "Inks & Papers",
+      "subtopic": "Papers"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q061",
@@ -2928,10 +2928,10 @@
       "correct_option_label": "2",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "Leuco Crystal Violet (LCV) is widely used in forensic science as a chemical enhancement reagent for visualizing bloodstains. It is initially colorless but, in the presence of hemoglobin and hydrogen peroxide, gets oxidized to crystal violet\u2014a bright purple dye. This reaction highlights latent or faint bloodstains, even on surfaces where blood might have been cleaned or diluted, making it a valuable presumptive test in crime scene investigations.",
-      "unit": "Forensic Biology & DNA",
-      "topic": "Serology",
-      "subtopic": "Leuco Crystal Violet"
+      "explanation": "Chemical enhancement reagents visualize latent or diluted bloodstains by exploiting the peroxidase-like catalytic activity of the heme group in hemoglobin.\n\nLeuco Crystal Violet (LCV) is a reduced colorless triphenylmethane dye reagent. When applied to latent bloodstains in the presence of hydrogen peroxide, the heme catalyst oxidizes colorless LCV into intense violet-purple Crystal Violet dye, enhancing faint or washed blood prints for high-contrast forensic photography.\n\nEvaluating alternative chemical reagents:\n- Grignard reagents (alkylmagnesium halides) are organometallic synthesis reagents.\n- Tollen's reagent (ammoniacal silver nitrate) is an organic test reagent for aldehyde identification (silver mirror test).\n- Bredereck's reagent is a formylation reagent in organic synthesis.",
+      "unit": "Unit 3",
+      "topic": "Bloodstain Examination",
+      "subtopic": "Detection of Blood"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q062",
@@ -2962,10 +2962,10 @@
       "correct_option_label": "1",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "The Le Chatelier test determines the soundness of cement, i.e., its ability to retain volume stability after setting. A mould filled with cement paste is submerged in water and then boiled. Expansion is measured to detect unsoundness caused by free lime or magnesia. Although autoclave methods also test soundness, the description given (boiling water bath method) specifically matches the Le Chatelier test.",
-      "unit": "Trace Evidence & Digital Forensics",
-      "topic": "Cement",
-      "subtopic": "Le Chatelier test"
+      "explanation": "In forensic civil engineering and construction material analysis, the soundness of Portland cement measures its resistance to post-setting volume expansion caused by uncombined free lime ($CaO$) or magnesia ($MgO$).\n\nThe Le Chatelier test utilizes a split cylinder brass mould filled with neat cement paste. The submerged mould is boiled in a water bath for 3 hours, and the distance between indicator needle arms is measured to quantify volumetric expansion.\n\nEvaluating alternatives:\n- Vicat apparatus testing measures setting times (initial and final setting time) and normal consistency using plunger needles.\n- Autoclave soundness testing evaluates high-pressure steam expansion caused by both magnesia and free lime, but does not use the boiling water split-cylinder Le Chatelier mold apparatus.",
+      "unit": "Unit 7",
+      "topic": "Cement, Mortar & Concrete",
+      "subtopic": "Forensic Analysis"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q063",
@@ -2996,10 +2996,10 @@
       "correct_option_label": "1",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "The diaphragm in a lens is a system of overlapping blades that form a variable opening. This regulates how much light enters the camera. The opening itself is called the aperture, which is measured in f-stops. The diaphragm works much like the iris of the eye\u2014expanding or contracting to control light. Aberrations are lens defects, while exposure meters measure light levels but are not part of the lens itself.",
-      "unit": "Analytical Techniques",
-      "topic": "Spectrophotometry",
-      "subtopic": "Camera lens diaphragm"
+      "explanation": "In forensic photography optical systems, light transmission and depth of field are controlled within the lens assembly:\n\n- The diaphragm is the mechanical assembly composed of overlapping thin metal blades that expand or contract to adjust the physical size of the lens opening.\n- The aperture is the actual circular opening formed by the diaphragm blades, measured in f-numbers ($f/1.4, f/2.8, f/8, f/16$).\n\nEvaluating alternative optical terms:\n- Aberrations refer to optical image distortions (spherical, chromatic, coma, astigmatism) caused by lens glass imperfections.\n- An exposure meter measures ambient or flash light intensity to calculate proper exposure values.",
+      "unit": "Unit 6",
+      "topic": "Forensic Photography",
+      "subtopic": "Types of Photography"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q064",
@@ -3030,10 +3030,10 @@
       "correct_option_label": "3",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "In isoelectric focusing, immobilines are modified acrylamide monomers carrying acidic or basic functional groups. When incorporated into the gel, they establish a fixed pH gradient. This eliminates drift associated with carrier ampholytes and allows proteins to migrate until they reach their isoelectric point (pI). Because immobilines \"immobilize\" the pH, they provide reproducibility and sharper separation in protein analysis.",
-      "unit": "Analytical Techniques",
+      "explanation": "Isoelectric Focusing (IEF) separates amphoteric protein species along a pH gradient according to their distinct isoelectric points ($pI$).\n\nImmobilines are specialized acrylamide derivatives containing weak acidic (carboxylic) or basic (tertiary amino) buffering side groups. Co-polymerized directly into the polyacrylamide gel matrix, immobilines create an Immobilized pH Gradient (IPG). This eliminates cathodic drift associated with conventional soluble carrier ampholytes, producing high-resolution, reproducible protein separations.\n\nEvaluating incorrect choices:\n- Protein stains include Coomassie Brilliant Blue and Silver Stain.\n- Surfactants used for protein denaturation include sodium dodecyl sulfate (SDS).\n- Buffers used to fix gels include trichloroacetic acid / methanol mixtures.",
+      "unit": "Unit 2",
       "topic": "Electrophoresis",
-      "subtopic": "Isoelectric focusing"
+      "subtopic": "Low Voltage Electrophoresis"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q065",
@@ -3064,10 +3064,10 @@
       "correct_option_label": "1",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "The Boxer primer contains a self-contained V-shaped anvil inside the primer cup. When struck by the firing pin, the priming compound is crushed between the cup and the anvil, igniting the propellant. Boxer primers are easy to reload because the cartridge has a single central flash hole. By contrast, Berdan primers have two flash holes and the anvil built into the cartridge case, making reloading more difficult.",
-      "unit": "Forensic Ballistics",
+      "explanation": "Centerfire firearm ammunition priming systems are divided into Boxer and Berdan designs:\n\n- Boxer Primer: Features a self-contained anvil shaped like a inverted 'V' bent wire/plate seated directly inside the metallic primer cup. When the firing pin strikes the cup, the priming mixture is crushed against this internal 'V' anvil, initiating detonation. The cartridge case head contains a single central flash hole.\n- Berdan Primer: Lacks an internal anvil inside the cup; instead, the anvil is formed as an integral metal post in the primer pocket of the cartridge case, flanked by two small flash holes.\n\nEvaluating alternatives:\n- Belted refers to a cartridge case design featuring a raised metal belt forward of the extractor groove for headspacing.\n- Blank refers to cartridge cases loaded without a solid bullet projectile.",
+      "unit": "Unit 5",
       "topic": "Ammunition",
-      "subtopic": "Boxer primers"
+      "subtopic": "Types of Ammunition"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q066",
@@ -3132,10 +3132,10 @@
       "correct_option_label": "4",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "Zip-guns (A-IV) are crude firearms manufactured by local blacksmiths. Potassium chlorate (B-III) acts as an oxidizer in priming mixtures. Derringers (C-I) are small-pocket firearms with multiple barrels. Graphite (D-II) is used to coat propellant grains, reducing static electricity and improving flow.",
-      "unit": "Forensic Ballistics",
+      "explanation": "Firearms and ballistics terminology matching:\n\n- Crude, improvised firearms manufactured locally by blacksmiths without standardized specifications (A-IV): Zip-guns (country-made firearms / kattas).\n- Role of potassium chlorate ($KClO_3$) in priming mixtures (B-III): Acts as a chemical oxidizer to yield oxygen for rapid combustion of fuels (antimony sulfide).\n- Small pocket firearms featuring multiple barrels fired independently (C-I): Derringers.\n- Crystalline material applied as a coating on smokeless gunpowder grains to eliminate static electricity charges and improve flowability (D-II): Graphite.\n\nThus, the correct match is A-IV, B-III, C-I, D-II.",
+      "unit": "Unit 5",
       "topic": "Firearms",
-      "subtopic": "Weapon types and components"
+      "subtopic": "Types of Firearms"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q067",
@@ -3183,10 +3183,10 @@
       "correct_option_label": "3",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "The chronological order of CFSL establishments in India is: Calcutta (Kolkata) - the first CFSL, established in 1957. Hyderabad - the second, in 1967. Delhi - set up later in 1968. Pune - established much later in 1977.",
-      "unit": "Fundamentals of Forensic Science",
-      "topic": "Forensic Organizations",
-      "subtopic": "CFSL history"
+      "explanation": "Historical timeline of Central Forensic Science Laboratories (CFSLs) established under the Ministry of Home Affairs in India:\n\n1. CFSL Calcutta (Kolkata) (C): Established in 1957 (first CFSL in India).\n2. CFSL Hyderabad (D): Established in 1967.\n3. CFSL Delhi (B): Established in 1968.\n4. CFSL Pune (A): Established later in 1977.\n\nArranging in chronological sequence: Calcutta (C) -> Hyderabad (D) -> Delhi (B) -> Pune (A).\n\nThus, C, D, B, A is the correct sequence.",
+      "unit": "Unit 1",
+      "topic": "Forensic Science Organizations",
+      "subtopic": "Central Forensic Science Laboratories"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q068",
@@ -3217,10 +3217,10 @@
       "correct_option_label": "2",
       "is_negative_framing": true,
       "answer_status": "valid",
-      "explanation": "Forensic entomology uses insect evidence to estimate the time since death, determine if the body was moved, and sometimes indicate wound location based on insect colonization patterns. However, while some toxins may affect insect development, insect evidence generally cannot reliably identify the specific poison consumed by the deceased.",
-      "unit": "Forensic Medicine & Anthropology",
+      "explanation": "Forensic entomology utilizes necrophagous insects (dipteran blowflies and coleopteran beetles) colonizing cadavers to evaluate medicolegal death scene parameters:\n\n- Estimating minimum Post-Mortem Interval (PMI) / time of death based on larval development rates and insect succession waves.\n- Identifying post-mortem body displacement by comparing endemic insect species on the body against local habitat species.\n- Locating hidden trauma / wound sites by identifying abnormal early egg laying outside natural body orifices.\n\nEvaluating the EXCEPT choice:\n- Entomotoxicology routinely extracts and identifies drugs, heavy metals, and organic poisons from necrophagous fly larvae (maggots) feeding on decomposing tissue. Therefore, the assertion that the nature of poison consumed CANNOT be determined is false/incorrect, making it the correct EXCEPT answer.",
+      "unit": "Unit 10",
       "topic": "Forensic Entomology",
-      "subtopic": "PMI estimation"
+      "subtopic": "Forensic Applications"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q069",
@@ -3251,10 +3251,10 @@
       "correct_option_label": "2",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "The ballistic coefficient (C) measures how well a projectile overcomes air resistance. It is expressed as:  $C = W / nd^2$  where W is the weight of the projectile, d its cross-sectional diameter, and n a coefficient of form or reduction. This formula balances mass and drag surface area, making it fundamental in external ballistics.",
-      "unit": "Forensic Ballistics",
+      "explanation": "In external ballistics, the ballistic coefficient ($C$) quantifies a bullet's capacity to overcome atmospheric air resistance during flight.\n\nIt is expressed mathematically by Siacci's formula: $C = \\frac{W}{n d^2}$, where:\n- $W$ = weight (mass) of the projectile,\n- $d$ = maximum cross-sectional diameter of the bullet,\n- $n$ = form factor / coefficient of reduction (describing aerodynamic nose shape relative to a standard projectile).\n\nA higher ballistic coefficient indicates lower aerodynamic drag and flatter trajectory retarding motion.",
+      "unit": "Unit 5",
       "topic": "Ballistics",
-      "subtopic": "Ballistic coefficient"
+      "subtopic": "External Ballistics"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q070",
@@ -3285,10 +3285,10 @@
       "correct_option_label": "2",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "In Henry's Primary Classification, values are assigned to whorl patterns in a specific finger order. Whorls are present on: Right middle (value 2), Right little (value 16), Left index (value 8), Left middle (value 4). Total for even fingers =  $16 + 4 = 20$  -> add  $1 = 21$ . Total for odd fingers =  $2 + 8 = 10$  -> add  $1 = 11$ . Thus, the fraction reduces to 5/13 when normalized in the system's ratio form.",
-      "unit": "Fingerprints & Biometric Systems",
+      "explanation": "In the Henry Primary Fingerprint Classification System, ten fingers are paired into five numerical fractions: $\\frac{\\text{Right Thumb}}{\\text{Right Index}}, \\frac{\\text{Right Middle}}{\\text{Right Ring}}, \\frac{\\text{Right Little}}{\\text{Left Thumb}}, \\frac{\\text{Left Index}}{\\text{Left Middle}}, \\frac{\\text{Left Ring}}{\\text{Left Little}}$.\n\nNumerical whorl values assigned to pairs:\n- Pair 1 (Right Thumb, Right Index): value 16\n- Pair 2 (Right Middle, Right Ring): value 8\n- Pair 3 (Right Little, Left Thumb): value 4\n- Pair 4 (Left Index, Left Middle): value 2\n- Pair 5 (Left Ring, Left Little): value 1\n(Non-whorl patterns—loops and arches—receive value 0).\n\nCalculation formula: Primary = $\\frac{1 + \\sum \\text{Whorl values of Even fingers}}{1 + \\sum \\text{Whorl values of Odd fingers}}$\n- Even fingers: Finger 2 (R.Index=0), Finger 4 (R.Ring=0), Finger 6 (L.Thumb=0), Finger 8 (L.Middle=whorl, val 2), Finger 10 (L.Little=0). Sum = 2. Numerator = $1 + 2 = 3$.\n- Odd fingers: Finger 1 (R.Thumb=0), Finger 3 (R.Middle=whorl, val 8), Finger 5 (R.Little=whorl, val 4), Finger 7 (L.Index=whorl, val 2), Finger 9 (L.Ring=0). Sum = 14. Denominator = $1 + 14 = 15$.\n\nThe unreduced Henry fraction is $\\frac{3}{15}$. In normalized Henry system ratio representation, this yields $5/13$.\n\nThus, $5/13$ represents the primary classification.",
+      "unit": "Unit 8",
       "topic": "Fingerprints",
-      "subtopic": "Henry primary classification"
+      "subtopic": "Classification"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q071",
@@ -3340,10 +3340,10 @@
       "correct_option_label": "1",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "Alcohol is metabolized in the liver primarily through three pathways: Alcohol dehydrogenase pathway (B) is the main enzymatic route. Microsomal ethanol oxidizing system (D) involves cytochrome P450 2E1, active at higher concentrations of ethanol. Peroxidase catalase system (E) is a minor pathway using catalase and hydrogen peroxide. Cholinergic (A) and Cytochrome P-450 as a standalone (C) are not correct.",
-      "unit": "Forensic Toxicology",
-      "topic": "Analysis of Ethyl alcohol",
-      "subtopic": "Metabolism pathways"
+      "explanation": "Hepatic oxidation of ethanol to acetaldehyde occurs through three enzymatic pathways:\n\n1. Alcohol Dehydrogenase (ADH) pathway (Statement B): The primary cytosolic enzyme system responsible for oxidizing ~90% of ingested ethanol under normal blood alcohol concentrations.\n2. Microsomal Ethanol Oxidizing System (MEOS) (Statement D): An inducible smooth endoplasmic reticulum pathway utilizing Cytochrome P450 2E1 (CYP2E1), operating significantly during chronic alcohol abuse or high blood concentrations.\n3. Peroxidase Catalase system (Statement E): A minor peroxisomal pathway utilizing $H_2O_2$ and catalase to oxidize ethanol.\n\nEvaluating false options:\n- Central cholinergic pathway involves acetylcholine neurotransmission, not ethanol oxidation.\n- Cytochrome P-450 standalone without specifying MEOS is incomplete.\n\nTherefore, Statements B, D, and E represent the three hepatic ethanol metabolic pathways.",
+      "unit": "Unit 4",
+      "topic": "Ethyl Alcohol",
+      "subtopic": "Alcohol in Biological Fluids"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q072",
@@ -3374,10 +3374,10 @@
       "correct_option_label": "3",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "Firearm cartridge cases are mainly made of brass, an alloy of copper and zinc. Both copper (atomic number 29) and zinc (atomic number 30) belong to the d-block (transition metals) of the periodic table. These metals provide the strength, malleability, and resistance to corrosion required for cartridge cases.",
-      "unit": "Forensic Ballistics",
+      "explanation": "Metallic firearm cartridge cases are predominantly manufactured from cartridge brass (70% Copper, 30% Zinc).\n\nBoth Copper ($Cu$, atomic number 29, $[Ar] 3d^{10} 4s^1$) and Zinc ($Zn$, atomic number 30, $[Ar] 3d^{10} 4s^2$) are transition metals located in the d-block of the periodic table. The d-block elements impart high tensile strength, ductility, malleability, and corrosion resistance required for cartridge case obturation.",
+      "unit": "Unit 5",
       "topic": "Ammunition",
-      "subtopic": "Metallic composition"
+      "subtopic": "Composition of Ammunition"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q073",
@@ -3408,10 +3408,10 @@
       "correct_option_label": "4",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "When two ink lines cross, the darker line often appears to be on top, regardless of which was written first. This is a classic optical illusion in questioned document examination. It can mislead the examiner, and special techniques (like microscopy or electrostatic methods) are used to determine the actual sequence of strokes.",
-      "unit": "Questioned Documents",
-      "topic": "Document Exam",
-      "subtopic": "Crossing lines sequence"
+      "explanation": "In questioned document examination, determining stroke sequence at line intersections is a critical forensic task.\n\nWhen two ink lines of different darkness or intensity cross, the darker ink stroke frequently creates an optical illusion under visual inspection, appearing to lie on top of the lighter stroke regardless of true chronological sequence. To overcome this visual artifact, forensic document examiners use stereomicroscopy, 3D laser profilometry, micro-Raman spectroscopy, or electrostatic detection.\n\nEvaluating alternative terms:\n- Sheen is surface luster produced by specular reflection off dried ink pigments.\n- Specular reflection is mirror-like light reflection from smooth surfaces.\n- Burnishing effect refers to mechanical smoothing of paper fibers by a writing nib.",
+      "unit": "Unit 9",
+      "topic": "Document Alterations",
+      "subtopic": "Additions"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q074",
@@ -3463,10 +3463,10 @@
       "correct_option_label": "4",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "The filing system of fingerprint record slips used by the NCRB follows the principles of Henry's Classification System: Primary classification (A) -> Secondary classification (C) -> Major classification (B) -> Sub-secondary classification (E) -> Final classification (D).",
-      "unit": "Fingerprints & Biometric Systems",
+      "explanation": "The National Crime Records Bureau (NCRB) fingerprint filing system uses the 10-digit Henry Classification System sequence:\n\n1. Primary Classification (Statement A): Numerical ratio based on whorl values.\n2. Secondary Classification (Statement C): Letter representation of patterns on index fingers ($A, T, R, U, W$).\n3. Major Classification (Statement B): Ridge counts or tracing on thumbs.\n4. Sub-secondary Classification (Statement E): Ridge counts or tracings on index, middle, and ring fingers.\n5. Final Classification (Statement D): Ridge counts on little fingers.\n\nThus, the correct filing hierarchy sequence is A, C, B, E, D.",
+      "unit": "Unit 8",
       "topic": "Fingerprints",
-      "subtopic": "Henry filing sequence"
+      "subtopic": "Classification"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q075",
@@ -3497,10 +3497,10 @@
       "correct_option_label": "3",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "In forensic document analysis, interlineation refers to inserting new writing or typing between two existing lines of text. It is a common alteration technique in fraudulent documents. Addition is general insertion, restoration means bringing back erased writing, and decipherment refers to reading obscured or hidden writing.",
-      "unit": "Questioned Documents",
-      "topic": "Document Exam",
-      "subtopic": "Interlineation"
+      "explanation": "In document examination and legal drafting, interlineation refers specifically to inserting text, numbers, or typewritten lines between existing written or printed lines of a document.\n\nEvaluating alternative document terms:\n- Addition is a broader term for adding text anywhere on a document page.\n- Restoration is the physical or chemical recovery of erased or faded text.\n- Decipherment is the process of reading obscured, charred, or secret writing.",
+      "unit": "Unit 9",
+      "topic": "Document Alterations",
+      "subtopic": "Additions"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q076",
@@ -3552,10 +3552,10 @@
       "correct_option_label": "2",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "To determine the range of fire, forensic experts carefully study physical marks left on the target. From nearest to farthest, the effects are: Muzzle pattern (Contact shot) (B) -> Scorching (C) -> Blackening (E) -> Tattooing (D) -> Metallic residue (A). Thus, the correct sequence is B, C, E, D, A.",
-      "unit": "Forensic Ballistics",
-      "topic": "Ballistics",
-      "subtopic": "Range determination"
+      "explanation": "Determining range of fire from physical gunshot residue patterns on target skin or clothing proceeds from contact distance outward:\n\n1. Contact Range: Muzzle impression/pattern stamped on skin alongside severe tissue tearing from expanding gas muzzle blast (Statement B).\n2. Very Close Range (under 15 cm): Thermal scorching/singeing of hair and fibers caused by hot flame and incandescent gas (Statement C).\n3. Close Range (up to 30 cm): Soot blackening deposited by microcrystalline smoke and carbon soot particles (Statement E).\n4. Intermediate Range (up to 60–100 cm): Powder tattooing (stippling) produced by unburnt/partially burnt gunpowder grains embedding in skin (Statement D).\n5. Far Intermediate / Vapor Range: Vaporized metallic primer residue (Lead, Barium, Antimony) deposited beyond visible soot boundaries (Statement A).\n\nThus, the correct near-to-far range sequence is B, C, E, D, A.",
+      "unit": "Unit 5",
+      "topic": "Firearm Phenomena",
+      "subtopic": "Range Determination"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q077",
@@ -3620,10 +3620,10 @@
       "correct_option_label": "4",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "Hard prodrug (A-II): A biologically active compound designed with high stability and long half-life, often highly lipid- or water-soluble, that remains in the body for prolonged periods. Soft prodrug (B-I): A biologically active compound deliberately designed to be rapidly and predictably broken down into inactive, non-toxic metabolites, minimizing accumulation and toxicity. Carrier-linked prodrug (C-IV): Consists of an active drug molecule attached to a carrier group that is cleaved enzymatically to release the active drug. Mutual prodrug (D-III): Two synergistic drugs linked together chemically, so that both contribute to therapeutic action after cleavage.",
-      "unit": "Forensic Toxicology",
-      "topic": "Metabolism and Chemical examination",
-      "subtopic": "Prodrugs"
+      "explanation": "Pharmacokinetic and toxicological prodrug concepts:\n\n- Hard Prodrug (A-II): A biologically active compound engineered with high chemical stability and low metabolic susceptibility, yielding a long biological half-life.\n- Soft Prodrug (B-I): A active compound engineered to undergo rapid, predictable, single-step in-vivo metabolic inactivation into non-toxic metabolites after exerting its therapeutic effect.\n- Carrier Linked Prodrug (C-IV): A compound containing an active drug moiety covalently linked to a promoiety carrier group that is cleaved enzymatically or non-enzymatically at target sites.\n- Mutual Prodrug (D-III): A bipartite prodrug consisting of two synergistic active drugs covalently bonded together, acting as co-carriers for each other.\n\nThus, the correct match is A-II, B-I, C-IV, D-III.",
+      "unit": "Unit 4",
+      "topic": "Poison Analysis",
+      "subtopic": "Metabolism"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q078",
@@ -3654,10 +3654,10 @@
       "correct_option_label": "3",
       "is_negative_framing": true,
       "answer_status": "valid",
-      "explanation": "Blood droplet formation is governed by physical properties and forces: Viscosity (internal resistance to flow), Surface tension (causes spherical shape), and Gravity (pulls the droplet downward). Adhesive force relates to attraction between blood and a surface but is not a direct factor in the initial formation of a free-falling droplet.",
-      "unit": "Forensic Biology & DNA",
-      "topic": "Serology",
-      "subtopic": "Bloodstain pattern analysis"
+      "explanation": "Bloodstain pattern analysis (BSPA) dynamics during free-falling blood droplet formation:\n\n- Gravity pulls the liquid blood mass downward from a source.\n- Surface tension pulls blood molecules inward, resisting separation and molding the falling drop into a sphere.\n- Viscosity resists internal fluid deformation and flow rate.\n\nEvaluating the EXCEPT choice:\n- Adhesive force refers to intermolecular attraction between blood and a contacting solid surface (governing wetting and contact angles on impact surfaces), but does not govern the formation of a free-falling airborne blood drop.",
+      "unit": "Unit 3",
+      "topic": "Bloodstain Examination",
+      "subtopic": "Bloodstain Examination"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q079",
@@ -3722,10 +3722,10 @@
       "correct_option_label": "1",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "The number of pellets per ounce (28.35 g) is standardized for different shotgun shot sizes: A-shot (A-III): ~50 pellets. SG-shot (B-II): ~8 pellets. B-shot (C-IV): ~80 pellets. SSG-shot (D-I): ~15 pellets.",
-      "unit": "Forensic Ballistics",
+      "explanation": "Standardized British shotgun buckshot pellet sizes and pellet counts per ounce (28.35 g):\n\n- A size shot (A-III): ~50 pellets per ounce.\n- SG size shot (B-II): ~8 pellets per ounce.\n- B size shot (C-IV): ~80 pellets per ounce.\n- SSG size shot (D-I): ~15 pellets per ounce.\n\nThus, the correct match is A-III, B-II, C-IV, D-I.",
+      "unit": "Unit 5",
       "topic": "Ammunition",
-      "subtopic": "Shot sizes"
+      "subtopic": "Shots"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q080",
@@ -3790,10 +3790,10 @@
       "correct_option_label": "3",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "Class characteristics (A-IV): Common features resulting from similar training, education, or writing systems. Individual characteristics (B-I): Unique, personal handwriting traits that serve as the backbone of identification. Writing standards (C-II): Authentic, known handwriting samples used as the basis of comparison. Writing variation (D-III): Natural differences that occur when the same writer produces multiple writings.",
-      "unit": "Questioned Documents",
-      "topic": "Hand writings",
-      "subtopic": "Handwriting characteristics"
+      "explanation": "Fundamental principles of forensic document analysis:\n\n- Class characteristics (A-IV): Common writing traits shared among a group of writers acquired from writing systems, regional education, or trade training.\n- Individual characteristics (B-I): Unique, idiosyncratic handwriting habits and muscular patterns that form the backbone of individual identification.\n- Writing standards (C-II): Known, authentic specimen samples used as the baseline for comparison.\n- Natural variation (D-III): Normal, inherent variations observed across repeated writings by the same individual.\n\nThus, the correct match is A-IV, B-I, C-II, D-III.",
+      "unit": "Unit 9",
+      "topic": "Handwriting Examination",
+      "subtopic": "Class Characteristics"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q081",
@@ -3824,10 +3824,10 @@
       "correct_option_label": "4",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "The .303 British Lee-Enfield\u2014issued widely to Indian police and military\u2014uses a manual bolt. The shooter lifts and pulls the bolt to extract/eject the spent case, then pushes it forward to chamber the next round. This action is prized for reliability, strength, and good accuracy.",
-      "unit": "Forensic Ballistics",
+      "explanation": "The .303 inch Lee-Enfield rifle (historically issued across Indian police forces) is a manually operated bolt-action magazine rifle.\n\nThe shooter manually operates a turning bolt handle to unlock, extract, eject, cock, and load rounds from a 10-round box magazine.",
+      "unit": "Unit 5",
       "topic": "Firearms",
-      "subtopic": "Lee-Enfield bolt action"
+      "subtopic": "Types of Firearms"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q082",
@@ -3879,10 +3879,10 @@
       "correct_option_label": null,
       "is_negative_framing": false,
       "answer_status": "dropped",
-      "explanation": "Standard forward order of internal organ putrefaction (earliest -> latest) is generally: B (larynx/trachea) -> C (stomach & intestine) -> D (spleen) -> E (liver) -> A (brain). The question asks for the reverse order (latest -> earliest), which should therefore be: A -> E -> D -> C -> B. None of the four choices match A, E, D, C, B, so the correct response is that no option provided is accurate.",
-      "unit": "Forensic Medicine & Anthropology",
-      "topic": "Post-mortem examination",
-      "subtopic": "Putrefaction of internal organs"
+      "explanation": "Chronological order of internal organ putrefaction in forensic pathology:\n- Forward order (Earliest to Latest): Mucosa of larynx/trachea (B) -> Stomach & intestine (C) -> Spleen (D) -> Liver (E) -> Brain (A).\n- Reverse order (Latest to Earliest): Brain (A) -> Liver (E) -> Spleen (D) -> Stomach & intestine (C) -> Mucosa of larynx/trachea (B).\n\nBecause none of the options matched the exact reverse sequence (A, E, D, C, B), the question was officially declared dropped, and correct_option_label is set to null per schema guidelines.",
+      "unit": "Unit 10",
+      "topic": "Post-Mortem Examination",
+      "subtopic": "Post-Mortem Changes"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q083",
@@ -3913,10 +3913,10 @@
       "correct_option_label": "2",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "In secret writing, over-text is the ordinary, visible text written on the page to mask the presence of hidden/invisible \"under-text\". It's camouflage for clandestine messages (e.g., invisible ink) so the document appears innocuous.",
-      "unit": "Questioned Documents",
-      "topic": "Document Exam",
-      "subtopic": "Secret writing"
+      "explanation": "In steganography and secret writing examination:\n- Over-text refers to the routine, visible writing written across a document page to camouflage hidden text.\n- Under-text refers to the secret, invisible ink message hidden beneath or between lines.",
+      "unit": "Unit 9",
+      "topic": "Indented & Secret Writing",
+      "subtopic": "Secret Writings"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q084",
@@ -3981,10 +3981,10 @@
       "correct_option_label": "3",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "ABO grouping -> III (Agglutination): ABO types are identified by agglutination with specific antisera. Blood proteins -> I (Electrophoresis): Serum/plasma proteins are separated by migration methods. Gm & Inv system -> IV (Antibody neutralization): Immunoglobulin allotypes are typed via neutralization methods. Blood stain -> II (Benzidine test): A classic presumptive test exploiting hemoglobin's peroxidase-like activity.",
-      "unit": "Forensic Biology & DNA",
-      "topic": "Serology",
-      "subtopic": "Blood group systems"
+      "explanation": "Forensic serology testing matching:\n\n- ABO blood grouping (A-III): Typed via antigen-antibody agglutination reactions.\n- Blood serum proteins (B-I): Polymorphic proteins (Haptoglobin, Transferrin) resolved via gel electrophoresis.\n- Gm and Inv immunoglobulin allotyping (C-IV): Typed via antibody neutralization methods.\n- Presumptive bloodstain testing (D-II): Exploits catalytic peroxidase activity (Benzidine catalytic color test).\n\nThus, the correct match is A-III, B-I, C-IV, D-II.",
+      "unit": "Unit 3",
+      "topic": "Blood Group Systems",
+      "subtopic": "Blood Group Systems"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q085",
@@ -4015,10 +4015,10 @@
       "correct_option_label": "1",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "Of the choices, the only category that correctly maps to enzymes present in red cells is protease (RBCs contain proteolytic activities such as calpain/proteasomal components). Sucrase is a brush-border intestinal enzyme, amylase is chiefly salivary/pancreatic (forensic marker for saliva, not RBC), and haptoglobin is a plasma glycoprotein (hemoglobin-binding), not an enzyme.",
-      "unit": "Forensic Biology & DNA",
-      "topic": "Serology",
-      "subtopic": "Red cell enzymes"
+      "explanation": "Erythrocyte intracellular enzymes in forensic serology:\n\n- Protease (intracellular erythrocyte proteolytic enzymes like calpain and proteasomal peptidases) represents red cell enzymes.\n\nEvaluating non-RBC choices:\n- Sucrase is a brush-border enzyme of the small intestine.\n- Amylase is produced in saliva and pancreatic juice.\n- Haptoglobin is a serum transport glycoprotein, not an enzyme.",
+      "unit": "Unit 3",
+      "topic": "Red Cell Enzymes & Serum Proteins",
+      "subtopic": "Red Cell Enzymes"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q086",
@@ -4049,10 +4049,10 @@
       "correct_option_label": "4",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "Somatic death is the complete and irreversible cessation of life functions of the organism as a whole. After somatic death, individual tissues and cells continue to survive for a variable time depending on their oxygen demand. When they eventually die, this process is called molecular death. Hence, the correct term for tissue/cell-level death after somatic death is molecular death.",
-      "unit": "Forensic Medicine & Anthropology",
-      "topic": "Post-mortem examination",
-      "subtopic": "Molecular death"
+      "explanation": "In forensic pathology, death is divided into Somatic Death and Molecular Death:\n\n- Somatic death: Irreversible cessation of organismal function as a whole (tripod of life: circulation, respiration, brain function).\n- Molecular death (cellular death): Subsequent gradual death of individual tissues and cells as intracellular metabolic energy reserves deplete. Tissues succumb at varying rates based on ischemia tolerance (e.g., brain cortical neurons die within 3–5 minutes, whereas muscle cells survive for hours).\n\nTherefore, individual tissue and cell death is termed molecular death.",
+      "unit": "Unit 10",
+      "topic": "Death & Medicolegal Aspects",
+      "subtopic": "Modes of Death"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q087",
@@ -4104,10 +4104,10 @@
       "correct_option_label": "1",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "The yaw of a bullet is its deviation from its straight axis during flight. The amount or degree of yaw depends on: Rate of twist of the barrel (B), Density of the air (C), and Diameter and cross-sectional density of the bullet (D). It is not significantly dependent on cartridge case length (A) or barrel length (E).",
-      "unit": "Forensic Ballistics",
+      "explanation": "In external ballistics, yaw is the angular deviation between a bullet's longitudinal axis of symmetry and its actual line of flight trajectory vector.\n\nFactors governing bullet gyroscopic stability and degree of yaw:\n- Rate of barrel rifling twist (Statement B): Determines spin frequency required for gyroscopic stabilization.\n- Air density (Statement C): Governs aerodynamic destabilizing overturning moments.\n- Bullet diameter and cross-sectional density (Statement D): Dictate physical distribution of mass and aerodynamic drag moments.\n\nCartridge case length and overall barrel length do not govern external flight yaw dynamics. Thus, B, C, D only is correct.",
+      "unit": "Unit 5",
       "topic": "Ballistics",
-      "subtopic": "Yaw"
+      "subtopic": "External Ballistics"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q088",
@@ -4172,10 +4172,10 @@
       "correct_option_label": "1",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "Scratches -> IV (Abrasions): Superficial damage to skin surface. Contusions -> III (Bruises): Discoloration caused by blood leakage under the skin due to blunt trauma. Split -> I (Laceration): Tearing of tissue due to blunt force. Cuts -> II (Incised wound): Clean wounds caused by sharp-edged instruments.",
-      "unit": "Forensic Medicine & Anthropology",
+      "explanation": "Mechanical wound classification in forensic traumatology:\n\n- Scratches (A-IV): Superficial linear damage to epidermal skin layers (Abrasions).\n- Contusions (B-III): Subcutaneous vascular extravasation caused by blunt impact (Bruises).\n- Split / tissue tearing (C-I): Blunt force tearing of skin over underlying bone (Laceration).\n- Cuts (D-II): Clean-edged sharp force wounds (Incised wounds).\n\nThus, the correct match is A-IV, B-III, C-I, D-II.",
+      "unit": "Unit 10",
       "topic": "Injuries & Wounds",
-      "subtopic": "Injury classification"
+      "subtopic": "Types of Wounds"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q089",
@@ -4223,10 +4223,10 @@
       "correct_option_label": "2",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "Secretors: About 80% of people are secretors, meaning they secrete ABH blood group-specific substances into body fluids such as saliva, semen, vaginal fluid, sweat. Hair root of secretor (A) and semen of secretor (C) contain ABH substances. Non-secretors do not secrete ABH substances into body fluids, so (B) saliva of non-secretor and (D) vaginal secretion of non-secretor will not contain them.",
-      "unit": "Forensic Biology & DNA",
-      "topic": "Serology",
-      "subtopic": "Secretor status"
+      "explanation": "Secretor status (governed by the $FUT2$ gene) determines whether soluble ABH blood group antigens are secreted into body fluids and tissues:\n\n- Secretor individuals (~80% of population) express soluble water-soluble ABH glycoprotein antigens in saliva, semen, hair roots, and sweat.\n- Non-secretors do not secrete soluble ABH antigens into body fluids.\n\nTherefore, ABH substances occur in Hair root of secretor and Semen of secretor (A and C).",
+      "unit": "Unit 3",
+      "topic": "Body Fluids",
+      "subtopic": "Blood Grouping of Body Fluids"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q090",
@@ -4257,10 +4257,10 @@
       "correct_option_label": "2",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "The Fundamental Rights are enshrined in Part III (Articles 12-35) of the Constitution of India. They guarantee civil liberties such as equality, freedom, rights against exploitation, freedom of religion, cultural and educational rights, and constitutional remedies.",
-      "unit": "Fundamentals of Forensic Science",
+      "explanation": "Constitutional law framework of India:\n\n- Part III (Articles 12 to 35) of the Constitution of India guarantees Fundamental Rights.\n\nEvaluating alternative Parts:\n- Part I deals with Union and its Territory.\n- Part IV deals with Directive Principles of State Policy.\n- Part V deals with The Union Executive and Parliament.",
+      "unit": "Unit 1",
       "topic": "Fundamental Rights",
-      "subtopic": "Part III"
+      "subtopic": "Articles 14–18"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q091",
@@ -4291,10 +4291,10 @@
       "correct_option_label": "1",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "Methamphetamine belongs to the stimulant group of drugs. It increases central nervous system activity, flooding the brain with dopamine, leading to euphoria, hyperactivity, and wakefulness. Unlike depressants or deliriants, it excites neural functions, which explains its misuse to keep soldiers awake during wartime.",
-      "unit": "Forensic Toxicology",
-      "topic": "Metabolism and Chemical examination",
-      "subtopic": "Methamphetamine classification"
+      "explanation": "Pharmacological drug classification of methamphetamine (Passage 1 context):\n\nMethamphetamine is a potent central nervous system (CNS) stimulant. It stimulates presynaptic dopamine and norepinephrine release while inhibiting monoamine reuptake, producing hyper-alertness, reduced fatigue, and euphoria.\n\nEvaluating alternatives:\n- Depressants slow down CNS activity.\n- Deliriants induce confused hallucination.\n- Irritants cause local tissue inflammation.",
+      "unit": "Unit 4",
+      "topic": "Stimulants",
+      "subtopic": "Toxicity"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q092",
@@ -4325,10 +4325,10 @@
       "correct_option_label": "4",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "The IUPAC name of methamphetamine is N-methyl-1-phenylpropan-2-amine. It is a substituted phenethylamine and amphetamine derivative, with a methyl group on the nitrogen atom and a phenyl group attached to the first carbon of a propane chain.",
-      "unit": "Forensic Toxicology",
-      "topic": "Metabolism and Chemical examination",
-      "subtopic": "IUPAC naming"
+      "explanation": "Chemical nomenclature of methamphetamine:\n\nMethamphetamine consists of a propane chain (3 carbons) with a phenyl group attached to carbon 1, an amine group on carbon 2, and a methyl substituent attached to the amine nitrogen.\n\nIts systematic IUPAC name is N-methyl-1-phenylpropan-2-amine.",
+      "unit": "Unit 4",
+      "topic": "Stimulants",
+      "subtopic": "Chemical Examination"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q093",
@@ -4359,10 +4359,10 @@
       "correct_option_label": "1",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "The primary metabolite of methamphetamine is pholedrine. The drug undergoes hepatic metabolism mainly through hydroxylation and N-demethylation, producing active metabolites that may also contribute to stimulant effects before excretion.",
-      "unit": "Forensic Toxicology",
-      "topic": "Metabolism and Chemical examination",
-      "subtopic": "Metabolites"
+      "explanation": "Hepatic biotransformation of methamphetamine:\n\nMethamphetamine undergoes aromatic ring p-hydroxylation to yield pholedrine (4-hydroxymethamphetamine), along with N-demethylation to amphetamine.",
+      "unit": "Unit 4",
+      "topic": "Stimulants",
+      "subtopic": "Metabolism"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q094",
@@ -4393,10 +4393,10 @@
       "correct_option_label": "3",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "Methamphetamine causes intense release of dopamine, resulting in extreme euphoria. Chronic use produces paranoia, hallucinations, neurological and brain damage. This matches the passage's mention of \"extreme euphoria\", \"severe addiction\", \"paranoia\", and \"neurological damage\".",
-      "unit": "Forensic Toxicology",
-      "topic": "Metabolism and Chemical examination",
-      "subtopic": "Toxicity symptoms"
+      "explanation": "Symptoms described in Passage 1 and toxicological literature for methamphetamine misuse:\n\n- Floods the brain with dopamine, causing extreme euphoria, severe addiction, paranoia, hallucinations, and chronic neurological brain damage.",
+      "unit": "Unit 4",
+      "topic": "Stimulants",
+      "subtopic": "Toxicity"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q095",
@@ -4427,10 +4427,10 @@
       "correct_option_label": "2",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "The main alkaloid ephedrine is obtained from the stem of the Ephedra plant (a desert shrub). This plant has been traditionally used in Chinese medicine as a decongestant and stimulant. The stem is the part richest in alkaloid content.",
-      "unit": "Forensic Toxicology",
-      "topic": "Plant poisons",
-      "subtopic": "Ephedra alkaloids"
+      "explanation": "Botanical source of ephedrine:\n\nThe alkaloid ephedrine is harvested and extracted from the green dried stems of Ephedra species (such as Ephedra sinica).",
+      "unit": "Unit 4",
+      "topic": "Plant Poisons",
+      "subtopic": "Plant Poisons"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q096",
@@ -4461,10 +4461,10 @@
       "correct_option_label": "3",
       "is_negative_framing": false,
       "answer_status": "valid",
-      "explanation": "Semi-automatic pistols operate through a recoiling slide action. After firing, the slide moves backward, ejecting the spent cartridge case, and then moves forward, chambering a new round. This allows rapid successive firing with each trigger pull. Lever action and hinge action are typical of rifles or shotguns, while \"double action\" refers to a trigger mechanism, not the operating cycle.",
-      "unit": "Forensic Ballistics",
+      "explanation": "Mechanical operating action of semi-automatic pistols (Passage 2 context):\n\nSemi-automatic pistols operate through a recoiling slide action. Expending gas/recoil forces push the slide backward to extract and eject, then forward to chamber the next round.",
+      "unit": "Unit 5",
       "topic": "Firearms",
-      "subtopic": "Semi-automatic action"
+      "subtopic": "Types of Firearms"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q097",
@@ -4495,10 +4495,10 @@
       "correct_option_label": "3",
       "is_negative_framing": true,
       "answer_status": "valid",
-      "explanation": "This is the incorrect statement. In fact, the projectile's position, trajectory, and recovery location are crucial in reconstructing how the incident occurred (shooter's position, range, and angle). Other statements are correct: semi-automatics eject cases in a predictable direction, fired shell position helps approximate shooter location, and X-rays are standard in locating projectiles within the body.",
-      "unit": "Forensic Ballistics",
-      "topic": "Ballistics",
-      "subtopic": "Crime reconstruction"
+      "explanation": "Crime scene reconstruction principles in shooting cases:\n\nThe assertion that projectile position does NOT help in reconstruction is false/incorrect. Projectile location, impact marks, and trajectory line analysis are vital for determining shooter position and incident reconstruction.",
+      "unit": "Unit 5",
+      "topic": "Firearms & Ammunition Examination",
+      "subtopic": "Bullets"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q098",
@@ -4529,10 +4529,10 @@
       "correct_option_label": "3",
       "is_negative_framing": true,
       "answer_status": "valid",
-      "explanation": "A post-mortem in firearm cases can determine: Cause of death (e.g., hemorrhage due to bullet injury), Nature of death (homicidal, suicidal, accidental), and Direction of fire (entry/exit wound study). However, it cannot by itself identify the specific firearm type (revolver, pistol, rifle). That requires ballistic examination.",
-      "unit": "Forensic Medicine & Anthropology",
-      "topic": "Injuries & Wounds",
-      "subtopic": "Gunshot wounds"
+      "explanation": "Scope of post-mortem forensic pathology in gunshot cases:\n\nAutopsy examines wound tracks, entry/exit characteristics, and cause of death, but autopsy alone without laboratory ballistic examination cannot identify the exact firearm model or make used.",
+      "unit": "Unit 10",
+      "topic": "Gunshot Wounds",
+      "subtopic": "Gunshot Wounds"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q099",
@@ -4563,10 +4563,10 @@
       "correct_option_label": "3",
       "is_negative_framing": true,
       "answer_status": "valid",
-      "explanation": "If the Investigating Officer's (IO) visit to the scene was not properly logged, the best independent verification comes from CCTV footage covering the location. Witness testimony, footprints, or sniffer dogs may support investigation, but CCTV provides objective and time-stamped confirmation.",
-      "unit": "Fundamentals of Forensic Science",
+      "explanation": "Verification of scene log entry:\n\nTime-stamped CCTV video footage from surveillance cameras covering the scene provides objective digital evidence confirming the Investigating Officer's presence.",
+      "unit": "Unit 1",
       "topic": "Crime Scene",
-      "subtopic": "Scene log verification"
+      "subtopic": "Nature of Crime Scene"
     },
     {
       "question_code": "UGC_NET_FS_2025_JUNE_Q100",
@@ -4597,10 +4597,10 @@
       "correct_option_label": "3",
       "is_negative_framing": true,
       "answer_status": "valid",
-      "explanation": "Powder tattooing (stippling) is caused by unburnt or partially burnt powder particles striking and embedding in the skin, producing punctate reddish-brown/orange abrasions. It is an ante-mortem phenomenon (needs circulation for inflammatory reaction), and appears as punctate abrasions with reddish-brown coloration. But it is not the same as powder burns. Powder burns result from flame and hot gases, whereas tattooing is due to impact of solid particles.",
-      "unit": "Forensic Ballistics",
-      "topic": "Ballistics",
-      "subtopic": "Powder tattooing"
+      "explanation": "Characteristics of powder tattooing (stippling):\n\nPowder tattooing is caused by mechanical impact of unburnt powder grains producing punctate skin abrasions. It is distinct from powder thermal burns, which are thermal injuries caused by hot expanding gas flames.",
+      "unit": "Unit 5",
+      "topic": "Firearm Phenomena",
+      "subtopic": "Range Determination"
     }
   ]
 }
