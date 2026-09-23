@@ -1,11 +1,11 @@
-import Link from 'next/link'
+import Link from "next/link";
 
-import SiteHeader from '@/components/site-header'
-import SiteFooter from '@/components/site-footer'
+import SiteHeader from "@/components/site-header";
+import SiteFooter from "@/components/site-footer";
 
-import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 import {
   Clock,
@@ -19,120 +19,112 @@ import {
   Brain,
   TrendingUp,
   ListChecks,
-} from 'lucide-react'
+} from "lucide-react";
 
-import { getSupabaseAdmin } from '@/lib/supabase/admin'
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
-export const dynamic = 'force-dynamic'
-export const revalidate = 0
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export const metadata = {
-  title: 'Forensique — UGC NET/JRF Forensic Science Preparation',
+  title: "Forensique — UGC NET/JRF Forensic Science Preparation",
   description:
-    'Prepare for UGC NET/JRF Forensic Science with real CBT practice, previous-year papers, topic-level analytics, custom tests, and syllabus-focused preparation.',
+    "Prepare for UGC NET/JRF Forensic Science with real CBT practice, previous-year papers, topic-level analytics, custom tests, and syllabus-focused preparation.",
   openGraph: {
-    title: 'Forensique — UGC NET/JRF Forensic Science',
+    title: "Forensique — UGC NET/JRF Forensic Science",
     description:
-      'Practice UGC NET/JRF Forensic Science like the real exam. Take previous-year papers, find your weak areas, and build targeted tests.',
-    type: 'website',
+      "Practice UGC NET/JRF Forensic Science like the real exam. Take previous-year papers, find your weak areas, and build targeted tests.",
+    type: "website",
   },
   alternates: {
-    canonical: '/',
+    canonical: "/",
   },
-}
+};
 
 const benefits = [
   {
     icon: ShieldCheck,
-    title: 'Exam-like CBT practice',
-    body:
-      'Practice with a structured computer-based test experience including a timer, question navigation, status tracking, and autosave.',
+    title: "Exam-like CBT practice",
+    body: "Practice with a structured computer-based test experience including a timer, question navigation, status tracking, and autosave.",
   },
   {
     icon: BarChart3,
-    title: 'Know where you are losing marks',
-    body:
-      'Go beyond a single score. Analyse performance across units, topics, and subtopics to understand exactly where you need more practice.',
+    title: "Know where you are losing marks",
+    body: "Go beyond a single score. Analyse performance across units, topics, and subtopics to understand exactly where you need more practice.",
   },
   {
     icon: Sparkles,
-    title: 'Build targeted tests',
-    body:
-      'Choose the areas you want to practise, set your test parameters, and turn weak areas into focused practice sessions.',
+    title: "Build targeted tests",
+    body: "Choose the areas you want to practise, set your test parameters, and turn weak areas into focused practice sessions.",
   },
-]
+];
 
 const workflow = [
   {
-    number: '01',
+    number: "01",
     icon: ListChecks,
-    title: 'Take a real paper',
-    body:
-      'Attempt previous-year Forensic Science papers in a focused CBT environment.',
+    title: "Take a real paper",
+    body: "Attempt previous-year Forensic Science papers in a focused CBT environment.",
   },
   {
-    number: '02',
+    number: "02",
     icon: BarChart3,
-    title: 'Analyse your performance',
-    body:
-      'See your accuracy, time spent, and performance across the syllabus.',
+    title: "Analyse your performance",
+    body: "See your accuracy, time spent, and performance across the syllabus.",
   },
   {
-    number: '03',
+    number: "03",
     icon: Brain,
-    title: 'Find your weak areas',
-    body:
-      'Identify the units, topics, and subtopics that are costing you marks.',
+    title: "Find your weak areas",
+    body: "Identify the units, topics, and subtopics that are costing you marks.",
   },
   {
-    number: '04',
+    number: "04",
     icon: Sparkles,
-    title: 'Build a targeted test',
-    body:
-      'Create a custom test around the areas that need the most attention.',
+    title: "Build a targeted test",
+    body: "Create a custom test around the areas that need the most attention.",
   },
   {
-    number: '05',
+    number: "05",
     icon: TrendingUp,
-    title: 'Practise and improve',
-    body:
-      'Repeat the cycle and turn mistakes into measurable progress.',
+    title: "Practise and improve",
+    body: "Repeat the cycle and turn mistakes into measurable progress.",
   },
-]
+];
 
 const fallbackPreviewQuestion = {
   question_number: 43,
   question_text:
-    'Elements placed in group VI of periodic table consists of transition metals known for their strength and corrosion resistance. Which of the following element from this group is commonly used to plate screwdriver shafts and blades?',
+    "Elements placed in group VI of periodic table consists of transition metals known for their strength and corrosion resistance. Which of the following element from this group is commonly used to plate screwdriver shafts and blades?",
   options: [
-    { option_id: '1', option_text: 'Iron', sort_order: 1 },
-    { option_id: '2', option_text: 'Chromium', sort_order: 2 },
-    { option_id: '3', option_text: 'Zinc', sort_order: 3 },
-    { option_id: '4', option_text: 'Nickel', sort_order: 4 },
+    { option_id: "1", option_text: "Iron", sort_order: 1 },
+    { option_id: "2", option_text: "Chromium", sort_order: 2 },
+    { option_id: "3", option_text: "Zinc", sort_order: 3 },
+    { option_id: "4", option_text: "Nickel", sort_order: 4 },
   ],
-}
+};
 
 async function getPreviewQuestion() {
-  const fallback = fallbackPreviewQuestion
+  const fallback = fallbackPreviewQuestion;
 
   try {
-    const admin = getSupabaseAdmin()
+    const admin = getSupabaseAdmin();
 
     /*
      * The free test is explicitly identified in the Forensique database
      * as UGC_NET_FS_2025_06.
      */
     const { data: test, error: testError } = await admin
-      .from('tests')
-      .select('id, test_id, title, total_questions')
-      .eq('test_id', 'UGC_NET_FS_2025_06')
-      .eq('status', 'published')
-      .eq('is_premium', false)
-      .maybeSingle()
+      .from("tests")
+      .select("id, test_id, title, total_questions")
+      .eq("test_id", "UGC_NET_FS_2025_06")
+      .eq("status", "published")
+      .eq("is_premium", false)
+      .maybeSingle();
 
     if (testError || !test) {
-      console.error('Landing preview test lookup failed:', testError)
-      return fallback
+      console.error("Landing preview test lookup failed:", testError);
+      return fallback;
     }
 
     /*
@@ -143,20 +135,20 @@ async function getPreviewQuestion() {
      * specific random ordering syntax.
      */
     const { data: testQuestions, error: testQuestionsError } = await admin
-      .from('test_questions')
-      .select('question_id, sequence_number')
-      .eq('test_id', test.id)
-      .order('sequence_number', { ascending: true })
+      .from("test_questions")
+      .select("question_id, sequence_number")
+      .eq("test_id", test.id)
+      .order("sequence_number", { ascending: true });
 
     if (testQuestionsError || !testQuestions?.length) {
       console.error(
-        'Landing preview test questions lookup failed:',
-        testQuestionsError
-      )
-      return fallback
+        "Landing preview test questions lookup failed:",
+        testQuestionsError,
+      );
+      return fallback;
     }
 
-    const questionIds = testQuestions.map((row) => row.question_id)
+    const questionIds = testQuestions.map((row) => row.question_id);
 
     /*
      * Use only normal/plain questions for the landing-page preview.
@@ -166,28 +158,25 @@ async function getPreviewQuestion() {
      * four-option MCQs.
      */
     const { data: questions, error: questionsError } = await admin
-      .from('questions')
+      .from("questions")
       .select(
-        'id, question_number, question_text, content_format, status, answer_status'
+        "id, question_number, question_text, content_format, status, answer_status",
       )
-      .in('id', questionIds)
-      .eq('status', 'published')
-      .eq('answer_status', 'valid')
-      .eq('content_format', 'plain')
+      .in("id", questionIds)
+      .eq("status", "published")
+      .eq("answer_status", "valid")
+      .eq("content_format", "plain");
 
     if (questionsError || !questions?.length) {
-      console.error(
-        'Landing preview questions lookup failed:',
-        questionsError
-      )
-      return fallback
+      console.error("Landing preview questions lookup failed:", questionsError);
+      return fallback;
     }
 
     /*
      * Every page request gets a random real question.
      */
     const selectedQuestion =
-      questions[Math.floor(Math.random() * questions.length)]
+      questions[Math.floor(Math.random() * questions.length)];
 
     /*
      * Fetch only the public selectable options.
@@ -196,17 +185,14 @@ async function getPreviewQuestion() {
      * We do NOT fetch the answers table, correct option, or explanation.
      */
     const { data: options, error: optionsError } = await admin
-      .from('question_options')
-      .select('option_id, option_text, sort_order')
-      .eq('question_id', selectedQuestion.id)
-      .order('sort_order', { ascending: true })
+      .from("question_options")
+      .select("option_id, option_text, sort_order")
+      .eq("question_id", selectedQuestion.id)
+      .order("sort_order", { ascending: true });
 
     if (optionsError || !options?.length) {
-      console.error(
-        'Landing preview options lookup failed:',
-        optionsError
-      )
-      return fallback
+      console.error("Landing preview options lookup failed:", optionsError);
+      return fallback;
     }
 
     /*
@@ -216,30 +202,29 @@ async function getPreviewQuestion() {
      */
     if (options.length < 4) {
       console.error(
-        'Landing preview question has fewer than four options:',
-        selectedQuestion.id
-      )
-      return fallback
+        "Landing preview question has fewer than four options:",
+        selectedQuestion.id,
+      );
+      return fallback;
     }
 
     return {
       question_number:
         selectedQuestion.question_number ||
-        testQuestions.find(
-          (row) => row.question_id === selectedQuestion.id
-        )?.sequence_number ||
+        testQuestions.find((row) => row.question_id === selectedQuestion.id)
+          ?.sequence_number ||
         1,
       question_text: selectedQuestion.question_text,
       options: options.slice(0, 4),
-    }
+    };
   } catch (error) {
-    console.error('Landing preview question error:', error)
-    return fallback
+    console.error("Landing preview question error:", error);
+    return fallback;
   }
 }
 
 export default async function LandingPage() {
-  const previewQuestion = await getPreviewQuestion()
+  const previewQuestion = await getPreviewQuestion();
 
   return (
     <>
@@ -256,15 +241,15 @@ export default async function LandingPage() {
             <h1 className="mx-auto max-w-5xl text-4xl font-bold tracking-tight text-balance sm:text-5xl md:text-6xl lg:text-7xl">
               Prepare for UGC NET Forensic Science
               <span className="text-primary">
-                {' '}
+                {" "}
                 like you're taking the real exam.
               </span>
             </h1>
 
             <p className="mx-auto mt-6 max-w-2xl text-base leading-7 text-muted-foreground md:text-lg">
               Practise previous-year papers in a real CBT environment,
-              understand exactly where you are losing marks, and build
-              targeted tests around your weak areas.
+              understand exactly where you are losing marks, and build targeted
+              tests around your weak areas.
             </p>
 
             <div className="mt-6 flex flex-wrap justify-center gap-x-5 gap-y-2 text-sm text-muted-foreground">
@@ -397,10 +382,10 @@ export default async function LandingPage() {
                           key={index}
                           className={`flex h-8 items-center justify-center rounded border text-xs ${
                             index === 14
-                              ? 'border-primary bg-primary text-primary-foreground'
+                              ? "border-primary bg-primary text-primary-foreground"
                               : index < 10
-                                ? 'bg-muted'
-                                : 'bg-background'
+                                ? "bg-muted"
+                                : "bg-background"
                           }`}
                         >
                           {index + 1}
@@ -493,31 +478,29 @@ export default async function LandingPage() {
           </div>
 
           <div className="mx-auto mt-12 grid max-w-6xl gap-4 md:grid-cols-5">
-            {workflow.map(
-              ({ number, icon: Icon, title, body }, index) => (
-                <Card key={number} className="relative">
-                  <CardContent className="pt-6">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-semibold text-muted-foreground">
-                        {number}
-                      </span>
+            {workflow.map(({ number, icon: Icon, title, body }, index) => (
+              <Card key={number} className="relative">
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-muted-foreground">
+                      {number}
+                    </span>
 
-                      <Icon className="h-5 w-5 text-primary" />
-                    </div>
+                    <Icon className="h-5 w-5 text-primary" />
+                  </div>
 
-                    <h3 className="mt-5 font-semibold">{title}</h3>
+                  <h3 className="mt-5 font-semibold">{title}</h3>
 
-                    <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                      {body}
-                    </p>
-                  </CardContent>
+                  <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                    {body}
+                  </p>
+                </CardContent>
 
-                  {index < workflow.length - 1 && (
-                    <ArrowRight className="absolute -right-3 top-1/2 z-10 hidden h-5 w-5 -translate-y-1/2 text-muted-foreground md:block" />
-                  )}
-                </Card>
-              ),
-            )}
+                {index < workflow.length - 1 && (
+                  <ArrowRight className="absolute -right-3 top-1/2 z-10 hidden h-5 w-5 -translate-y-1/2 text-muted-foreground md:block" />
+                )}
+              </Card>
+            ))}
           </div>
         </section>
 
@@ -538,22 +521,19 @@ export default async function LandingPage() {
 
                   <p className="mt-5 max-w-xl leading-7 opacity-85">
                     Forensique is focused specifically on UGC NET/JRF Forensic
-                    Science Paper II. The preparation experience is built
-                    around the way Forensic Science aspirants actually prepare.
+                    Science Paper II. The preparation experience is built around
+                    the way Forensic Science aspirants actually prepare.
                   </p>
                 </div>
 
                 <div className="mt-8 space-y-4">
                   {[
-                    'Previous-year paper practice',
-                    'Exam-focused CBT experience',
-                    'Detailed performance analytics',
-                    'Targeted custom tests',
+                    "Previous-year paper practice",
+                    "Exam-focused CBT experience",
+                    "Detailed performance analytics",
+                    "Targeted custom tests",
                   ].map((item) => (
-                    <div
-                      key={item}
-                      className="flex items-start gap-3 text-sm"
-                    >
+                    <div key={item} className="flex items-start gap-3 text-sm">
                       <Check className="mt-0.5 h-4 w-4 shrink-0" />
                       <span>{item}</span>
                     </div>
@@ -562,11 +542,7 @@ export default async function LandingPage() {
 
                 <div className="mt-auto pt-10">
                   <Link href="/auth?mode=signup">
-                    <Button
-                      size="lg"
-                      variant="secondary"
-                      className="gap-2"
-                    >
+                    <Button size="lg" variant="secondary" className="gap-2">
                       Start free
                       <ArrowRight className="h-4 w-4" />
                     </Button>
@@ -582,7 +558,7 @@ export default async function LandingPage() {
                   </p>
 
                   <h2 className="mt-2 max-w-xl text-3xl font-semibold tracking-tight md:text-4xl">
-                    Everything you need to prepare for ₹149/month.
+                    Everything you need to prepare with flexible pricing.
                   </h2>
 
                   <p className="mt-4 text-muted-foreground">
@@ -615,12 +591,12 @@ export default async function LandingPage() {
 
                     <div className="space-y-3">
                       {[
-                        'Previous-year paper practice',
-                        'Exam-focused CBT experience',
-                        'Detailed performance analytics',
-                        'Unit, topic, and subtopic analysis',
-                        'Custom test builder',
-                        'Unit-wise notes',
+                        "Previous-year paper practice",
+                        "Exam-focused CBT experience",
+                        "Detailed performance analytics",
+                        "Unit, topic, and subtopic analysis",
+                        "Custom test builder",
+                        "Unit-wise notes",
                       ].map((item) => (
                         <div
                           key={item}
@@ -641,8 +617,7 @@ export default async function LandingPage() {
                       </Link>
 
                       <p className="mt-3 text-center text-xs text-muted-foreground">
-                        UPI Autopay available. Cancel anytime from your
-                        dashboard.
+                        ₹149/month recurring or ₹399 one-time for 3 months.
                       </p>
                     </div>
                   </CardContent>
@@ -655,5 +630,5 @@ export default async function LandingPage() {
 
       <SiteFooter />
     </>
-  )
+  );
 }

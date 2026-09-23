@@ -53,6 +53,268 @@ function getRazorpay() {
   });
 }
 
+function getOneTimeAccessDates(plan, paymentCreatedAt) {
+  const numericPaymentCreatedAt = Number(paymentCreatedAt);
+
+  const startedAt =
+    Number.isFinite(numericPaymentCreatedAt) &&
+    numericPaymentCreatedAt > 0
+      ? new Date(numericPaymentCreatedAt * 1000)
+      : new Date();
+
+  if (Number.isNaN(startedAt.getTime())) {
+    throw new Error("Invalid payment creation timestamp.");
+  }
+
+  const durationDays = Number(plan?.duration_days);
+
+  if (!Number.isInteger(durationDays) || durationDays <= 0) {
+    throw new Error("Invalid one-time plan duration.");
+  }
+
+  const expiresAt = new Date(
+    startedAt.getTime() +
+      durationDays * 24 * 60 * 60 * 1000,
+  );
+
+  return {
+    started_at:
+      startedAt.toISOString(),
+
+    expires_at:
+      expiresAt.toISOString(),
+  };
+}
+
+async function activateOneTimeSubscription({
+  admin,
+  subscriptionId,
+  razorpayOrderId,
+  razorpayPaymentId,
+  paymentCreatedAt,
+}) {
+  const {
+    data: subscription,
+    error: subscriptionError,
+  } = await admin
+    .from("subscriptions")
+    .select(
+      "*, plans(id, name, price_paise, duration_days, features, billing_type)",
+    )
+    .eq("id", subscriptionId)
+    .maybeSingle();
+
+  if (subscriptionError) {
+    return {
+      ok: false,
+      status: 500,
+      error:
+        `Unable to load one-time subscription: ${subscriptionError.message}`,
+    };
+  }
+
+  if (!subscription) {
+    return {
+      ok: false,
+      status: 404,
+      error:
+        "One-time subscription record was not found.",
+    };
+  }
+
+  if (
+    subscription.plans?.billing_type !==
+    "one_time"
+  ) {
+    return {
+      ok: false,
+      status: 400,
+      error:
+        "This subscription is not a one-time plan.",
+    };
+  }
+
+  if (
+    subscription.razorpay_order_id !==
+    razorpayOrderId
+  ) {
+    return {
+      ok: false,
+      status: 400,
+      error:
+        "Razorpay Order does not match the stored purchase.",
+    };
+  }
+
+  /*
+   * Idempotency:
+   *
+   * If this same payment already activated this row,
+   * return success without creating another entitlement.
+   */
+  if (
+    subscription.status ===
+    "active"
+  ) {
+    if (
+      subscription.razorpay_payment_id ===
+      razorpayPaymentId
+    ) {
+      return {
+        ok: true,
+        alreadyActive: true,
+        subscription,
+      };
+    }
+
+    return {
+      ok: false,
+      status: 409,
+      error:
+        "This one-time payment has already been processed.",
+    };
+  }
+
+  if (
+    subscription.status !==
+    "created"
+  ) {
+    return {
+      ok: false,
+      status: 409,
+      error:
+        `This one-time payment cannot be activated from status "${subscription.status}".`,
+    };
+  }
+
+  let dates;
+
+  try {
+    dates =
+      getOneTimeAccessDates(
+        subscription.plans,
+        paymentCreatedAt,
+      );
+  } catch (error) {
+    return {
+      ok: false,
+      status: 500,
+      error:
+        error.message,
+    };
+  }
+
+  const {
+    data: updatedSubscription,
+    error: updateError,
+  } = await admin
+    .from("subscriptions")
+    .update({
+      status: "active",
+
+      started_at:
+        dates.started_at,
+
+      expires_at:
+        dates.expires_at,
+
+      cancel_at_period_end:
+        false,
+
+      razorpay_payment_id:
+        razorpayPaymentId,
+
+      updated_at:
+        new Date().toISOString(),
+    })
+    .eq(
+      "id",
+      subscription.id,
+    )
+    .eq(
+      "user_id",
+      subscription.user_id,
+    )
+    .eq(
+      "status",
+      "created",
+    )
+    .eq(
+      "razorpay_order_id",
+      razorpayOrderId,
+    )
+    .select(
+      "*, plans(id, name, price_paise, duration_days, features, billing_type)",
+    )
+    .maybeSingle();
+
+  if (updateError) {
+    return {
+      ok: false,
+      status: 500,
+      error:
+        `Unable to activate subscription: ${updateError.message}`,
+    };
+  }
+
+  /*
+   * Another verification/webhook request may have won
+   * the race. Re-read the row.
+   */
+  if (!updatedSubscription) {
+    const {
+      data: current,
+      error: currentError,
+    } = await admin
+      .from("subscriptions")
+      .select(
+        "*, plans(id, name, price_paise, duration_days, features, billing_type)",
+      )
+      .eq(
+        "id",
+        subscription.id,
+      )
+      .maybeSingle();
+
+    if (currentError) {
+      return {
+        ok: false,
+        status: 500,
+        error:
+          `Unable to confirm subscription activation: ${currentError.message}`,
+      };
+    }
+
+    if (
+      current?.status ===
+        "active" &&
+      current?.razorpay_payment_id ===
+        razorpayPaymentId
+    ) {
+      return {
+        ok: true,
+        alreadyActive: true,
+        subscription:
+          current,
+      };
+    }
+
+    return {
+      ok: false,
+      status: 409,
+      error:
+        "The one-time payment was already processed.",
+    };
+  }
+
+  return {
+    ok: true,
+    alreadyActive: false,
+    subscription:
+      updatedSubscription,
+  };
+}
+
 // ----------------------------------------------------------------------------
 // POST /api/admin/import
 //
@@ -2267,7 +2529,7 @@ async function handleCreateSubscription(request) {
     );
   }
 
-  if (!plan.is_purchasable) {
+   if (!plan.is_purchasable) {
     return NextResponse.json(
       {
         error:
@@ -2277,12 +2539,32 @@ async function handleCreateSubscription(request) {
     );
   }
 
+  if (plan.billing_type !== "recurring") {
+    return NextResponse.json(
+      {
+        error:
+          "This plan uses one-time payment checkout and cannot be purchased through the subscription flow.",
+      },
+      { status: 400 },
+    );
+  }
+
+  if (!plan.razorpay_plan_id) {
+    return NextResponse.json(
+      {
+        error:
+          "This recurring plan is missing its Razorpay Plan ID.",
+      },
+      { status: 500 },
+    );
+  }
+
   const {
     data: existingSubscriptions,
     error: existingError,
   } = await admin
     .from("subscriptions")
-    .select("*")
+    .select("*, plans(name, billing_type)")
     .eq("user_id", user.id)
     .order(
       "created_at",
@@ -2340,10 +2622,31 @@ async function handleCreateSubscription(request) {
     );
   }
 
+  const createdOneTimeSubscription =
+    (existingSubscriptions || []).find(
+      (sub) =>
+        sub.status === "created" &&
+        sub.plans?.billing_type === "one_time",
+    ) || null;
+
+  if (createdOneTimeSubscription) {
+    return NextResponse.json(
+      {
+        error:
+          "You already have a one-time payment in progress. Please finish or close the current payment before starting another subscription.",
+
+        order_id:
+          createdOneTimeSubscription.razorpay_order_id || null,
+      },
+      { status: 409 },
+    );
+  }
+
   const createdSubscription =
     (existingSubscriptions || []).find(
       (sub) =>
-        sub.status === "created",
+        sub.status === "created" &&
+        sub.plans?.billing_type === "recurring",
     ) || null;
 
   if (createdSubscription) {
@@ -2417,7 +2720,7 @@ async function handleCreateSubscription(request) {
             "Your payment authorization is already in progress. Please finish the current payment before starting another subscription.",
 
           subscription_id:
-            providerSubscription.razorpay_subscription_id,
+            createdSubscription.razorpay_subscription_id,
         },
         { status: 409 },
       );
@@ -2550,6 +2853,1073 @@ async function handleCreateSubscription(request) {
 
     razorpay_key_id:
       process.env.RAZORPAY_KEY_ID,
+  });
+}
+
+// ----------------------------------------------------------------------------
+// POST /api/billing/create-order
+// ----------------------------------------------------------------------------
+
+async function handleCreateOrder(request) {
+  const user =
+    await getUserFromRequest(
+      request,
+    );
+
+  if (!user) {
+    return NextResponse.json(
+      {
+        error:
+          "Not authenticated",
+      },
+      { status: 401 },
+    );
+  }
+
+  const admin =
+    getSupabaseAdmin();
+
+  let body;
+
+  try {
+    body =
+      await request.json();
+  } catch {
+    return NextResponse.json(
+      {
+        error:
+          "Invalid request body",
+      },
+      { status: 400 },
+    );
+  }
+
+  const { plan_id } =
+    body || {};
+
+  if (!plan_id) {
+    return NextResponse.json(
+      {
+        error:
+          "Missing plan_id.",
+      },
+      { status: 400 },
+    );
+  }
+
+  const {
+    data: plan,
+    error: planError,
+  } = await admin
+    .from("plans")
+    .select("*")
+    .eq(
+      "id",
+      plan_id,
+    )
+    .eq(
+      "is_active",
+      true,
+    )
+    .maybeSingle();
+
+  if (planError) {
+    return NextResponse.json(
+      {
+        error:
+          `Plan lookup failed: ${planError.message}`,
+      },
+      { status: 500 },
+    );
+  }
+
+  if (!plan) {
+    return NextResponse.json(
+      {
+        error:
+          "Selected plan is not available.",
+      },
+      { status: 404 },
+    );
+  }
+
+  if (!plan.is_purchasable) {
+    return NextResponse.json(
+      {
+        error:
+          "This plan is not currently available for purchase.",
+      },
+      { status: 400 },
+    );
+  }
+
+  if (
+    plan.billing_type !==
+    "one_time"
+  ) {
+    return NextResponse.json(
+      {
+        error:
+          "Selected plan must use one-time payment checkout.",
+      },
+      { status: 400 },
+    );
+  }
+
+  const amount =
+    Number(
+      plan.price_paise,
+    );
+
+  const durationDays =
+    Number(
+      plan.duration_days,
+    );
+
+  if (
+    !Number.isInteger(
+      amount,
+    ) ||
+    amount <= 0 ||
+    !Number.isInteger(
+      durationDays,
+    ) ||
+    durationDays <= 0
+  ) {
+    return NextResponse.json(
+      {
+        error:
+          "The selected plan has invalid billing configuration.",
+      },
+      { status: 500 },
+    );
+  }
+
+  const {
+    data:
+      existingSubscriptions,
+    error:
+      existingError,
+  } = await admin
+    .from("subscriptions")
+    .select(
+      "*, plans(id, name, price_paise, duration_days, features, billing_type)",
+    )
+    .eq(
+      "user_id",
+      user.id,
+    )
+    .order(
+      "created_at",
+      {
+        ascending:
+          false,
+      },
+    );
+
+  if (existingError) {
+    return NextResponse.json(
+      {
+        error:
+          `Unable to check existing subscriptions: ${existingError.message}`,
+      },
+      { status: 500 },
+    );
+  }
+
+  const now =
+    new Date();
+
+  const activeSubscription =
+    (existingSubscriptions || [])
+      .find(
+        (sub) =>
+          sub.status ===
+            "active" &&
+          (
+            !sub.expires_at ||
+            new Date(
+              sub.expires_at,
+            ) > now
+          ),
+      ) || null;
+
+  if (
+    activeSubscription
+  ) {
+    return NextResponse.json(
+      {
+        error:
+          "You already have an active subscription. You can purchase another plan after your current access expires.",
+
+        subscription_id:
+          activeSubscription
+            .razorpay_subscription_id ||
+          null,
+      },
+      { status: 409 },
+    );
+  }
+
+  const pastDueSubscription =
+    (existingSubscriptions || [])
+      .find(
+        (sub) =>
+          sub.status ===
+          "past_due",
+      ) || null;
+
+  if (
+    pastDueSubscription
+  ) {
+    return NextResponse.json(
+      {
+        error:
+          "You already have a subscription with an unresolved payment status.",
+      },
+      { status: 409 },
+    );
+  }
+
+  const createdSubscription =
+    (existingSubscriptions || [])
+      .find(
+        (sub) =>
+          sub.status ===
+          "created",
+      ) || null;
+
+  /*
+   * The user may not have another payment flow
+   * already in progress.
+   */
+  if (
+    createdSubscription
+  ) {
+    if (
+      createdSubscription
+        .plans?.billing_type !==
+      "one_time"
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "You already have a monthly payment in progress. Please finish or close the current payment before starting another purchase.",
+
+          subscription_id:
+            createdSubscription
+              .razorpay_subscription_id ||
+            null,
+        },
+        { status: 409 },
+      );
+    }
+
+    if (
+      createdSubscription.plan_id !==
+      plan.id
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Another one-time payment is already in progress.",
+
+          order_id:
+            createdSubscription
+              .razorpay_order_id ||
+            null,
+        },
+        { status: 409 },
+      );
+    }
+
+    if (
+      !createdSubscription
+        .razorpay_order_id
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Your previous payment attempt is still being initialized. Please try again in a moment.",
+        },
+        { status: 409 },
+      );
+    }
+
+    const rzp =
+      getRazorpay();
+
+    let existingOrder;
+
+    try {
+      existingOrder =
+        await rzp.orders.fetch(
+          createdSubscription
+            .razorpay_order_id,
+        );
+    } catch (e) {
+      return NextResponse.json(
+        {
+          error:
+            `Unable to check the existing Razorpay Order: ` +
+            `${e?.error?.description || e?.message || "Unknown Razorpay error."}`,
+        },
+        { status: 500 },
+      );
+    }
+
+    if (
+      existingOrder.id !==
+        createdSubscription
+          .razorpay_order_id ||
+      Number(
+        existingOrder.amount,
+      ) !== amount ||
+      existingOrder.currency !==
+        "INR"
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "The stored Razorpay Order does not match the selected plan.",
+        },
+        { status: 500 },
+      );
+    }
+
+    /*
+     * If the Order was paid but the browser never reached
+     * verify-order, reconcile it here.
+     */
+    if (
+      existingOrder.status ===
+      "paid"
+    ) {
+      let payments;
+
+      try {
+        payments =
+          await rzp.orders.fetchPayments(
+            existingOrder.id,
+          );
+      } catch (e) {
+        return NextResponse.json(
+          {
+            error:
+              `The Razorpay Order is already paid, but its payment could not be reconciled yet: ` +
+              `${e?.error?.description || e?.message || "Unknown Razorpay error."}`,
+          },
+          { status: 500 },
+        );
+      }
+
+      const capturedPayment =
+        (payments?.items || [])
+          .find(
+            (payment) =>
+              payment?.status ===
+                "captured" &&
+              Number(
+                payment?.amount,
+              ) === amount &&
+              payment?.currency ===
+                "INR" &&
+              payment?.order_id ===
+                existingOrder.id,
+          ) || null;
+
+      if (
+        !capturedPayment
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "The Razorpay Order is marked paid, but no matching captured payment was found yet.",
+          },
+          { status: 409 },
+        );
+      }
+
+      const activation =
+        await activateOneTimeSubscription({
+          admin,
+
+          subscriptionId:
+            createdSubscription.id,
+
+          razorpayOrderId:
+            existingOrder.id,
+
+          razorpayPaymentId:
+            capturedPayment.id,
+
+          paymentCreatedAt:
+            capturedPayment.created_at,
+        });
+
+      if (
+        !activation.ok
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              activation.error,
+          },
+          {
+            status:
+              activation.status ||
+              500,
+          },
+        );
+      }
+
+      return NextResponse.json({
+        ok: true,
+
+        already_paid:
+          true,
+
+        subscription_id:
+          activation
+            .subscription.id,
+
+        expires_at:
+          activation
+            .subscription
+            .expires_at,
+
+        razorpay_key_id:
+          process.env
+            .RAZORPAY_KEY_ID,
+      });
+    }
+
+    return NextResponse.json({
+      ok: true,
+
+      order_id:
+        existingOrder.id,
+
+      amount,
+
+      currency:
+        "INR",
+
+      razorpay_key_id:
+        process.env
+          .RAZORPAY_KEY_ID,
+
+      resumed:
+        true,
+    });
+  }
+
+  /*
+   * Create our local pending entitlement first.
+   *
+   * It has status=created and therefore grants no access.
+   */
+  const nowIso =
+    new Date().toISOString();
+
+  const {
+    data:
+      pendingSubscription,
+    error:
+      pendingInsertError,
+  } = await admin
+    .from("subscriptions")
+    .insert({
+      user_id:
+        user.id,
+
+      plan_id:
+        plan.id,
+
+      status:
+        "created",
+
+      started_at:
+        nowIso,
+
+      expires_at:
+        nowIso,
+
+      cancel_at_period_end:
+        false,
+
+      created_at:
+        nowIso,
+
+      updated_at:
+        nowIso,
+    })
+    .select(
+      "id, user_id, plan_id, status",
+    )
+    .single();
+
+  /*
+   * The partial unique index protects against concurrent
+   * create-order requests.
+   */
+  if (
+    pendingInsertError
+  ) {
+    if (
+      pendingInsertError.code ===
+      "23505"
+    ) {
+      const {
+        data:
+          existingCreated,
+        error:
+          createdLookupError,
+      } = await admin
+        .from("subscriptions")
+        .select(
+          "*, plans(id, name, price_paise, duration_days, features, billing_type)",
+        )
+        .eq(
+          "user_id",
+          user.id,
+        )
+        .eq(
+          "status",
+          "created",
+        )
+        .maybeSingle();
+
+      if (
+        !createdLookupError &&
+        existingCreated
+      ) {
+        if (
+          existingCreated
+            .plans?.billing_type ===
+          "one_time"
+        ) {
+          return NextResponse.json(
+            {
+              error:
+                "A one-time payment is already in progress. Please continue that payment.",
+
+              order_id:
+                existingCreated
+                  .razorpay_order_id ||
+                null,
+            },
+            { status: 409 },
+          );
+        }
+
+        return NextResponse.json(
+          {
+            error:
+              "A monthly payment is already in progress. Please finish or close the current payment before starting another purchase.",
+
+            subscription_id:
+              existingCreated
+                .razorpay_subscription_id ||
+              null,
+          },
+          { status: 409 },
+        );
+      }
+    }
+
+    return NextResponse.json(
+      {
+        error:
+          `Unable to create pending payment record: ${pendingInsertError.message}`,
+      },
+      { status: 500 },
+    );
+  }
+
+  const rzp =
+    getRazorpay();
+
+  let razorpayOrder;
+
+  try {
+    razorpayOrder =
+      await rzp.orders.create({
+        amount,
+
+        currency:
+          "INR",
+
+        receipt:
+          pendingSubscription.id,
+
+        partial_payment:
+          false,
+
+        notes: {
+          subscription_id:
+            pendingSubscription.id,
+
+          user_id:
+            user.id,
+
+          plan_id:
+            plan.id,
+        },
+      });
+  } catch (e) {
+    await admin
+      .from("subscriptions")
+      .update({
+        status:
+          "cancelled",
+
+        updated_at:
+          new Date().toISOString(),
+      })
+      .eq(
+        "id",
+        pendingSubscription.id,
+      )
+      .eq(
+        "status",
+        "created",
+      );
+
+    return NextResponse.json(
+      {
+        error:
+          `Unable to create Razorpay Order: ` +
+          `${e?.error?.description || e?.message || "Unknown Razorpay error."}`,
+      },
+      { status: 500 },
+    );
+  }
+
+  const {
+    error:
+      orderUpdateError,
+  } = await admin
+    .from("subscriptions")
+    .update({
+      razorpay_order_id:
+        razorpayOrder.id,
+
+      updated_at:
+        new Date().toISOString(),
+    })
+    .eq(
+      "id",
+      pendingSubscription.id,
+    )
+    .eq(
+      "status",
+      "created",
+    );
+
+  if (
+    orderUpdateError
+  ) {
+    console.error(
+      "One-time payment order was created at Razorpay but could not be saved locally:",
+      orderUpdateError,
+    );
+
+    /*
+     * The customer has not received the Order ID yet,
+     * so they cannot legitimately pay against it.
+     *
+     * Mark the local pending row cancelled.
+     */
+    await admin
+      .from("subscriptions")
+      .update({
+        status:
+          "cancelled",
+
+        updated_at:
+          new Date().toISOString(),
+      })
+      .eq(
+        "id",
+        pendingSubscription.id,
+      )
+      .eq(
+        "status",
+        "created",
+      );
+
+    return NextResponse.json(
+      {
+        error:
+          "Payment initialization could not be completed safely. Please try again.",
+      },
+      { status: 500 },
+    );
+  }
+
+  return NextResponse.json({
+    ok: true,
+
+    order_id:
+      razorpayOrder.id,
+
+    amount,
+
+    currency:
+      "INR",
+
+    razorpay_key_id:
+      process.env
+        .RAZORPAY_KEY_ID,
+  });
+}
+
+// ----------------------------------------------------------------------------
+// POST /api/billing/verify-order
+// ----------------------------------------------------------------------------
+
+async function handleVerifyOrder(request) {
+  const user =
+    await getUserFromRequest(
+      request,
+    );
+
+  if (!user) {
+    return NextResponse.json(
+      {
+        error:
+          "Not authenticated",
+      },
+      { status: 401 },
+    );
+  }
+
+  const admin =
+    getSupabaseAdmin();
+
+  let body;
+
+  try {
+    body =
+      await request.json();
+  } catch {
+    return NextResponse.json(
+      {
+        error:
+          "Invalid request body",
+      },
+      { status: 400 },
+    );
+  }
+
+  const {
+    razorpay_payment_id,
+    razorpay_order_id,
+    razorpay_signature,
+  } =
+    body || {};
+
+  if (
+    !razorpay_payment_id ||
+    !razorpay_order_id ||
+    !razorpay_signature
+  ) {
+    return NextResponse.json(
+      {
+        error:
+          "Incomplete Razorpay Order verification data.",
+      },
+      { status: 400 },
+    );
+  }
+
+  const {
+    data:
+      subscription,
+    error:
+      subscriptionError,
+  } = await admin
+    .from("subscriptions")
+    .select(
+      "*, plans(id, name, price_paise, duration_days, features, billing_type)",
+    )
+    .eq(
+      "razorpay_order_id",
+      razorpay_order_id,
+    )
+    .maybeSingle();
+
+  if (
+    subscriptionError
+  ) {
+    return NextResponse.json(
+      {
+        error:
+          `Order subscription lookup failed: ${subscriptionError.message}`,
+      },
+      { status: 500 },
+    );
+  }
+
+  if (!subscription) {
+    return NextResponse.json(
+      {
+        error:
+          "This Razorpay Order is not associated with a valid Forensique purchase.",
+      },
+      { status: 404 },
+    );
+  }
+
+  if (
+    subscription.user_id !==
+    user.id
+  ) {
+    return NextResponse.json(
+      {
+        error:
+          "This payment does not belong to the current user.",
+      },
+      { status: 403 },
+    );
+  }
+
+  if (
+    subscription.plans
+      ?.billing_type !==
+    "one_time"
+  ) {
+    return NextResponse.json(
+      {
+        error:
+          "This Order is not associated with a one-time plan.",
+      },
+      { status: 400 },
+    );
+  }
+
+  const secret =
+    process.env
+      .RAZORPAY_KEY_SECRET;
+
+  if (!secret) {
+    return NextResponse.json(
+      {
+        error:
+          "Razorpay secret is not configured.",
+      },
+      { status: 500 },
+    );
+  }
+
+  /*
+   * SECURITY:
+   *
+   * The HMAC is generated using the Order ID stored
+   * in our database, not blindly using client data.
+   */
+  const generatedSignature =
+    crypto
+      .createHmac(
+        "sha256",
+        secret,
+      )
+      .update(
+        `${subscription.razorpay_order_id}|${razorpay_payment_id}`,
+      )
+      .digest("hex");
+
+  const generatedBuffer =
+    Buffer.from(
+      generatedSignature,
+    );
+
+  const suppliedBuffer =
+    Buffer.from(
+      razorpay_signature,
+    );
+
+  if (
+    generatedBuffer.length !==
+      suppliedBuffer.length ||
+    !crypto.timingSafeEqual(
+      generatedBuffer,
+      suppliedBuffer,
+    )
+  ) {
+    return NextResponse.json(
+      {
+        error:
+          "Invalid Razorpay payment signature.",
+      },
+      { status: 400 },
+    );
+  }
+
+  const rzp =
+    getRazorpay();
+
+  let order;
+  let payment;
+
+  try {
+    order =
+      await rzp.orders.fetch(
+        subscription
+          .razorpay_order_id,
+      );
+
+    payment =
+      await rzp.payments.fetch(
+        razorpay_payment_id,
+      );
+  } catch (e) {
+    return NextResponse.json(
+      {
+        error:
+          `Unable to verify Razorpay payment: ` +
+          `${e?.error?.description || e?.message || "Unknown Razorpay error."}`,
+      },
+      { status: 500 },
+    );
+  }
+
+  if (
+    order.id !==
+    subscription.razorpay_order_id
+  ) {
+    return NextResponse.json(
+      {
+        error:
+          "Razorpay Order mismatch.",
+      },
+      { status: 400 },
+    );
+  }
+
+  if (
+    payment.id !==
+    razorpay_payment_id
+  ) {
+    return NextResponse.json(
+      {
+        error:
+          "Razorpay Payment mismatch.",
+      },
+      { status: 400 },
+    );
+  }
+
+  if (
+    payment.order_id !==
+    order.id
+  ) {
+    return NextResponse.json(
+      {
+        error:
+          "Payment is not linked to the expected Razorpay Order.",
+      },
+      { status: 400 },
+    );
+  }
+
+  if (
+    Number(order.amount) !==
+      Number(
+        subscription
+          .plans
+          .price_paise,
+      ) ||
+    order.currency !==
+      "INR"
+  ) {
+    return NextResponse.json(
+      {
+        error:
+          "Razorpay Order amount does not match the selected plan.",
+      },
+      { status: 400 },
+    );
+  }
+
+  if (
+    Number(payment.amount) !==
+      Number(
+        subscription
+          .plans
+          .price_paise,
+      ) ||
+    payment.currency !==
+      "INR"
+  ) {
+    return NextResponse.json(
+      {
+        error:
+          "Razorpay Payment amount does not match the selected plan.",
+      },
+      { status: 400 },
+    );
+  }
+
+  if (
+    payment.status !==
+    "captured"
+  ) {
+    return NextResponse.json(
+      {
+        error:
+          `Payment is not captured yet. Current payment status: ${payment.status}.`,
+      },
+      { status: 409 },
+    );
+  }
+
+  const activation =
+    await activateOneTimeSubscription({
+      admin,
+
+      subscriptionId:
+        subscription.id,
+
+      razorpayOrderId:
+        order.id,
+
+      razorpayPaymentId:
+        payment.id,
+
+      paymentCreatedAt:
+        payment.created_at,
+    });
+
+  if (!activation.ok) {
+    return NextResponse.json(
+      {
+        error:
+          activation.error,
+      },
+      {
+        status:
+          activation.status ||
+          500,
+      },
+    );
+  }
+
+  return NextResponse.json({
+    ok: true,
+
+    status:
+      "active",
+
+    already_active:
+      activation
+        .alreadyActive,
+
+    expires_at:
+      activation
+        .subscription
+        .expires_at,
   });
 }
 
@@ -3200,47 +4570,14 @@ async function handleRazorpayWebhook(request) {
     pay?.id ||
     "unknown";
 
-  const providerEventId =
-    `${evt.event}:${subjectId}:${evt.created_at}`;
-
-  const {
-    error: dupErr,
-  } = await admin
-    .from("payment_events")
-    .insert({
-      provider:
-        "razorpay",
-
-      provider_event_id:
-        providerEventId,
-
-      event_type:
-        evt.event,
-
-      payload:
-        evt,
-    });
-
-  if (dupErr) {
-    if (
-      dupErr.code ===
-      "23505"
-    ) {
-      return NextResponse.json({
-        ok: true,
-        duplicate:
-          true,
-      });
-    }
-
-    return NextResponse.json(
-      {
-        error:
-          dupErr.message,
-      },
-      { status: 500 },
+  const razorpayEventId =
+    request.headers.get(
+      "x-razorpay-event-id",
     );
-  }
+
+  const providerEventId =
+    razorpayEventId ||
+    `${evt.event}:${subjectId}:${evt.created_at}`;
 
   // Update subscription state.
   if (
@@ -3317,14 +4654,233 @@ async function handleRazorpayWebhook(request) {
         true;
     }
 
-    await admin
+      const {
+      error:
+        subscriptionUpdateError,
+    } = await admin
       .from("subscriptions")
       .update(patch)
       .eq(
         "razorpay_subscription_id",
         sub.id,
       );
+
+    if (subscriptionUpdateError) {
+      console.error(
+        "Failed to update subscription from Razorpay webhook:",
+        subscriptionUpdateError,
+      );
+
+      return NextResponse.json(
+        {
+          error:
+            subscriptionUpdateError.message,
+        },
+        { status: 500 },
+      );
+    }
   }
+      if (
+    evt.event ===
+      "payment.captured" &&
+    pay?.id &&
+    pay?.order_id
+  ) {
+    const {
+      data:
+        oneTimeSubscription,
+      error:
+        oneTimeLookupError,
+    } = await admin
+      .from("subscriptions")
+      .select(
+        "*, plans(id, name, price_paise, duration_days, features, billing_type)",
+      )
+      .eq(
+        "razorpay_order_id",
+        pay.order_id,
+      )
+      .maybeSingle();
+
+    if (
+      oneTimeLookupError
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            oneTimeLookupError.message,
+        },
+        { status: 500 },
+      );
+    }
+
+    /*
+     * Existing ₹149 subscription-related payment events
+     * are not associated with an application Order record,
+     * so they simply do not enter this branch.
+     */
+    if (
+      oneTimeSubscription
+    ) {
+      if (
+        oneTimeSubscription
+          .plans
+          ?.billing_type !==
+        "one_time"
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "Payment Order points to a non-one-time plan.",
+          },
+          { status: 400 },
+        );
+      }
+
+      const rzp =
+        getRazorpay();
+
+      let order;
+
+      try {
+        order =
+          await rzp.orders.fetch(
+            pay.order_id,
+          );
+      } catch (e) {
+        console.error(
+          "Unable to fetch Razorpay Order for payment webhook:",
+          e,
+        );
+
+        return NextResponse.json(
+          {
+            error:
+              "Unable to verify Razorpay Order.",
+          },
+          { status: 500 },
+        );
+      }
+
+      if (
+        order.id !==
+          oneTimeSubscription
+            .razorpay_order_id ||
+        Number(order.amount) !==
+          Number(
+            oneTimeSubscription
+              .plans
+              .price_paise,
+          ) ||
+        order.currency !==
+          "INR"
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "Razorpay Order does not match the stored one-time purchase.",
+          },
+          { status: 400 },
+        );
+      }
+
+      if (
+        pay.status !==
+          "captured" ||
+        Number(pay.amount) !==
+          Number(
+            oneTimeSubscription
+              .plans
+              .price_paise,
+          ) ||
+        pay.currency !==
+          "INR" ||
+        pay.order_id !==
+          order.id
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "Razorpay Payment does not match the stored one-time purchase.",
+          },
+          { status: 400 },
+        );
+      }
+
+      const activation =
+        await activateOneTimeSubscription({
+          admin,
+
+          subscriptionId:
+            oneTimeSubscription.id,
+
+          razorpayOrderId:
+            order.id,
+
+          razorpayPaymentId:
+            pay.id,
+
+          paymentCreatedAt:
+            pay.created_at,
+        });
+
+      if (
+        !activation.ok
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              activation.error,
+          },
+          {
+            status:
+              activation.status ||
+              500,
+          },
+        );
+      }
+    }
+  }
+    const {
+    error:
+      eventInsertError,
+  } = await admin
+    .from("payment_events")
+    .insert({
+      provider:
+        "razorpay",
+
+      provider_event_id:
+        providerEventId,
+
+      event_type:
+        evt.event,
+
+      payload:
+        evt,
+    });
+
+  if (eventInsertError) {
+    if (
+      eventInsertError.code ===
+      "23505"
+    ) {
+      return NextResponse.json({
+        ok: true,
+        duplicate:
+          true,
+      });
+    }
+
+    return NextResponse.json(
+      {
+        error:
+          eventInsertError.message,
+      },
+      { status: 500 },
+    );
+  }
+
 
   return NextResponse.json({
     ok: true,
@@ -3391,6 +4947,24 @@ async function dispatch(
     path === "/billing/create-subscription"
   ) {
     return handleCreateSubscription(
+      request,
+    );
+  }
+
+    if (
+    method === "POST" &&
+    path === "/billing/create-order"
+  ) {
+    return handleCreateOrder(
+      request,
+    );
+  }
+
+  if (
+    method === "POST" &&
+    path === "/billing/verify-order"
+  ) {
+    return handleVerifyOrder(
       request,
     );
   }
