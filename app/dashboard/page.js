@@ -133,13 +133,9 @@ function sortTestsNewestFirst(tests) {
       }
     }
 
-    const aCreated = a?.created_at
-      ? new Date(a.created_at).getTime()
-      : 0;
+    const aCreated = a?.created_at ? new Date(a.created_at).getTime() : 0;
 
-    const bCreated = b?.created_at
-      ? new Date(b.created_at).getTime()
-      : 0;
+    const bCreated = b?.created_at ? new Date(b.created_at).getTime() : 0;
 
     return bCreated - aCreated;
   });
@@ -332,7 +328,7 @@ function DashboardInner() {
 
             supabase
               .from("subscriptions")
-              .select("*, plans(name, price_paise, features)")
+              .select("*, plans(name, price_paise, features, billing_type)")
               .eq("user_id", user.id)
               .in("status", ["active", "past_due"])
               .order("created_at", { ascending: false }),
@@ -481,7 +477,7 @@ function DashboardInner() {
 
       const { data: subs } = await supabase
         .from("subscriptions")
-        .select("*, plans(name, price_paise, features)")
+        .select("*, plans(name, price_paise, features, billing_type)")
         .eq("user_id", user.id)
         .in("status", ["active", "past_due"])
         .order("created_at", { ascending: false });
@@ -634,48 +630,53 @@ function DashboardInner() {
                       ) : (
                         <Badge variant="outline">{subscription.status}</Badge>
                       )}
-
-                      {subscription.cancel_at_period_end && (
-                        <Badge variant="outline">Cancels at cycle end</Badge>
-                      )}
+                      {subscription.plans?.billing_type !== "one_time" &&
+                        subscription.cancel_at_period_end && (
+                          <Badge variant="outline">Cancels at cycle end</Badge>
+                        )}
                     </div>
-
                     <p className="text-xs text-muted-foreground mt-1">
                       ₹
                       {Math.round((subscription.plans?.price_paise ?? 0) / 100)}
-                      /month · Renews / expires{" "}
+                      {subscription.plans?.billing_type === "one_time"
+                        ? " · 3-month access · Expires "
+                        : " /month · Renews / expires "}
                       {new Date(subscription.expires_at).toLocaleDateString()}
                     </p>
                   </div>
 
-                  {isSubActive && !subscription.cancel_at_period_end && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={cancelSubscription}
-                      disabled={cancelBusy}
-                      className="gap-1"
-                    >
-                      {cancelBusy ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <XCircle className="h-4 w-4" />
-                      )}
-                      Cancel subscription
-                    </Button>
-                  )}
+                  {isSubActive &&
+                    subscription.plans?.billing_type !== "one_time" &&
+                    subscription.razorpay_subscription_id &&
+                    !subscription.cancel_at_period_end && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={cancelSubscription}
+                        disabled={cancelBusy}
+                        className="gap-1"
+                      >
+                        {cancelBusy ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <XCircle className="h-4 w-4" />
+                        )}
+                        Cancel subscription
+                      </Button>
+                    )}
                 </div>
 
-                {subscription.cancel_at_period_end && (
-                  <Alert>
-                    <AlertDescription>
-                      Your subscription will end on{" "}
-                      {new Date(subscription.expires_at).toLocaleDateString()}.
-                      No further debits will occur. Resubscribe anytime from the
-                      pricing page.
-                    </AlertDescription>
-                  </Alert>
-                )}
+                {subscription.plans?.billing_type !== "one_time" &&
+                  subscription.cancel_at_period_end && (
+                    <Alert>
+                      <AlertDescription>
+                        Your subscription will end on{" "}
+                        {new Date(subscription.expires_at).toLocaleDateString()}
+                        . No further debits will occur. Resubscribe anytime from
+                        the pricing page.
+                      </AlertDescription>
+                    </Alert>
+                  )}
 
                 {cancelResult?.ok && (
                   <Alert className="border-emerald-500">

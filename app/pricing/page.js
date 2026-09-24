@@ -10,7 +10,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Check, X, Loader2 } from "lucide-react";
 
-const PLAN_ORDER = ["Test Series", "Notes", "Combined"];
+const PLAN_ORDER = [
+  "Test Series",
+  "Test Series - 3 Months",
+  "Notes",
+  "Combined",
+];
 
 const FEATURES_TABLE = [
   {
@@ -116,7 +121,7 @@ export default function PricingPage() {
         if (currentUser) {
           const { data: subs } = await supabase
             .from("subscriptions")
-            .select("*, plans(name, price_paise, features)")
+            .select("*, plans(name, price_paise, features, billing_type)")
             .eq("user_id", currentUser.id)
             .eq("status", "active")
             .order("expires_at", { ascending: false });
@@ -154,10 +159,10 @@ export default function PricingPage() {
       return;
     }
 
-    if (
-      subscription?.plans?.name ===
-      plans.find((plan) => plan.id === planId)?.name
-    ) {
+    if (subscription) {
+      setError(
+        "You already have active access. A new plan can be purchased after the current access period ends.",
+      );
       return;
     }
 
@@ -188,6 +193,41 @@ export default function PricingPage() {
 
       if (!selectedPlan) {
         throw new Error("Selected plan could not be found.");
+      }
+
+      if (selectedPlan.billing_type === "one_time") {
+        const res = await fetch("/api/billing/create-order", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            plan_id: planId,
+          }),
+        });
+
+        const json = await res.json();
+
+        if (!res.ok) {
+          throw new Error(json.error || "Unable to create payment order.");
+        }
+
+        if (json.already_paid && json.subscription_id) {
+          window.location.href = "/dashboard?upgraded=1";
+
+          return;
+        }
+
+        if (!json.order_id || !json.razorpay_key_id) {
+          throw new Error(
+            "Server returned incomplete Razorpay Order checkout data.",
+          );
+        }
+
+        openOneTimeRazorpay(json.order_id, json.razorpay_key_id, selectedPlan);
+
+        return;
       }
 
       const res = await fetch("/api/billing/create-subscription", {
@@ -299,9 +339,7 @@ export default function PricingPage() {
           const verifyJson = await verifyRes.json();
 
           if (!verifyRes.ok) {
-            throw new Error(
-              verifyJson.error || "Payment verification failed.",
-            );
+            throw new Error(verifyJson.error || "Payment verification failed.");
           }
 
           window.location.href = "/dashboard?upgraded=1";
@@ -380,6 +418,129 @@ export default function PricingPage() {
 
     rzp.open();
   }
+  function openOneTimeRazorpay(orderId, keyId, plan) {
+    if (!keyId || !orderId) {
+      throw new Error("Razorpay Order checkout data is incomplete.");
+    }
+
+    if (!window.Razorpay) {
+      throw new Error(
+        "Razorpay Checkout has not loaded yet. Please try again.",
+      );
+    }
+
+    let checkoutCompleted = false;
+
+    const price = Math.round(Number(plan.price_paise || 0) / 100);
+
+    const rzp = new window.Razorpay({
+      key: keyId,
+
+      order_id: orderId,
+
+      name: "Forensique",
+
+      description: `${plan.name} — ₹${price} one-time`,
+
+      prefill: {
+        email: user?.email || "",
+      },
+
+      theme: {
+        color: "#0f172a",
+      },
+
+      handler: async (response) => {
+        checkoutCompleted = true;
+
+        try {
+          const {
+            data: { session },
+          } = await supabase.auth.getSession();
+
+          if (!session?.access_token) {
+            throw new Error(
+              "Your login session has expired. Please sign in again.",
+            );
+          }
+
+          const { razorpay_payment_id, razorpay_order_id, razorpay_signature } =
+            response || {};
+
+          if (
+            !razorpay_payment_id ||
+            !razorpay_order_id ||
+            !razorpay_signature
+          ) {
+            throw new Error(
+              "Razorpay returned incomplete payment verification data.",
+            );
+          }
+
+          const verifyRes = await fetch("/api/billing/verify-order", {
+            method: "POST",
+
+            headers: {
+              "Content-Type": "application/json",
+
+              Authorization: `Bearer ${session.access_token}`,
+            },
+
+            body: JSON.stringify({
+              razorpay_payment_id,
+              razorpay_order_id,
+              razorpay_signature,
+            }),
+          });
+
+          const verifyJson = await verifyRes.json();
+
+          if (!verifyRes.ok) {
+            throw new Error(verifyJson.error || "Payment verification failed.");
+          }
+
+          window.location.href = "/dashboard?upgraded=1";
+        } catch (e) {
+          console.error("One-time payment verification failed:", e);
+
+          setError(e?.message || "Payment verification failed.");
+
+          setBusy(false);
+        }
+      },
+
+      modal: {
+        ondismiss: () => {
+          if (checkoutCompleted) {
+            setBusy(false);
+            return;
+          }
+
+          /*
+           * Do NOT call /billing/cancel-pending.
+           *
+           * The one-time Order is deliberately reusable.
+           */
+          setBusy(false);
+        },
+      },
+    });
+
+    rzp.on("payment.failed", (response) => {
+      console.error("Razorpay one-time payment failed:", response);
+
+      const description =
+        response?.error?.description ||
+        response?.error?.reason ||
+        "Razorpay payment failed.";
+
+      setError(description);
+
+      setBusy(false);
+    });
+
+    rzp.open();
+  }
 
   return (
     <div className="min-h-screen">
@@ -399,12 +560,12 @@ export default function PricingPage() {
 
       <div className="container mx-auto px-4 py-12 max-w-6xl">
         <div className="text-center mb-10">
-          <Badge variant="secondary">Simple, monthly, cancel anytime</Badge>
+          <Badge variant="secondary">Monthly or one-time access</Badge>
 
           <h1 className="text-4xl font-bold mt-3">Pricing</h1>
 
           <p className="text-muted-foreground mt-2">
-            Every plan renews monthly via UPI Autopay or e-mandate.
+            Choose a recurring monthly plan or a one-time 3-month access plan.
           </p>
         </div>
 
@@ -414,13 +575,15 @@ export default function PricingPage() {
           </div>
         ) : (
           <>
-            <div className="grid gap-4 md:grid-cols-3 mb-12">
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4 mb-12">
               {PLAN_ORDER.map((planName) => {
                 const plan = plans.find((p) => p.name === planName);
 
                 if (!plan) return null;
 
                 const isTS = plan.name === "Test Series";
+
+                const isThreeMonth = plan.name === "Test Series - 3 Months";
 
                 const price = (Number(plan.price_paise || 0) / 100).toFixed(0);
 
@@ -435,6 +598,8 @@ export default function PricingPage() {
 
                         {isTS ? (
                           <Badge>Most popular</Badge>
+                        ) : isThreeMonth ? (
+                          <Badge>3-month offer</Badge>
                         ) : (
                           <Badge variant="outline">Coming soon</Badge>
                         )}
@@ -443,7 +608,17 @@ export default function PricingPage() {
                       <div className="mt-4">
                         <span className="text-4xl font-bold">₹{price}</span>
 
-                        <span className="text-muted-foreground">/month</span>
+                        <span className="text-muted-foreground">
+                          {plan.billing_type === "one_time"
+                            ? "/3 months"
+                            : "/month"}
+                        </span>
+
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {plan.billing_type === "one_time"
+                            ? "One-time payment · 90 days access · No auto-renewal"
+                            : "Recurring monthly subscription"}
+                        </p>
                       </div>
                     </CardHeader>
 
@@ -475,20 +650,25 @@ export default function PricingPage() {
                       </ul>
 
                       {plan.is_purchasable ? (
-                        subscription?.plans?.name === plan.name ? (
+                        subscription ? (
                           <div className="mt-4 space-y-2">
                             <div className="flex items-center justify-center gap-2 rounded-md border p-3 text-sm">
                               <Badge variant="default">Active</Badge>
 
                               <span>
-                                {subscription.cancel_at_period_end
-                                  ? "Cancellation scheduled"
-                                  : "Renews automatically"}
+                                {subscription.plans?.name === plan.name
+                                  ? subscription.plans?.billing_type ===
+                                    "one_time"
+                                    ? "One-time access"
+                                    : subscription.cancel_at_period_end
+                                      ? "Cancellation scheduled"
+                                      : "Renews automatically"
+                                  : "Access already active"}
                               </span>
                             </div>
 
                             <div className="text-center text-xs text-muted-foreground">
-                              {subscription.cancel_at_period_end
+                              {subscription.plans?.billing_type === "one_time"
                                 ? `Access until ${new Date(
                                     subscription.expires_at,
                                   ).toLocaleDateString("en-IN", {
@@ -496,13 +676,21 @@ export default function PricingPage() {
                                     month: "short",
                                     year: "numeric",
                                   })}`
-                                : `Renews ${new Date(
-                                    subscription.expires_at,
-                                  ).toLocaleDateString("en-IN", {
-                                    day: "numeric",
-                                    month: "short",
-                                    year: "numeric",
-                                  })}`}
+                                : subscription.cancel_at_period_end
+                                  ? `Access until ${new Date(
+                                      subscription.expires_at,
+                                    ).toLocaleDateString("en-IN", {
+                                      day: "numeric",
+                                      month: "short",
+                                      year: "numeric",
+                                    })}`
+                                  : `Renews ${new Date(
+                                      subscription.expires_at,
+                                    ).toLocaleDateString("en-IN", {
+                                      day: "numeric",
+                                      month: "short",
+                                      year: "numeric",
+                                    })}`}
                             </div>
 
                             <Button
@@ -510,7 +698,9 @@ export default function PricingPage() {
                               className="w-full"
                               disabled
                             >
-                              Already subscribed
+                              {subscription.plans?.name === plan.name
+                                ? "Already subscribed"
+                                : "Current access active"}
                             </Button>
                           </div>
                         ) : (
@@ -526,8 +716,12 @@ export default function PricingPage() {
                             {!razorpayLoaded
                               ? "Loading payment..."
                               : user
-                                ? "Subscribe"
-                                : "Sign up & subscribe"}
+                                ? plan.billing_type === "one_time"
+                                  ? `Buy for ₹${price}`
+                                  : "Subscribe"
+                                : plan.billing_type === "one_time"
+                                  ? "Sign up & buy"
+                                  : "Sign up & subscribe"}
                           </Button>
                         )
                       ) : (
