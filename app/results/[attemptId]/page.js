@@ -386,22 +386,68 @@ export default function ResultsPage() {
               >
                 <CardHeader className="pb-2">
                   <div className="text-sm">
-                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                      <span className="font-semibold">Q{q.seq}.</span>
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0 flex-1">
+                        {/* Question number */}
+                        <div className="font-semibold text-sm">Q{q.seq}</div>
 
-                      <span className="text-[11px] text-muted-foreground font-mono break-all">
-                        {q.question_code}
-                      </span>
-                    </div>
+                        {/* Question metadata */}
+                        <div className="mt-2 space-y-2">
+                          {q.question_code && (
+                            <div className="min-w-0">
+                              <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                Question Code
+                              </div>
+                              <div className="text-xs font-mono text-muted-foreground break-all mt-0.5">
+                                {q.question_code}
+                              </div>
+                            </div>
+                          )}
 
-                    {(q.unit_name || q.topic_name || q.subtopic_name) && (
-                      <div className="text-xs text-muted-foreground mt-1">
-                        {[q.unit_name, q.topic_name, q.subtopic_name]
-                          .filter(Boolean)
-                          .join(" • ")}
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-6 gap-y-2">
+                            {q.unit_name && (
+                              <div>
+                                <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                  Unit
+                                </div>
+                                <div className="text-xs text-foreground mt-0.5">
+                                  {q.unit_name}
+                                </div>
+                              </div>
+                            )}
+
+                            {q.topic_name && (
+                              <div>
+                                <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                  Topic
+                                </div>
+                                <div className="text-xs text-foreground mt-0.5">
+                                  {q.topic_name}
+                                </div>
+                              </div>
+                            )}
+
+                            {q.subtopic_name && (
+                              <div>
+                                <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                  Subtopic
+                                </div>
+                                <div className="text-xs text-foreground mt-0.5">
+                                  {q.subtopic_name}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                    )}
 
+                      {/* Question actions */}
+                      <div className="flex items-center gap-1 shrink-0 pt-0.5">
+                        {/* Keep your existing collapse/minus button here */}
+
+                        {/* Keep your existing bookmark button here */}
+                      </div>
+                    </div>
                     <div className="flex items-center gap-2">
                       {isDropped && (
                         <Badge variant="outline">Dropped · auto-correct</Badge>
