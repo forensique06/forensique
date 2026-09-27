@@ -16,7 +16,17 @@ import {
   MinusCircle,
   ArrowLeft,
   Bookmark,
+  Flag,
 } from "lucide-react";
+
+const CONTENT_REVIEW_FORM_URL =
+  "https://docs.google.com/forms/d/e/1FAIpQLScNZ-dyAjFQAiz1uLURqLPBSZqpgcWqByk4-U_nSF9O3d1-Sg/viewform";
+
+const CONTENT_REVIEW_FORM_FIELDS = {
+  questionCode: "entry.93958644",
+  reviewerName: "entry.1008070288",
+  reviewerEmail: "entry.1112622540",
+};
 
 export default function ResultsPage() {
   const supabase = getSupabaseBrowser();
@@ -29,6 +39,7 @@ export default function ResultsPage() {
   const [items, setItems] = useState([]); // enriched question + response + answer
   const [filter, setFilter] = useState("all"); // 'all' | 'incorrect' | 'unattempted' | 'correct'
   const [bookmarks, setBookmarks] = useState({});
+  const [reviewer, setReviewer] = useState({ name: "", email: "" });
 
   useEffect(() => {
     (async () => {
@@ -76,6 +87,7 @@ export default function ResultsPage() {
           { data: units },
           { data: topics },
           { data: subtopics },
+          { data: profile },
         ] = await Promise.all([
           supabase
             .from("question_options")
@@ -106,6 +118,11 @@ export default function ResultsPage() {
           supabase.from("units").select("id, name"),
           supabase.from("topics").select("id, name"),
           supabase.from("subtopics").select("id, name"),
+          supabase
+            .from("profiles")
+            .select("full_name, email")
+            .eq("id", user.id)
+            .maybeSingle(),
         ]);
 
         const optionsByQ = {};
@@ -130,6 +147,15 @@ export default function ResultsPage() {
         const bm = {};
         (bms || []).forEach((b) => (bm[b.question_id] = true));
         setBookmarks(bm);
+
+        setReviewer({
+          name:
+            profile?.full_name?.trim() ||
+            user.user_metadata?.full_name?.trim() ||
+            user.email?.split("@")[0] ||
+            "",
+          email: profile?.email || user.email || "",
+        });
 
         const enriched = tqRows.map((r) => ({
           seq: r.sequence_number,
@@ -183,6 +209,29 @@ export default function ResultsPage() {
         .insert({ user_id: user.id, question_id: questionId });
       setBookmarks((prev) => ({ ...prev, [questionId]: true }));
     }
+  }
+
+  function getContentReviewFormUrl(question) {
+    const url = new URL(CONTENT_REVIEW_FORM_URL);
+
+    url.searchParams.set("usp", "pp_url");
+
+    url.searchParams.set(
+      CONTENT_REVIEW_FORM_FIELDS.questionCode,
+      question.question_code || "",
+    );
+
+    url.searchParams.set(
+      CONTENT_REVIEW_FORM_FIELDS.reviewerName,
+      reviewer.name || "",
+    );
+
+    url.searchParams.set(
+      CONTENT_REVIEW_FORM_FIELDS.reviewerEmail,
+      reviewer.email || "",
+    );
+
+    return url.toString();
   }
 
   const filtered = useMemo(() => {
@@ -336,16 +385,23 @@ export default function ResultsPage() {
                 }
               >
                 <CardHeader className="pb-2">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="text-sm">
+                  <div className="text-sm">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                       <span className="font-semibold">Q{q.seq}.</span>
-                      {q.unit_name && (
-                        <span className="text-xs text-muted-foreground ml-2">
-                          {q.unit_name}
-                          {q.topic_name ? ` • ${q.topic_name}` : ""}
-                        </span>
-                      )}
+
+                      <span className="text-[11px] text-muted-foreground font-mono break-all">
+                        {q.question_code}
+                      </span>
                     </div>
+
+                    {(q.unit_name || q.topic_name || q.subtopic_name) && (
+                      <div className="text-xs text-muted-foreground mt-1">
+                        {[q.unit_name, q.topic_name, q.subtopic_name]
+                          .filter(Boolean)
+                          .join(" • ")}
+                      </div>
+                    )}
+
                     <div className="flex items-center gap-2">
                       {isDropped && (
                         <Badge variant="outline">Dropped · auto-correct</Badge>
@@ -477,6 +533,24 @@ export default function ResultsPage() {
                       <div className="whitespace-pre-line">{q.explanation}</div>
                     </div>
                   )}
+
+                  <div className="border-t pt-2 flex justify-end">
+                    <Button
+                      asChild
+                      variant="ghost"
+                      size="sm"
+                      className="text-muted-foreground"
+                    >
+                      <a
+                        href={getContentReviewFormUrl(q)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <Flag className="h-4 w-4" />
+                        Report Content Issue
+                      </a>
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             );
