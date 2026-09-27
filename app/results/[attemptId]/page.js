@@ -386,94 +386,83 @@ export default function ResultsPage() {
               >
                 <CardHeader className="pb-2">
                   <div className="text-sm">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="min-w-0 flex-1">
-                        {/* Question number */}
-                        <div className="font-semibold text-sm">Q{q.seq}</div>
+                    <div className="min-w-0">
+                      {/* Question number */}
+                      <div className="font-semibold text-sm">Q{q.seq}</div>
 
-                        {/* Question metadata */}
-                        <div className="mt-2 space-y-2">
-                          {q.question_code && (
-                            <div className="min-w-0">
+                      {/* Question metadata */}
+                      <div className="mt-2 space-y-2">
+                        {q.question_code && (
+                          <div className="min-w-0">
+                            <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                              Question Code
+                            </div>
+
+                            <div className="text-xs font-mono text-muted-foreground break-all mt-0.5">
+                              {q.question_code}
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-6 gap-y-2">
+                          {q.unit_name && (
+                            <div>
                               <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                                Question Code
+                                Unit
                               </div>
-                              <div className="text-xs font-mono text-muted-foreground break-all mt-0.5">
-                                {q.question_code}
+
+                              <div className="text-xs text-foreground mt-0.5">
+                                {q.unit_name}
                               </div>
                             </div>
                           )}
 
-                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-6 gap-y-2">
-                            {q.unit_name && (
-                              <div>
-                                <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                                  Unit
-                                </div>
-                                <div className="text-xs text-foreground mt-0.5">
-                                  {q.unit_name}
-                                </div>
+                          {q.topic_name && (
+                            <div>
+                              <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                Topic
                               </div>
-                            )}
 
-                            {q.topic_name && (
-                              <div>
-                                <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                                  Topic
-                                </div>
-                                <div className="text-xs text-foreground mt-0.5">
-                                  {q.topic_name}
-                                </div>
+                              <div className="text-xs text-foreground mt-0.5">
+                                {q.topic_name}
                               </div>
-                            )}
+                            </div>
+                          )}
 
-                            {q.subtopic_name && (
-                              <div>
-                                <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                                  Subtopic
-                                </div>
-                                <div className="text-xs text-foreground mt-0.5">
-                                  {q.subtopic_name}
-                                </div>
+                          {q.subtopic_name && (
+                            <div>
+                              <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                Subtopic
                               </div>
-                            )}
-                          </div>
+
+                              <div className="text-xs text-foreground mt-0.5">
+                                {q.subtopic_name}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </div>
-
-                      {/* Question actions */}
-                      <div className="flex items-center gap-1 shrink-0 pt-0.5">
-                        {/* Keep your existing collapse/minus button here */}
-
-                        {/* Keep your existing bookmark button here */}
-                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
+
+                    {/* Question status */}
+                    <div className="flex items-center gap-2 mt-2">
                       {isDropped && (
                         <Badge variant="outline">Dropped · auto-correct</Badge>
                       )}
+
                       {q.is_negative_framing && (
                         <Badge variant="destructive" className="text-xs">
                           Neg. framing
                         </Badge>
                       )}
+
                       {isCorrect === true && (
                         <CheckCircle2 className="h-5 w-5 text-emerald-600" />
                       )}
+
                       {isCorrect === false && (
                         <XCircle className="h-5 w-5 text-rose-600" />
                       )}
-                      {isCorrect === null && !selected && (
-                        <MinusCircle className="h-5 w-5 text-muted-foreground" />
-                      )}
-                      <button
-                        onClick={() => toggleBookmark(q.id)}
-                        title="Bookmark"
-                      >
-                        <Bookmark
-                          className={`h-4 w-4 ${bookmarks[q.id] ? "fill-primary text-primary" : "text-muted-foreground"}`}
-                        />
-                      </button>
                     </div>
                   </div>
                 </CardHeader>
@@ -580,7 +569,30 @@ export default function ResultsPage() {
                     </div>
                   )}
 
-                  <div className="border-t pt-2 flex justify-end">
+                  <div className="border-t pt-2 flex items-center justify-between">
+                    {/* Question actions */}
+                    <div className="flex items-center gap-1">
+                      {isCorrect === null && !selected && (
+                        <MinusCircle className="h-5 w-5 text-muted-foreground" />
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => toggleBookmark(q.id)}
+                        title="Bookmark"
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-md hover:bg-muted"
+                      >
+                        <Bookmark
+                          className={`h-4 w-4 ${
+                            bookmarks[q.id]
+                              ? "fill-primary text-primary"
+                              : "text-muted-foreground"
+                          }`}
+                        />
+                      </button>
+                    </div>
+
+                    {/* Content review */}
                     <Button
                       asChild
                       variant="ghost"
